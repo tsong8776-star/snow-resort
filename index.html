@@ -208,6 +208,18 @@ body.is-touch #hint { display: none; }
 #splat.show { animation: splat 1.6s ease-out; }
 @keyframes splat { 0% { opacity: 1; transform: scale(0.9); } 60% { opacity: 0.85; } 100% { opacity: 0; transform: scale(1.05); } }
 #boostBtn { right: calc(110px + env(safe-area-inset-right, 0px)); bottom: calc(110px + env(safe-area-inset-bottom, 0px)); width: 62px; height: 62px; border-radius: 50%; border: 0; background: rgba(255,197,61,0.92); color: var(--ink); font-weight: 900; font-size: 12px; box-shadow: 0 4px 14px rgba(20,30,50,0.25); }
+#sbGauge { position: absolute; right: calc(12px + env(safe-area-inset-right, 0px)); bottom: calc(96px + env(safe-area-inset-bottom, 0px)); width: 168px; padding: 7px 10px; display: grid; gap: 4px; pointer-events: auto; color: #fff; border-radius: 14px; text-align: left; }
+#sbGauge .gl { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; }
+#sbGauge .gl b { font-family: var(--font-display); font-weight: 400; font-size: 15px; }
+#sbGauge .gb { height: 9px; border-radius: 99px; background: rgba(255,255,255,0.25); overflow: hidden; }
+#sbFill { display: block; height: 100%; width: 100%; border-radius: 99px; background: linear-gradient(90deg, #bfe3ff, #ffffff); transition: width 0.1s linear; }
+#sbGauge.max #sbFill { background: linear-gradient(90deg, #ffc53d, #ff7a1a); }
+#sbGauge.max { box-shadow: 0 0 0 2px #ffc53d, 0 6px 22px rgba(255,197,61,0.45); }
+#sbGauge .gh { font-size: 11px; opacity: 0.85; }
+#sbGauge.low .gh { color: #ffd0d0; }
+#burstBtn { right: calc(110px + env(safe-area-inset-right, 0px)); bottom: calc(200px + env(safe-area-inset-bottom, 0px)); width: 62px; height: 62px; border-radius: 50%; border: 0; background: rgba(255,122,26,0.92); color: #fff; font-weight: 900; font-size: 12px; box-shadow: 0 4px 14px rgba(20,30,50,0.25); }
+body.is-touch #sbGauge { bottom: auto; top: calc(236px + env(safe-area-inset-top, 0px)); width: 140px; }
+body.is-touch #sbGauge .gh { display: none; }
 #throwBtn { right: calc(28px + env(safe-area-inset-right, 0px)); bottom: calc(200px + env(safe-area-inset-bottom, 0px)); width: 62px; height: 62px; border-radius: 50%; border: 0; background: rgba(255,255,255,0.9); color: var(--ink); font-weight: 900; font-size: 12px; box-shadow: 0 4px 14px rgba(20,30,50,0.25); }
 .morebtn { width: 100%; padding: 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.5); background: transparent; color: #fff; font-size: 12.5px; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { #splat.show { animation-duration: 0.3s; } }
@@ -279,6 +291,8 @@ body.is-touch #hint { display: none; }
   <div id="catchCard" class="glass" hidden><span id="catchTag"></span><canvas id="catchCanvas" width="360" height="180"></canvas><b id="catchSize"></b></div>
   <div id="stick" class="touch" hidden><div id="knob"></div></div>
   <button id="throwBtn" class="touch" type="button" hidden>❄ 던지기</button>
+  <button id="burstBtn" class="touch" type="button" hidden>💥 한방</button>
+  <button id="sbGauge" type="button" class="glass" title="눈덩이를 모아서 한 번에 던지기 (V)"><span class="gl"><span>❄ 눈덩이</span><b id="sbCount">30</b></span><span class="gb"><span id="sbFill"></span></span><span class="gh" id="sbHint">💥 V · 한 번에 던지기</span></button>
   <button id="boostBtn" class="touch" type="button" hidden>⚡ 부스트</button>
   <button id="jumpBtn" class="touch" type="button" hidden>점프</button>
 </div>
@@ -1854,10 +1868,15 @@ function reelIn() {
   if (myAv) setBubble(myAv, '🐟 ' + size + 'cm!', 3000);
   sendPresence(performance.now(), true); renderRecords();
 }
+function holdNote() {
+  if (performance.now() - (me.holdNoteAt || 0) < 2500) return;
+  me.holdNoteAt = performance.now(); notice('🏁 출발 대기 중이에요. 출발 신호를 기다려요!');
+}
 function useAction() {
   if (me.fishing && me.state === 'sit') { reelIn(); return true; }
   { const hi = nearHole(); if (hi >= 0) { startFishing(hi); return true; } }
   if (me.raceHold && me.rc && !me.rc.t0 && me.rc.hid === myId()) { startRaceNow(); return true; }
+  if (me.raceHold) { holdNote(); return true; }
   if (nearNpc()) { interact(); return true; }
   if (me.state === 'sit' && me.stump >= 0) { if (me.item !== 2 && me.item !== 4) { me.item = 2; me.itemT = 6; notice('🔥 마시멜로를 굽는 중…'); } return true; }
   const st = nearStump(); if (st >= 0) { sitStump(st); return true; }
@@ -2027,8 +2046,9 @@ function drawMinimap() {
 
 /* ================= chat ================= */
 /* ================= notices ================= */
-const NOTICE_VER = '2026-10-31-g';
+const NOTICE_VER = '2026-10-31-h';
 const NOTICES = [
+  { date: '10월 31일', title: '💥 눈덩이 게이지 · 몰아 던지기', items: ['오른쪽 아래 ❄ 게이지에 눈덩이가 최대 30개까지 모여요.', 'V 키(또는 게이지/💥 한방 버튼)를 누르면 모아 둔 눈덩이를 부채꼴로 한 번에 던져요.', 'F를 누르고 있으면 지금처럼 한 발씩 연사해요.', '레이스 출발 대기 중에는 움직이거나 앉을 수 없어요.'] },
   { date: '10월 31일', title: '❄ 눈싸움 연사 모드', items: ['F를 누르고 있으면(휴대폰은 ❄ 버튼 누르고 있기) 눈덩이가 연속으로 날아가요.', '눈덩이 주머니는 30발이에요. 안 던지면 금방 다시 차요.', '이제 한 번 맞을 때 8%씩 쌓여서 13번쯤 맞아야 눈사람이 돼요.'] },
   { date: '10월 31일', title: '🚩 코스 이탈 패널티', items: ['기록을 잴 때(레이스 포함) 약 20m마다 체크포인트가 있어요. 코스 안으로 지나가지 않으면 +3초!', '코스 밖에 있는 동안 빨간 경고가 뜨고, 밖에 있던 시간만큼 기록이 늘어나요.', '코스 밖에 4초 넘게 있으면 실격이에요. 골인 아치도 코스 안으로 통과해야 인정돼요.'] },
   { date: '10월 31일', title: '🏁 레이스 참가가 쉬워졌어요 · 🐟 진짜 빙어', items: ['누가 레이스를 열면 화면 아래 주황색 🏁 참가하기 버튼이 떠요. 한 번 누르면 바로 출발선으로!', '레이스 대기는 90초까지 기다려요. 출발선에서 서로 겹치지 않게 줄을 서요.', '빙어를 낚으면 빙어 카드가 뜨고, 진짜 빙어 모양으로 쌓여요.', '모두 같은 버전이어야 레이스가 잘 맞아요. 화면이 예전 같으면 새로고침(Ctrl+Shift+R) 해 주세요.'] },
@@ -2178,12 +2198,12 @@ function syncPeers(peers) {
     seen.add(p.peer);
     const name = cleanName(pr.n) || '스키어', color = cleanColor(pr.c), sp = clamp(pr.a | 0, 0, SPECIES.length - 1);
     let a = avatars.get(p.peer), keep = null;
-    if (a && (a.name !== name || a.color !== color || a.sp !== sp)) { keep = { chatI: a.chatI, finI: a.finI, waveI: a.waveI, sbI: a.sbI, hbI: a.hbI, lgI: a.lgI }; scene.remove(a.av.root); disposeGroup(a.av.root); avatars.delete(p.peer); a = null; }
+    if (a && (a.name !== name || a.color !== color || a.sp !== sp)) { keep = { chatI: a.chatI, finI: a.finI, waveI: a.waveI, sbI: a.sbI, hbI: a.hbI, lgI: a.lgI, buI: a.buI }; scene.remove(a.av.root); disposeGroup(a.av.root); avatars.delete(p.peer); a = null; }
     const isNew = !a;
     if (!a) {
       const av = makeAnimal(sp, color); av.tag = makeTag(name, color); av.tag.position.y = 2.8; av.root.add(av.tag);
       a = { av, name, color, sp, pos: new V3().fromArray(pr.p), tpos: new V3().fromArray(pr.p), h: 0, th: 0, st: 0, ch: -1, se: 0, steer: 0, spd: 0, co: '', best: {} };
-      if (keep) { a.chatI = keep.chatI; a.finI = keep.finI; a.waveI = keep.waveI; a.sbI = keep.sbI; a.hbI = keep.hbI; a.lgI = keep.lgI; }
+      if (keep) { a.chatI = keep.chatI; a.finI = keep.finI; a.waveI = keep.waveI; a.sbI = keep.sbI; a.hbI = keep.hbI; a.lgI = keep.lgI; a.buI = keep.buI; }
       avatars.set(p.peer, a);
       if (!keep) { notice(name + (firstSync ? '님이 스키장에 있어요' : '님이 들어왔어요')); if (!firstSync) addChatLine('', '', name + '님이 들어왔어요', true); }
     }
@@ -2210,6 +2230,15 @@ function syncPeers(peers) {
     }
     { const fc = clamp(pr.fc | 0, 0, 1e5); if (!isNew && fc > (a.fc || 0) && a.st === 5 && inPond(a.pos.x, a.pos.z)) addPileFish(p.peer, a.pos.x, a.pos.z, a.h, fc); a.fc0 = a.fc; }
     a.lt = clamp(pr.lt | 0, 0, 1e6); a.fc = clamp(pr.fc | 0, 0, 1e5); a.fb = clamp(+pr.fb || 0, 0, 40);
+    const bu = pr.bu;
+    if (bu && typeof bu === 'object' && typeof bu.i === 'number') {
+      if (!isNew && a.buI !== bu.i && vec3ok(bu.o) && vec3ok(bu.v)) {
+        const n = clamp(bu.n | 0, 1, 30), o = new V3().fromArray(bu.o);
+        for (const bv of burstVelocities(new V3().fromArray(bu.v), n, bu.s | 0)) spawnBall(o, bv, p.peer);
+        a.av.throwT = 0.5;
+      }
+      a.buI = bu.i;
+    }
     const sb = pr.sb;
     if (sb && typeof sb === 'object' && typeof sb.i === 'number') {
       if (!isNew && a.sbI !== sb.i && vec3ok(sb.o) && vec3ok(sb.v)) { spawnBall(new V3().fromArray(sb.o), new V3().fromArray(sb.v), p.peer); a.av.throwT = 0.35; }
@@ -2250,7 +2279,7 @@ function sendPresence(now, force) {
     s: me.air ? 1 : STATE_CODE[me.state], st: r2(me.steer), v: r2(Math.hypot(me.vx, me.vz)),
     ch: me.state === 'queue' || me.state === 'lift' ? me.chair : -1, se: me.seat,
     co: me.run ? me.run.c.id : '', b: me.best, f: me.fin, m: me.chat, w: me.waveSeq || 0,
-    sb: me.sb, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, it: me.item || 0, fc: me.fishCount || 0, fb: me.fishBest || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0,
+    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, it: me.item || 0, fc: me.fishCount || 0, fb: me.fishBest || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0,
   };
   const key = JSON.stringify(pr);
   if (key === lastSent) return;
@@ -2346,6 +2375,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyQ') toggleGear();
   if (e.code === 'KeyX') toggleSit();
   if (e.code === 'KeyG') wave();
+  if (e.code === 'KeyV') burstThrow();
   if (e.code === 'KeyF' && me.indoor) throwLog();
   if (e.code === 'KeyT') raceMenu();
   if (e.code === 'KeyN') setNight(!night.on);
@@ -2401,6 +2431,7 @@ $('#soundBtn').addEventListener('click', () => {
 });
 $('#prompt').addEventListener('click', useAction);
 function toggleSit() {
+  if (me.raceHold) { holdNote(); return; }
   if (me.state === 'sit') { me.state = 'ski'; me.stump = -1; return; }
   const st = nearStump(); if (st >= 0) { sitStump(st); return; }
   if (me.state !== 'ski' || me.air || Math.hypot(me.vx, me.vz) > 2) { notice('멈춘 상태에서 앉을 수 있어요'); return; }
@@ -2454,7 +2485,7 @@ function enter() {
   playing = true;
   rebuildMine(); updateGearChip();
   $('#start').hidden = true; $('#hud').hidden = false;
-  if (isTouch) ['#stick', '#jumpBtn', '#throwBtn', '#boostBtn'].forEach((s) => { $(s).hidden = false; });
+  if (isTouch) ['#stick', '#jumpBtn', '#throwBtn', '#boostBtn', '#burstBtn'].forEach((s) => { $(s).hidden = false; });
   setTimeout(() => { $('#hint').style.opacity = '0'; setTimeout(() => { $('#hint').hidden = true; }, 900); }, 12000);
   me.x = (Math.random() - 0.5) * 20; me.z = 50; me.heading = 0;
   renderPlayers(); renderRecords();
@@ -2557,6 +2588,35 @@ let sbCool = 0;
 function spawnBall(o, v, owner) {
   const m = new THREE.Mesh(ballGeo, ballMat); m.position.copy(o); m.castShadow = true; scene.add(m);
   balls.push({ m, v: v.clone(), owner, life: 4 });
+}
+function burstVelocities(v, n, seed) {
+  // fan the balls left-right around the aim, same pattern on every screen
+  const rr = mulberry32(seed), out = [];
+  for (let k = 0; k < n; k++) {
+    const a = (n > 1 ? (k / (n - 1) - 0.5) : 0) * 0.7 + (rr() - 0.5) * 0.06;
+    const cs = Math.cos(a), sn = Math.sin(a), sc = 0.9 + rr() * 0.2;
+    out.push(new V3((v.x * cs - v.z * sn) * sc, v.y + (rr() - 0.5) * 1.6, (v.x * sn + v.z * cs) * sc));
+  }
+  return out;
+}
+function burstThrow() {
+  if (!playing || me.indoor) return;
+  if (me.sbAmmo === undefined) me.sbAmmo = 30;
+  const n = Math.floor(me.sbAmmo);
+  if (!(me.state === 'ski' || me.state === 'sit') || me.raceHold || me.snowmanT > 0) { notice('지금은 눈덩이를 던질 수 없어요'); return; }
+  if (n < 5) { notice('❄ 눈덩이가 5개 이상 모여야 한 번에 던질 수 있어요'); return; }
+  if (me.state === 'sit') me.state = 'ski';
+  const yaw = me.heading + cam.yawOff, fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+  const o = new V3(me.x + fx * 0.7, me.y + 1.8, me.z + fz * 0.7);
+  const v = new V3(fx * 22 + me.vx, 3.2, fz * 22 + me.vz);
+  const seed = (Math.random() * 1e9) | 0;
+  for (const bv of burstVelocities(v, n, seed)) spawnBall(o, bv, 'me');
+  me.sbAmmo = 0; me.sbIdle = -0.6; sbCool = 0.4;
+  me.buSeq = (me.buSeq || 0) + 1;
+  me.bu = { i: me.buSeq, o: [r2(o.x), r2(o.y), r2(o.z)], v: [r2(v.x), r2(v.y), r2(v.z)], n, s: seed };
+  if (myAv) myAv.throwT = 0.5;
+  sfx.whoosh(); tone([300, 200], 0.15, 0.3, 'sawtooth'); centerMsg('💥 ×' + n, '눈덩이 폭탄!');
+  sendPresence(performance.now(), true);
 }
 function throwBall() {
   if (!playing || sbCool > 0) return;
@@ -2668,6 +2728,14 @@ function updateBalls(dt) {
   if (me.sbIdle > 0.5 && me.sbAmmo < 30) { me.sbAmmo = Math.min(30, me.sbAmmo + dt * 10); if (me.sbAmmo >= 5) me.reloadNote = false; }
   // hold to keep throwing
   if (playing && (keys.KeyF || keys._throwHold) && !me.indoor) throwBall();
+  if (playing) {
+    const am = Math.max(0, me.sbAmmo), g = $('#sbGauge');
+    $('#sbFill').style.width = (am / 30 * 100).toFixed(1) + '%';
+    $('#sbCount').textContent = am >= 29.5 ? 'MAX' : Math.floor(am) + '/30';
+    g.classList.toggle('max', am >= 29.5); g.classList.toggle('low', am < 5);
+    if (!isTouch) $('#sbHint').textContent = am < 5 ? '눈덩이를 모으는 중…' : '💥 V · 한 번에 ' + Math.floor(am) + '개 던지기';
+    g.hidden = me.indoor || !$('#more').hidden;
+  }
   for (let i = balls.length - 1; i >= 0; i--) {
     const b = balls[i], p = b.m.position;
     b.v.y -= 9.8 * dt; p.addScaledVector(b.v, dt); b.life -= dt;
@@ -2686,6 +2754,8 @@ function updateBalls(dt) {
   }
 }
 $('#actThrow').addEventListener('click', () => { if (me.indoor) throwLog(); else throwBall(); });
+$('#sbGauge').addEventListener('click', burstThrow);
+$('#burstBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); burstThrow(); });
 $('#throwBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); if (me.indoor) { throwLog(); return; } keys._throwHold = true; try { $('#throwBtn').setPointerCapture(e.pointerId); } catch (_) {} });
 for (const ev of ['pointerup', 'pointercancel']) $('#throwBtn').addEventListener(ev, () => { keys._throwHold = false; });
 const bb = $('#boostBtn');
@@ -2801,9 +2871,9 @@ function updateRace() {
     if (me.rc.hid !== myId()) {
       const host = avatars.get(me.rc.hid);
       if (host && host.rc && host.rc.id === me.rc.id) { if (host.rc.t0 && host.rc.t0 !== me.rc.t0) me.rc.t0 = host.rc.t0; }
-      else if (!me.rc.t0 && now - me.rc.c0 > 4000) { me.rc.hid = myId(); notice('🏁 방장이 나가서 내가 출발 신호를 맡았어요'); }
+      else if (!me.rc.t0 && now - me.rc.c0 > 4000) { me.rc.hid = myId(); me.rc.c0 = now; notice('🏁 방장이 나가서 내가 출발 신호를 맡았어요'); }
     } else if (!me.rc.t0 && now - me.rc.c0 > 90000) startRaceNow();
-    { const sp1 = gridSpot(c, me.rc.id); me.x += (sp1.x - me.x) * 0.2; me.z += (sp1.z - me.z) * 0.2; me.y = H(me.x, me.z); }
+    { const sp1 = gridSpot(c, me.rc.id), gi = Math.min(c.s.length - 1, 2); me.x = sp1.x; me.z = sp1.z; me.y = H(me.x, me.z); me.vx = me.vz = 0; me.air = false; me.heading = Math.atan2(-c.dir[gi][0], -c.dir[gi][1]); if (me.state !== 'ski') me.state = 'ski'; me.stump = -1; me.seatY = null; }
     if (!me.rc.t0) {
       const w = Math.ceil(Math.max(0, 90000 - (now - me.rc.c0)) / 1000);
       if (race.lastCount !== 'wait' + raceParticipants().length) { race.lastCount = 'wait' + raceParticipants().length; centerMsg('🏁 ' + raceParticipants().length + '명 대기 중', me.rc.hid === myId() ? '모두 모이면 출발! (' + w + '초 뒤 자동 출발)' : me.rc.h + '님이 출발시키면 다 같이 출발해요'); }
@@ -2930,6 +3000,7 @@ function frame(now) {
     c.barA += (want - c.barA) * Math.min(1, dt * 3); c.bar.rotation.x = c.barA;
   });
   if (playing) {
+    if (me.raceHold && (keys.KeyW || keys.KeyA || keys.KeyS || keys.KeyD || keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight || keys.Space || Math.hypot(stick.x, stick.y) > 0.4)) holdNote();
     if (me.state === 'sit') {
       const moving = keys.KeyW || keys.KeyS || keys.KeyA || keys.KeyD || keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight || keys.Space || Math.hypot(stick.x, stick.y) > 0.3;
       if (moving) { me.state = 'ski'; me.stump = -1; } else me.y = me.seatY != null ? me.seatY : H(me.x, me.z);
@@ -2972,7 +3043,7 @@ function frame(now) {
     if (wantBoost && (me.boosting ? me.boost > 0 : me.boost > 15)) { me.boosting = true; me.boost = Math.max(0, me.boost - 28 * dt); }
     else { me.boosting = false; me.boost = Math.min(100, me.boost + 14 * dt); }
     $('#boostTxt').textContent = me.boost < 99.5 || me.boosting ? ' · ⚡' + Math.round(me.boost) + '%' : '';
-    $('#snowTxt').textContent = (me.sbAmmo !== undefined && me.sbAmmo < 29.5 ? ' · ❄탄 ' + Math.floor(me.sbAmmo) : '') + me.snowmanT > 0 ? ' · ⛄ 눈사람!' : me.snow > 0 ? ' · ❄ ' + Math.round(me.snow) + '%' : '';
+    $('#snowTxt').textContent = me.snowmanT > 0 ? ' · ⛄ 눈사람!' : me.snow > 0 ? ' · ❄ ' + Math.round(me.snow) + '%' : '';
     if (fireGain) { const fd = Math.hypot(me.x - FIRE.x, me.z - FIRE.z), near = inCafe(me.x, me.z) ? clamp(1 - fd / 12, 0, 1) : 0; fireGain.gain.value = near * 0.16; if (near > 0.3 && Math.random() < dt * 5 * near) tone([1500 + Math.random() * 1800], 0.025 * near, 0.03, 'square'); }
     const deep = me.x > CAFE.x0 + 0.8 && me.x < CAFE.x1 - 0.8 && me.z > CAFE.z0 + 0.8 && me.z < CAFE.z1 - 0.8;
     if (!me.indoor && deep) doorTransition(true);
