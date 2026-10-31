@@ -2027,14 +2027,15 @@ function drawMinimap() {
 
 /* ================= chat ================= */
 /* ================= notices ================= */
-const NOTICE_VER = '2026-10-31-f';
+const NOTICE_VER = '2026-10-31-g';
 const NOTICES = [
+  { date: '10월 31일', title: '❄ 눈싸움 연사 모드', items: ['F를 누르고 있으면(휴대폰은 ❄ 버튼 누르고 있기) 눈덩이가 연속으로 날아가요.', '눈덩이 주머니는 30발이에요. 안 던지면 금방 다시 차요.', '이제 한 번 맞을 때 8%씩 쌓여서 13번쯤 맞아야 눈사람이 돼요.'] },
   { date: '10월 31일', title: '🚩 코스 이탈 패널티', items: ['기록을 잴 때(레이스 포함) 약 20m마다 체크포인트가 있어요. 코스 안으로 지나가지 않으면 +3초!', '코스 밖에 있는 동안 빨간 경고가 뜨고, 밖에 있던 시간만큼 기록이 늘어나요.', '코스 밖에 4초 넘게 있으면 실격이에요. 골인 아치도 코스 안으로 통과해야 인정돼요.'] },
   { date: '10월 31일', title: '🏁 레이스 참가가 쉬워졌어요 · 🐟 진짜 빙어', items: ['누가 레이스를 열면 화면 아래 주황색 🏁 참가하기 버튼이 떠요. 한 번 누르면 바로 출발선으로!', '레이스 대기는 90초까지 기다려요. 출발선에서 서로 겹치지 않게 줄을 서요.', '빙어를 낚으면 빙어 카드가 뜨고, 진짜 빙어 모양으로 쌓여요.', '모두 같은 버전이어야 레이스가 잘 맞아요. 화면이 예전 같으면 새로고침(Ctrl+Shift+R) 해 주세요.'] },
   { date: '10월 31일', title: '👥 참가자 탭 · 🌌 롱 코스 · 🐟 잡은 빙어 쌓기', items: ['오른쪽 위 👥 숫자를 누르면 접속한 사람과 지금 하는 일이 보여요. 📍 같이 가기로 친구 옆으로 이동해요.', '서쪽 능선 너머에 거의 일직선인 가장 긴 L 은하수 코스가 생겼어요. 코코나 부엉이에게 말 걸면 설상차로 데려다줘요.', '잡은 빙어가 의자 옆 얼음 위에 차곡차곡 쌓여요.', '레이스 중에는 눈덩이가 더 잘 맞아요. R 코스 기문은 주황색 한 가지예요.', '나무 사이에 끼면 자동으로 빠져나와요. 더 보기 → 🆘 버튼도 있어요.'] },
   { date: '10월 31일', title: '🎣 빙어 랭킹 · 📜 대화 기록 · 📢 공지사항', items: ['빙어 낚시터에 길이 순위가 생겼어요. 더 보기와 낚시터 입구 게시판에서 확인하세요.', '대화창 위 📜 대화 기록에서 이전 대화를 볼 수 있어요. 늦게 들어와도 최근 대화가 보여요.', '오른쪽 위 📢 버튼으로 공지사항을 다시 볼 수 있어요.'] },
   { date: '10월 31일', title: '🏁 레이스 전용 계곡 · 🔥 장작 넣기 · 🎣 빙어 낚시터', items: ['R 챔피언 코스가 동쪽 능선 너머 레이스 전용 계곡으로 옮겨졌어요.', '레이스를 연 사람이 “출발!”을 누르면 모두 같이 출발해요. 90초 뒤엔 자동 출발해요.', '카페 안에서 F(🪵 버튼)로 장작을 던져 모닥불을 키워 보세요.', '온천 서쪽 얼음 호수에서 빙어 낚시! 입질이 오면 E를 눌러요.', 'Shift 부스트가 더 빨라졌어요.'] },
-  { date: '이용 방법', title: '⛷ 눈꽃 스키장 즐기는 법', items: ['리프트 앞 코코에게 말을 걸어 정상에 올라가요.', 'A(초급)부터 D(최상급)까지 코스를 골라 기록에 도전해요.', 'F로 눈덩이를 던져요. 5번 맞으면 ⛄ 눈사람이 돼요.', '베이스 뒤 산장 카페와 ♨ 온천에서 쉬어 가요.'] },
+  { date: '이용 방법', title: '⛷ 눈꽃 스키장 즐기는 법', items: ['리프트 앞 코코에게 말을 걸어 정상에 올라가요.', 'A(초급)부터 D(최상급)까지 코스를 골라 기록에 도전해요.', 'F로 눈덩이를 던져요. 13번쯤 맞으면 ⛄ 눈사람이 돼요.', '베이스 뒤 산장 카페와 ♨ 온천에서 쉬어 가요.'] },
 ];
 function renderNotices() {
   const box = $('#noticeList'); box.textContent = '';
@@ -2216,7 +2217,7 @@ function syncPeers(peers) {
     }
     const hb = pr.hb;
     if (hb && typeof hb === 'object' && typeof hb.i === 'number') {
-      if (!isNew && a.hbI !== hb.i && hb.by === myId()) { me.sbHits = (me.sbHits || 0) + 1; sfx.hit(); notice('🎯 명중! ' + a.name + '님 ❄' + a.sn + '%'); }
+      if (!isNew && a.hbI !== hb.i && hb.by === myId()) { me.sbHits = (me.sbHits || 0) + 1; sfx.hit(); const tn = performance.now(); a.hitN = tn - (a.hitAt || 0) < 900 ? (a.hitN || 0) + 1 : 1; a.hitAt = tn; clearTimeout(a.hitTimer); const an = a; a.hitTimer = setTimeout(() => notice('🎯 명중! ' + an.name + '님' + (an.hitN > 1 ? ' ×' + an.hitN : '') + ' ❄' + an.sn + '%'), 350); if (false) notice('🎯 명중! ' + a.name + '님 ❄' + a.sn + '%'); }
       a.hbI = hb.i;
     }
     a.sh = clamp(pr.sh | 0, 0, 99999);
@@ -2345,7 +2346,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyQ') toggleGear();
   if (e.code === 'KeyX') toggleSit();
   if (e.code === 'KeyG') wave();
-  if (e.code === 'KeyF') { if (me.indoor) throwLog(); else throwBall(); }
+  if (e.code === 'KeyF' && me.indoor) throwLog();
   if (e.code === 'KeyT') raceMenu();
   if (e.code === 'KeyN') setNight(!night.on);
   if (e.code === 'KeyR') goHome();
@@ -2559,9 +2560,11 @@ function spawnBall(o, v, owner) {
 }
 function throwBall() {
   if (!playing || sbCool > 0) return;
-  if (!(me.state === 'ski' || me.state === 'sit') || me.raceHold || me.snowmanT > 0) { notice(me.snowmanT > 0 ? '눈사람은 던질 수 없어요 ⛄' : '지금은 눈덩이를 던질 수 없어요'); return; }
+  if (me.sbAmmo === undefined) me.sbAmmo = 30;
+  if (me.sbAmmo < 1) { if (!me.reloadNote) { me.reloadNote = true; notice('❄ 눈덩이를 다시 뭉치는 중…'); } return; }
+  if (!(me.state === 'ski' || me.state === 'sit') || me.raceHold || me.snowmanT > 0) { if (performance.now() - (me.noThrowAt || 0) > 1500) { me.noThrowAt = performance.now(); notice(me.snowmanT > 0 ? '눈사람은 던질 수 없어요 ⛄' : '지금은 눈덩이를 던질 수 없어요'); }; return; }
   if (me.state === 'sit') me.state = 'ski';
-  sbCool = 0.6;
+  sbCool = 0.12; me.sbAmmo -= 1; me.sbIdle = 0;
   const yaw = me.heading + cam.yawOff, fx = -Math.sin(yaw), fz = -Math.cos(yaw);
   const o = new V3(me.x + fx * 0.7, me.y + 1.8, me.z + fz * 0.7);
   let v = new V3(fx * 22 + me.vx, 3, fz * 22 + me.vz);
@@ -2580,6 +2583,8 @@ function throwBall() {
     const ax = tgt.pos.x + tvx * t, ay = tgt.pos.y + 1.1, az = tgt.pos.z + tvz * t;
     v = new V3((ax - o.x) / t, (ay - o.y + 4.9 * t * t) / t, (az - o.z) / t);
   }
+  // gatling spread: each ball wobbles a little
+  { const sp = 0.05, a = (Math.random() - 0.5) * 2 * sp, cs = Math.cos(a), sn = Math.sin(a), vx = v.x * cs - v.z * sn, vz = v.x * sn + v.z * cs; v.x = vx; v.z = vz; v.y += (Math.random() - 0.5) * 1.2; }
   me.sbSeq = (me.sbSeq || 0) + 1;
   me.sb = { i: me.sbSeq, o: [r2(o.x), r2(o.y), r2(o.z)], v: [r2(v.x), r2(v.y), r2(v.z)] };
   spawnBall(o, v, 'me'); if (myAv) myAv.throwT = 0.35; sfx.whoosh();
@@ -2592,10 +2597,14 @@ function gotHit(b) {
   me.vx *= racing ? 0.35 : 0.5; me.vz *= racing ? 0.35 : 0.5; me.slowT = racing ? 2.5 : 1.2;
   if (me.state === 'sit') { me.state = 'ski'; me.stump = -1; }
   me.snowIdle = 0;
-  if (me.snowmanT <= 0) me.snow = Math.min(100, me.snow + 20);
+  if (me.snowmanT <= 0) me.snow = Math.min(100, me.snow + 8);
   sfx.splat();
   if (me.snow >= 100 && me.snowmanT <= 0) { me.snowmanT = 4; centerMsg('⛄ 눈사람!', nm + '님의 눈덩이에 꽁꽁 · 4초 뒤에 풀려요'); }
-  else notice('퍽! ' + nm + '님의 눈덩이 · ❄' + Math.round(me.snow) + '%' + (racing ? ' · 속도가 느려졌어요' : ''));
+  else {
+    const tnow = performance.now(); me.hitN = tnow - (me.hitAt || 0) < 900 ? (me.hitN || 0) + 1 : 1; me.hitAt = tnow;
+    clearTimeout(me.hitTimer);
+    me.hitTimer = setTimeout(() => notice('퍽! ' + nm + '님의 눈덩이' + (me.hitN > 1 ? ' ×' + me.hitN : '') + ' · ❄' + Math.round(me.snow) + '%' + (racing ? ' · 속도가 느려졌어요' : '')), 350);
+  }
   const sp = $('#splat'); sp.classList.remove('show'); void sp.offsetWidth; sp.classList.add('show');
   sendPresence(performance.now(), true);
 }
@@ -2654,6 +2663,11 @@ function updateLogs(dt) {
 function updateBalls(dt) {
   updateLogs(dt);
   sbCool = Math.max(0, sbCool - dt);
+  if (me.sbAmmo === undefined) me.sbAmmo = 30;
+  me.sbIdle = (me.sbIdle || 0) + dt;
+  if (me.sbIdle > 0.5 && me.sbAmmo < 30) { me.sbAmmo = Math.min(30, me.sbAmmo + dt * 10); if (me.sbAmmo >= 5) me.reloadNote = false; }
+  // hold to keep throwing
+  if (playing && (keys.KeyF || keys._throwHold) && !me.indoor) throwBall();
   for (let i = balls.length - 1; i >= 0; i--) {
     const b = balls[i], p = b.m.position;
     b.v.y -= 9.8 * dt; p.addScaledVector(b.v, dt); b.life -= dt;
@@ -2672,7 +2686,8 @@ function updateBalls(dt) {
   }
 }
 $('#actThrow').addEventListener('click', () => { if (me.indoor) throwLog(); else throwBall(); });
-$('#throwBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); if (me.indoor) throwLog(); else throwBall(); });
+$('#throwBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); if (me.indoor) { throwLog(); return; } keys._throwHold = true; try { $('#throwBtn').setPointerCapture(e.pointerId); } catch (_) {} });
+for (const ev of ['pointerup', 'pointercancel']) $('#throwBtn').addEventListener(ev, () => { keys._throwHold = false; });
 const bb = $('#boostBtn');
 bb.addEventListener('pointerdown', (e) => { e.preventDefault(); keys._boost = true; try { bb.setPointerCapture(e.pointerId); } catch (_) {} });
 for (const ev of ['pointerup', 'pointercancel']) bb.addEventListener(ev, () => { keys._boost = false; });
@@ -2957,7 +2972,7 @@ function frame(now) {
     if (wantBoost && (me.boosting ? me.boost > 0 : me.boost > 15)) { me.boosting = true; me.boost = Math.max(0, me.boost - 28 * dt); }
     else { me.boosting = false; me.boost = Math.min(100, me.boost + 14 * dt); }
     $('#boostTxt').textContent = me.boost < 99.5 || me.boosting ? ' · ⚡' + Math.round(me.boost) + '%' : '';
-    $('#snowTxt').textContent = me.snowmanT > 0 ? ' · ⛄ 눈사람!' : me.snow > 0 ? ' · ❄ ' + Math.round(me.snow) + '%' : '';
+    $('#snowTxt').textContent = (me.sbAmmo !== undefined && me.sbAmmo < 29.5 ? ' · ❄탄 ' + Math.floor(me.sbAmmo) : '') + me.snowmanT > 0 ? ' · ⛄ 눈사람!' : me.snow > 0 ? ' · ❄ ' + Math.round(me.snow) + '%' : '';
     if (fireGain) { const fd = Math.hypot(me.x - FIRE.x, me.z - FIRE.z), near = inCafe(me.x, me.z) ? clamp(1 - fd / 12, 0, 1) : 0; fireGain.gain.value = near * 0.16; if (near > 0.3 && Math.random() < dt * 5 * near) tone([1500 + Math.random() * 1800], 0.025 * near, 0.03, 'square'); }
     const deep = me.x > CAFE.x0 + 0.8 && me.x < CAFE.x1 - 0.8 && me.z > CAFE.z0 + 0.8 && me.z < CAFE.z1 - 0.8;
     if (!me.indoor && deep) doorTransition(true);
