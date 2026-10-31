@@ -1131,9 +1131,11 @@ function makeSmelt(len) {
   const adipose = new THREE.Mesh(new THREE.ConeGeometry(L * 0.03, L * 0.07, 3), SMELT.fin); adipose.scale.set(0.3, 1, 1); adipose.position.set(0, L * 0.11, L * 0.28); g.add(adipose);
   return g;
 }
-function drawSmelt(g, w, h) {
+function fishScale(size) { return clamp(0.5 + ((size || 10) - 7) / 8 * 0.55, 0.45, 1.1); }
+function drawSmelt(g, w, h, k) {
   // a slender silver smelt with a blue-green back, pointing left
-  const cx = w * 0.48, cy = h * 0.52, L = w * 0.36, H2 = h * 0.17;
+  k = k || 1;
+  const cx = w * 0.46, cy = h * 0.52, L = w * 0.36 * k, H2 = h * 0.17 * (0.6 + 0.4 * k);
   g.save();
   g.fillStyle = 'rgba(207,224,232,0.85)';
   g.beginPath(); g.moveTo(cx + L * 0.92, cy); g.lineTo(cx + L * 1.28, cy - H2 * 1.1); g.lineTo(cx + L * 1.16, cy); g.lineTo(cx + L * 1.28, cy + H2 * 1.1); g.closePath(); g.fill();
@@ -1155,7 +1157,7 @@ function drawSmelt(g, w, h) {
 }
 function showCatch(size) {
   const card = $('#catchCard'), cv = $('#catchCanvas'), g = cv.getContext('2d');
-  g.clearRect(0, 0, cv.width, cv.height); drawSmelt(g, cv.width, cv.height);
+  g.clearRect(0, 0, cv.width, cv.height); drawSmelt(g, cv.width, cv.height, fishScale(size));
   $('#catchSize').textContent = size + 'cm';
   $('#catchTag').textContent = size >= 15 ? '👑 왕빙어!' : size >= 12 ? '튼실한 빙어' : '귀여운 빙어';
   card.hidden = false; card.classList.remove('pop'); void card.offsetWidth; card.classList.add('pop');
@@ -1607,6 +1609,7 @@ function poseAvatar(av, o) {
   if (av.tag) av.tag.position.y = isSnowman ? 3.95 : 2.8;
   if (isSnowman) av.skis.visible = av.poles.visible = av.board.visible = false;
   av.rod.visible = o.item === 5 || o.item === 6; av.fishM.visible = o.item === 6;
+  if (o.item === 6) av.fishM.scale.setScalar(fishScale(o.fish) * 1.3);
   av.mug.visible = o.item === 1 || o.item === 3; av.stickG.visible = o.item === 2 || o.item === 4;
   if (av.mug.visible) { av.cupMat.color.setHex(o.item === 3 ? 0x2f3e5c : 0xffffff); av.drinkMat.color.setHex(o.item === 3 ? 0x2a1608 : 0x6b3a1e); }
   if (o.item === 2) av.marsh.material.color.setRGB(1, 0.95 - 0.35 * (o.roast || 0), 0.86 - 0.6 * (o.roast || 0));
@@ -1844,7 +1847,7 @@ function updateFishing(dt) {
 }
 const fishPiles = new Map(); // owner -> meshes
 const pileFishGeo = new THREE.SphereGeometry(0.07, 10, 8), pileTailGeo = new THREE.ConeGeometry(0.05, 0.1, 6), pileMat = lam(0xcfd8e2);
-function addPileFish(owner, x, z, heading, n) {
+function addPileFish(owner, x, z, heading, n, size) {
   let list = fishPiles.get(owner); if (!list) { list = []; fishPiles.set(owner, list); }
   if (list.length >= 30) { scene.remove(list.shift()); }
   const k = list.length, col = k % 6, row = Math.floor(k / 6);
@@ -1852,7 +1855,7 @@ function addPileFish(owner, x, z, heading, n) {
   const g = new THREE.Group();
   const px = x + rx * (0.9 + row * 0.22) + fx * (col - 2.5) * 0.17, pz = z + rz * (0.9 + row * 0.22) + fz * (col - 2.5) * 0.17;
   g.position.set(px, 0.13, pz); g.rotation.y = heading + (Math.random() - 0.5) * 0.5;
-  const sm = makeSmelt(0.3); sm.rotation.z = Math.PI / 2; sm.position.y = 0.02; g.add(sm);
+  const sm = makeSmelt(0.34 * fishScale(size)); sm.rotation.z = Math.PI / 2; sm.position.y = 0.02; g.add(sm);
   scene.add(g); list.push(g);
   void n;
 }
@@ -1861,7 +1864,8 @@ function reelIn() {
   if (f.phase !== 'bite') { notice('아직 입질이 없어요. 조금만 기다려요'); return; }
   const size = Math.round((7 + Math.random() * 8 + (Math.random() < 0.08 ? 5 : 0)) * 10) / 10;
   me.fishCount = (me.fishCount || 0) + 1; if (size > (me.fishBest || 0)) { me.fishBest = size; store('ski.fish', String(size)); if (net.room && net.room.fish) net.room.fish(me.name, size); }
-  addPileFish('me', me.x, me.z, me.heading, me.fishCount + 1);
+  me.lastFish = size; me.fishSeq = (me.fishSeq || 0) + 1;
+  addPileFish('me', me.x, me.z, me.heading, me.fishCount + 1, size);
   me.item = 6; f.showT = 2.2; f.phase = 'wait'; f.biteAt = f.t + 3 + Math.random() * 6;
   showCatch(size);
   sfx.finish(); notice('🐟 빙어를 낚았어요! ' + size + 'cm' + (size >= 15 ? ' · 왕빙어!' : '') + ' (오늘 ' + me.fishCount + '마리)');
@@ -2228,7 +2232,8 @@ function syncPeers(peers) {
       if (!isNew && a.lgI !== lg.i && vec3ok(lg.o) && vec3ok(lg.v)) { spawnLog(new V3().fromArray(lg.o), new V3().fromArray(lg.v), p.peer); a.av.throwT = 0.35; }
       a.lgI = lg.i;
     }
-    { const fc = clamp(pr.fc | 0, 0, 1e5); if (!isNew && fc > (a.fc || 0) && a.st === 5 && inPond(a.pos.x, a.pos.z)) addPileFish(p.peer, a.pos.x, a.pos.z, a.h, fc); a.fc0 = a.fc; }
+    { const fc = clamp(pr.fc | 0, 0, 1e5); if (!isNew && fc > (a.fc || 0) && a.st === 5 && inPond(a.pos.x, a.pos.z)) addPileFish(p.peer, a.pos.x, a.pos.z, a.h, fc, +pr.fl || 10); a.fc0 = a.fc; }
+    a.fl = clamp(+pr.fl || 10, 3, 40);
     a.lt = clamp(pr.lt | 0, 0, 1e6); a.fc = clamp(pr.fc | 0, 0, 1e5); a.fb = clamp(+pr.fb || 0, 0, 40);
     const bu = pr.bu;
     if (bu && typeof bu === 'object' && typeof bu.i === 'number') {
@@ -2279,7 +2284,7 @@ function sendPresence(now, force) {
     s: me.air ? 1 : STATE_CODE[me.state], st: r2(me.steer), v: r2(Math.hypot(me.vx, me.vz)),
     ch: me.state === 'queue' || me.state === 'lift' ? me.chair : -1, se: me.seat,
     co: me.run ? me.run.c.id : '', b: me.best, f: me.fin, m: me.chat, w: me.waveSeq || 0,
-    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, it: me.item || 0, fc: me.fishCount || 0, fb: me.fishBest || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0,
+    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, it: me.item || 0, fc: me.fishCount || 0, fb: me.fishBest || 0, fl: me.lastFish || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0,
   };
   const key = JSON.stringify(pr);
   if (key === lastSent) return;
@@ -2359,7 +2364,7 @@ function updatePeers(dt, t) {
       if (a.pos.distanceTo(a.tpos) > 25) a.pos.copy(a.tpos); else a.pos.lerp(a.tpos, k);
       let d = a.th - a.h; d = Math.atan2(Math.sin(d), Math.cos(d)); a.h += d * k;
     }
-    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : 'ski', walk: inWalkZone(a.pos.x, a.pos.z), bath: a.bt >= 0, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
+    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : 'ski', walk: inWalkZone(a.pos.x, a.pos.z), bath: a.bt >= 0, fish: a.fl, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
   }
 }
 
@@ -2599,8 +2604,11 @@ function burstVelocities(v, n, seed) {
   }
   return out;
 }
+function noSnowZone(x, z) { return inCafe(x, z) || inPond(x, z); }
+function noSnowNote() { if (performance.now() - (me.noThrowAt || 0) > 1500) { me.noThrowAt = performance.now(); notice(inPond(me.x, me.z) ? '🎣 낚시터에서는 눈싸움을 할 수 없어요' : '☕ 여기서는 눈싸움을 할 수 없어요'); } }
 function burstThrow() {
-  if (!playing || me.indoor) return;
+  if (!playing) return;
+  if (me.indoor || noSnowZone(me.x, me.z)) { noSnowNote(); return; }
   if (me.sbAmmo === undefined) me.sbAmmo = 30;
   const n = Math.floor(me.sbAmmo);
   if (!(me.state === 'ski' || me.state === 'sit') || me.raceHold || me.snowmanT > 0) { notice('지금은 눈덩이를 던질 수 없어요'); return; }
@@ -2620,6 +2628,7 @@ function burstThrow() {
 }
 function throwBall() {
   if (!playing || sbCool > 0) return;
+  if (me.indoor || noSnowZone(me.x, me.z)) { noSnowNote(); return; }
   if (me.sbAmmo === undefined) me.sbAmmo = 30;
   if (me.sbAmmo < 1) { if (!me.reloadNote) { me.reloadNote = true; notice('❄ 눈덩이를 다시 뭉치는 중…'); } return; }
   if (!(me.state === 'ski' || me.state === 'sit') || me.raceHold || me.snowmanT > 0) { if (performance.now() - (me.noThrowAt || 0) > 1500) { me.noThrowAt = performance.now(); notice(me.snowmanT > 0 ? '눈사람은 던질 수 없어요 ⛄' : '지금은 눈덩이를 던질 수 없어요'); }; return; }
@@ -2632,7 +2641,7 @@ function throwBall() {
   const racingT = !!(me.run && me.run.race);
   let tgt = null, best = racingT ? 0.72 : 0.88;
   for (const [, a] of avatars) {
-    if (a.st === 3 || a.st === 4 || (a.sn || 0) >= 100) continue;
+    if (a.st === 3 || a.st === 4 || (a.sn || 0) >= 100 || noSnowZone(a.pos.x, a.pos.z)) continue;
     const dx = a.pos.x - me.x, dz = a.pos.z - me.z, d = Math.hypot(dx, dz);
     if (d < 2 || d > (racingT ? 60 : 42)) continue;
     const c = (dx * fx + dz * fz) / d; if (c > best) { best = c; tgt = a; }
@@ -2740,12 +2749,14 @@ function updateBalls(dt) {
     const b = balls[i], p = b.m.position;
     b.v.y -= 9.8 * dt; p.addScaledVector(b.v, dt); b.life -= dt;
     let hit = false;
-    if (b.owner !== 'me' && playing && me.state !== 'lift' && me.state !== 'queue') {
+    // balls vanish when they fly into the cafe or the fishing pond
+    if (noSnowZone(p.x, p.z)) { emitSpray(p.x, p.y, p.z, 0, 0, 6); scene.remove(b.m); balls.splice(i, 1); continue; }
+    if (b.owner !== 'me' && playing && me.state !== 'lift' && me.state !== 'queue' && !me.indoor && !noSnowZone(me.x, me.z)) {
       const dx = p.x - me.x, dy = p.y - (me.y + 1.1), dz = p.z - me.z;
       if (dx * dx + dy * dy + dz * dz < (me.run && me.run.race ? 2.6 : 1.21)) { hit = true; gotHit(b); }
     }
     if (!hit) for (const [id, a] of avatars) {
-      if (id === b.owner || a.st === 4) continue;
+      if (id === b.owner || a.st === 4 || noSnowZone(a.pos.x, a.pos.z)) continue;
       const dx = p.x - a.pos.x, dy = p.y - (a.pos.y + 1.1), dz = p.z - a.pos.z;
       if (dx * dx + dy * dy + dz * dz < 1.21) { hit = true; break; }
     }
@@ -3011,7 +3022,7 @@ function frame(now) {
     updateRun(dt);
     updateRace();
     if (night.light) night.light.position.set(me.x, me.y + 3.2, me.z);
-    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: inWalkZone(me.x, me.z), bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting });
+    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: inWalkZone(me.x, me.z), bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting, fish: me.lastFish });
     // prompt + guide
     const ptxt = promptText();
     const pr = $('#prompt');
