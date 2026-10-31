@@ -183,7 +183,7 @@ body.is-touch #hint { display: none; }
       <button type="button" id="soundBtn" aria-label="소리 끄기">🔊</button>
       <button type="button" id="mapBtn" aria-pressed="true" aria-label="지도 보기">🗺</button>
     </div>
-    <div id="miniCard" class="glass"><canvas id="mini" width="300" height="380"></canvas></div>
+    <div id="miniCard" class="glass"><canvas id="mini" width="300" height="430"></canvas></div>
   </div>
   <div id="hint" class="glass">A·D로 방향, W로 밀고, 화면을 끌어 둘러봐요 · 리프트 앞 코코에게 말을 걸어 보세요</div>
   <div id="feed"></div>
@@ -317,15 +317,15 @@ function nearestOnCourse(c, x, z, i0, i1) {
 
 /* ================= terrain ================= */
 const SUMMIT = 100, Z_FOOT = 5, Z_TOPEDGE = -252;
-const BOUNDS = { minX: -146, maxX: 146, minZ: -282, maxZ: 96 };
-const G = { minX: -220, maxX: 220, minZ: -340, maxZ: 130, step: 2 };
+const BOUNDS = { minX: -146, maxX: 146, minZ: -282, maxZ: 145 };
+const G = { minX: -220, maxX: 220, minZ: -340, maxZ: 180, step: 2 };
 G.nx = Math.round((G.maxX - G.minX) / G.step) + 1; G.nz = Math.round((G.maxZ - G.minZ) / G.step) + 1;
 G.h = new Float32Array(G.nx * G.nz); G.groom = new Float32Array(G.nx * G.nz); G.edge = new Int8Array(G.nx * G.nz).fill(-1);
 function rawH(x, z) {
   let h = SUMMIT * sstep(Z_FOOT, Z_TOPEDGE, z);
   const ax = Math.abs(x); if (ax > 140) h += Math.pow(ax - 140, 1.3) * 0.9;
   if (z < -272) h += Math.pow(-272 - z, 1.25) * 1.4;
-  if (z > 100) h += (z - 100) * 0.6;
+  if (z > 150) h += (z - 150) * 0.6;
   return h;
 }
 function undul(x, z) {
@@ -423,7 +423,7 @@ function buildTerrain() {
     pos.setY(k, G.h[k]);
     const x = G.minX + ix * G.step, z = G.minZ + iz * G.step;
     tmp.copy(cOff).lerp(cGroom, G.groom[k]);
-    if (z > 0 && z < 100 && Math.abs(x) < 140) tmp.lerp(cPlaza, 0.6);
+    if (z > 0 && z < 150 && Math.abs(x) < 140) tmp.lerp(cPlaza, 0.6);
     const hx = G.h[Math.min(k + 1, G.h.length - 1)] - G.h[k], hz = G.h[Math.min(k + G.nx, G.h.length - 1)] - G.h[k];
     const slope = Math.hypot(hx, hz) / G.step;
     if (slope > 1.1) tmp.lerp(cRock, clamp((slope - 1.1) * 1.5, 0, 0.85));
@@ -454,10 +454,11 @@ function buildTerrain() {
 function buildTrees() {
   const N = 1300, pos = [];
   for (let i = 0; i < 5200 && pos.length < N; i++) {
-    const x = -175 + rnd() * 350, z = -300 + rnd() * 410;
+    const x = -175 + rnd() * 350, z = -300 + rnd() * 475;
     if (groomAt(x, z) > 0.02) continue;
     if (Math.abs(x) < 13 && z > -275 && z < 50) continue;
     if (z > -10 && z < 98 && Math.abs(x) < 80) continue;
+    if (z >= 98 && z < 152 && x > 8 && x < 90) continue;
     if (z < -238 && z > -276 && Math.abs(x) < 140) continue;
     pos.push([x, z, 0.7 + rnd() * 0.7]);
   }
@@ -603,14 +604,6 @@ function buildLift() {
 
 function buildBase() {
   const wood = lam(0x9a6a3c), roofM = lam(0x7a2f3b), snowM = lam(0xffffff), glass = new THREE.MeshBasicMaterial({ color: 0xffd98a });
-  // lodge
-  mesh(new THREE.BoxGeometry(18, 7, 11), wood, 42, 3.5, 62);
-  const roof = mesh(new THREE.CylinderGeometry(7.5, 7.5, 19, 3), roofM, 42, 9.3, 62); roof.rotation.z = Math.PI / 2; roof.rotation.y = Math.PI / 2; roof.scale.set(1, 1, 0.9);
-  roof.rotation.set(0, 0, Math.PI / 2); roof.rotation.x = Math.PI / 6;
-  for (let i = -2; i <= 2; i++) mesh(new THREE.PlaneGeometry(1.8, 1.6), glass, 42 + i * 3.4, 4, 56.45, scene, false);
-  const lsign = textPlane(['산장 카페'], 6, 1.2, '#1b2a4a', '#ffc53d', { size: 140 });
-  lsign.position.set(42, 7.6, 56.4); scene.add(lsign);
-  for (const [x, z] of [[33, 57], [42, 57], [51, 57], [33, 67], [51, 67], [42, 67]]) addObstacle(x, z, 5);
   // entrance sign
   for (const x of [-14, 14]) { mesh(new THREE.CylinderGeometry(0.3, 0.3, 6, 8), wood, x, 3, 84); addObstacle(x, 84, 0.5); }
   const es = textPlane(['❄ 눈꽃 스키장 ❄'], 26, 2.4, '#ffffff', '#1b2a4a', { size: 150 });
@@ -630,6 +623,198 @@ function buildBase() {
   mesh(new THREE.BoxGeometry(8, 4, 6), wood, -16, ty + 2, -268);
   const tr = mesh(new THREE.BoxGeometry(9, 0.6, 7), snowM, -16, ty + 4.3, -268); void tr;
   addObstacle(-16, -268, 4.5);
+}
+
+/* ================= mountain cafe ================= */
+const CAFE = { x0: 31, x1: 53, z0: 55, z1: 73, h: 5.6 };
+const FIRE = { x: 42, z: 64 };
+const STUMPS = [];
+const LANTERN_GLOW = [];
+const cafeHide = new THREE.Group();
+const fire = { flames: [], light: null, ember: null, emberPos: null, emberV: null };
+function inCafe(x, z) { return x > CAFE.x0 + 0.2 && x < CAFE.x1 - 0.2 && z > CAFE.z0 + 0.1 && z < CAFE.z1 - 0.1; }
+const WALLS = []; // solid rectangles (walls, fences, counters) the player cannot pass
+function wallObs(x0, z0, x1, z1) { WALLS.push({ x0: Math.min(x0, x1) - 0.22, x1: Math.max(x0, x1) + 0.22, z0: Math.min(z0, z1) - 0.22, z1: Math.max(z0, z1) + 0.22 }); }
+function collideWalls(o, prevX, prevZ) {
+  const r = 0.38;
+  for (const w of WALLS) {
+    if (o.x <= w.x0 - r || o.x >= w.x1 + r || o.z <= w.z0 - r || o.z >= w.z1 + r) continue;
+    // push out on the side we came from (fall back to the shallowest side)
+    const wasLeft = prevX <= w.x0 - r, wasRight = prevX >= w.x1 + r, wasFront = prevZ <= w.z0 - r, wasBack = prevZ >= w.z1 + r;
+    if (wasLeft) o.x = w.x0 - r; else if (wasRight) o.x = w.x1 + r; else if (wasFront) o.z = w.z0 - r; else if (wasBack) o.z = w.z1 + r;
+    else {
+      const dl = o.x - (w.x0 - r), dr = (w.x1 + r) - o.x, dn = o.z - (w.z0 - r), df = (w.z1 + r) - o.z, m = Math.min(dl, dr, dn, df);
+      if (m === dl) o.x = w.x0 - r; else if (m === dr) o.x = w.x1 + r; else if (m === dn) o.z = w.z0 - r; else o.z = w.z1 + r;
+    }
+  }
+}
+function buildCafe() {
+  const C = CAFE, wood = lam(0x9a6a3c), dark = lam(0x6b4a2b), roofM = lam(0x7a2f3b), snowM = lam(0xffffff);
+  const glass = new THREE.MeshBasicMaterial({ color: 0xffd98a });
+  scene.add(cafeHide);
+  const cx = (C.x0 + C.x1) / 2, w = C.x1 - C.x0, d = C.z1 - C.z0, t = 0.4, h = C.h;
+  // floor + rug
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshLambertMaterial({ map: canvasTex(128, 128, (g, cw, ch) => { g.fillStyle = '#a77b4f'; g.fillRect(0, 0, cw, ch); g.strokeStyle = 'rgba(70,40,20,0.35)'; g.lineWidth = 2; for (let y = 0; y < ch; y += 16) { g.beginPath(); g.moveTo(0, y); g.lineTo(cw, y); g.stroke(); } }, [6, 5]) }));
+  floor.rotation.x = -Math.PI / 2; floor.position.set(cx, 0.07, (C.z0 + C.z1) / 2); floor.receiveShadow = true; scene.add(floor);
+  const rug = new THREE.Mesh(new THREE.CircleGeometry(5.4, 40), lam(0xb8443a)); rug.rotation.x = -Math.PI / 2; rug.position.set(FIRE.x, 0.09, FIRE.z); rug.receiveShadow = true; scene.add(rug);
+  const rug2 = new THREE.Mesh(new THREE.RingGeometry(4.6, 5.0, 40), lam(0xf2c14e)); rug2.rotation.x = -Math.PI / 2; rug2.position.set(FIRE.x, 0.1, FIRE.z); scene.add(rug2);
+  // walls (front and back have door gaps; front pieces hide when you are inside)
+  const wall = (x0, x1, z, parent) => { const m = mesh(new THREE.BoxGeometry(x1 - x0, h, t), wood, (x0 + x1) / 2, h / 2, z, parent); wallObs(x0, z, x1, z); return m; };
+  wall(C.x0, 40.3, C.z0, cafeHide); wall(43.7, C.x1, C.z0, cafeHide);
+  mesh(new THREE.BoxGeometry(3.4, h - 3.2, t), wood, 42, 3.2 + (h - 3.2) / 2, C.z0, cafeHide);
+  wall(C.x0, 45.3, C.z1); wall(48.7, C.x1, C.z1);
+  mesh(new THREE.BoxGeometry(3.4, h - 3.2, t), wood, 47, 3.2 + (h - 3.2) / 2, C.z1);
+  for (const x of [C.x0, C.x1]) { mesh(new THREE.BoxGeometry(t, h, d), wood, x, h / 2, (C.z0 + C.z1) / 2); wallObs(x, C.z0, x, C.z1); }
+  // log beams on the outside corners
+  for (const [x, z] of [[C.x0, C.z0], [C.x1, C.z0], [C.x0, C.z1], [C.x1, C.z1]]) mesh(new THREE.CylinderGeometry(0.35, 0.35, h + 0.4, 8), dark, x, h / 2, z, z === C.z0 ? cafeHide : scene);
+  // windows (glow inside and out)
+  for (let i = 0; i < 4; i++) {
+    const x = 33.5 + i * (i < 2 ? 2.6 : 2.6) + (i >= 2 ? 9.4 : 0);
+    const win = mesh(new THREE.PlaneGeometry(1.8, 1.5), glass, x, 2.8, C.z0 - 0.22, cafeHide, false); win.rotation.y = Math.PI;
+  }
+  for (const x of [C.x0 - 0.22, C.x1 + 0.22]) for (const z of [59, 64, 69]) { const win = mesh(new THREE.PlaneGeometry(1.8, 1.5), glass, x, 2.8, z, scene, false); win.rotation.y = x < 42 ? -Math.PI / 2 : Math.PI / 2; }
+  // gable roof with snow
+  const roofG = new THREE.Group(); cafeHide.add(roofG);
+  for (const s2 of [-1, 1]) {
+    const slab = mesh(new THREE.BoxGeometry(w + 2, 0.35, d / 2 + 1.6), roofM, cx, h + 1.6, (C.z0 + C.z1) / 2 + s2 * (d / 4 + 0.3), roofG); slab.rotation.x = s2 * 0.36;
+    const sn = mesh(new THREE.BoxGeometry(w + 2.1, 0.18, d / 2 + 1.2), snowM, cx, h + 1.86, (C.z0 + C.z1) / 2 + s2 * (d / 4 + 0.2), roofG); sn.rotation.x = s2 * 0.36;
+  }
+  for (const z of [C.z0, C.z1]) { const gab = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.6, 0.3, 3), wood); gab.rotation.x = Math.PI / 2; gab.rotation.z = Math.PI / 2; gab.scale.set(1, 1, 0.9); gab.position.set(cx, h + 0.55, z); roofG.add(gab); }
+  const sign = textPlane(['☕ 산장 카페'], 6, 1.2, '#1b2a4a', '#ffc53d', { size: 130 }); sign.position.set(42, 4.3, C.z0 - 0.3); cafeHide.add(sign);
+  // door lanterns
+  for (const x of [39.6, 44.4]) { mesh(new THREE.BoxGeometry(0.4, 0.55, 0.4), new THREE.MeshBasicMaterial({ color: 0xffd28a }), x, 2.9, C.z0 - 0.45, scene, false); LANTERN_GLOW.push([x, 2.9, C.z0 - 0.5]); }
+  // counter + hot chocolate
+  mesh(new THREE.BoxGeometry(6, 1.1, 1), dark, 36, 0.55, 71.3); mesh(new THREE.BoxGeometry(6.3, 0.12, 1.25), wood, 36, 1.15, 71.3);
+  for (let i = 0; i < 4; i++) { mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.22, 10), lam(0xffffff), 34 + i * 1.3, 1.32, 71.1); mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.02, 10), lam(0x6b3a1e), 34 + i * 1.3, 1.44, 71.1, scene, false); }
+  wallObs(33, 71.3, 39, 71.3);
+  const menu = textPlane(['☕ 핫초코', '곰 사장의 따끈한 한 잔'], 3.6, 1.4, '#3b2a1e', '#ffe2a8'); menu.position.set(36, 3.3, C.z1 - 0.25); scene.add(menu);
+  // fire pit
+  const stone = lam(0x7a7f88);
+  for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; const r = mesh(new THREE.DodecahedronGeometry(0.3, 0), stone, FIRE.x + Math.cos(a) * 1.15, 0.22, FIRE.z + Math.sin(a) * 1.15); r.rotation.set(a, a * 2, 0); }
+  for (let i = 0; i < 4; i++) { const lg = mesh(new THREE.CylinderGeometry(0.14, 0.16, 1.7, 8), lam(0x5a3a22), FIRE.x, 0.28, FIRE.z); lg.rotation.z = Math.PI / 2 - 0.25; lg.rotation.y = i * Math.PI / 4; }
+  const fm = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, side: THREE.DoubleSide });
+  for (const [r, hh, c, o] of [[0.75, 1.5, 0xe8340c, 0.75], [0.52, 1.9, 0xff7a12, 0.8], [0.3, 1.3, 0xffc23a, 0.9]]) {
+    const f = new THREE.Mesh(new THREE.ConeGeometry(r, hh, 9, 1, true), fm(c, o)); f.position.set(FIRE.x, 0.35 + hh / 2, FIRE.z); scene.add(f); fire.flames.push({ m: f, hh, ph: Math.random() * 6 });
+  }
+  addObstacle(FIRE.x, FIRE.z, 1.25);
+  fire.light = new THREE.PointLight(0xff9a3c, 2.2, 15, 1.7); fire.light.position.set(FIRE.x, 1.8, FIRE.z); scene.add(fire.light);
+  const EN = 40; fire.emberPos = new Float32Array(EN * 3); fire.emberV = new Float32Array(EN);
+  for (let i = 0; i < EN; i++) { fire.emberPos[i * 3] = FIRE.x; fire.emberPos[i * 3 + 1] = Math.random() * 4; fire.emberPos[i * 3 + 2] = FIRE.z; fire.emberV[i] = 0.8 + Math.random() * 1.2; }
+  const eg = new THREE.BufferGeometry(); eg.setAttribute('position', new THREE.BufferAttribute(fire.emberPos, 3));
+  fire.ember = new THREE.Points(eg, new THREE.PointsMaterial({ size: 0.22, map: flakeTex, color: 0xff9a30, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  fire.ember.frustumCulled = false; scene.add(fire.ember);
+  // log stools around the fire
+  for (let i = 0; i < 8; i++) {
+    const a = (i + 0.5) / 8 * Math.PI * 2, x = FIRE.x + Math.cos(a) * 3.4, z = FIRE.z + Math.sin(a) * 3.4;
+    mesh(new THREE.CylinderGeometry(0.45, 0.5, 0.5, 12), lam(0x8a5a32), x, 0.25, z);
+    mesh(new THREE.CylinderGeometry(0.43, 0.43, 0.02, 12), lam(0xd9b07a), x, 0.51, z, scene, false);
+    STUMPS.push({ x, z });
+  }
+  // corner sofa-benches and a bookshelf for coziness
+  mesh(new THREE.BoxGeometry(1.2, 0.6, 5), lam(0x2f7de1), C.x1 - 1.1, 0.3, 60); mesh(new THREE.BoxGeometry(0.4, 1.2, 5), lam(0x2f7de1), C.x1 - 0.5, 0.6, 60); wallObs(C.x1 - 1.1, 57.8, C.x1 - 1.1, 62.2);
+  mesh(new THREE.BoxGeometry(0.6, 3, 4), dark, C.x0 + 0.5, 1.5, 61); wallObs(C.x0 + 0.6, 59.2, C.x0 + 0.6, 62.8);
+  for (let i = 0; i < 9; i++) mesh(new THREE.BoxGeometry(0.4, 0.5, 0.25), lam([0xe5484d, 0x2fb36d, 0xffc53d, 0x2f7de1][i % 4]), C.x0 + 0.75, 0.6 + Math.floor(i / 3) * 0.9, 59.6 + (i % 3) * 1.3, scene, false);
+}
+
+/* ================= hot springs ================= */
+const ONSEN = { x0: 16, x1: 80, z0: 80, z1: 142 };
+const POOLS = [
+  { name: '큰 노천탕', temp: '41℃', x: 45, z: 112, r: 8 },
+  { name: '노을탕', temp: '40℃', x: 27, z: 97, r: 4 },
+  { name: '유자탕', temp: '39℃', x: 64, z: 97, r: 4.2, tint: 0xf3d36b },
+  { name: '눈꽃 냉탕', temp: '18℃', x: 28, z: 130, r: 4.2, cold: true },
+  { name: '나무탕', temp: '42℃', x: 64, z: 129, r: 4.4, wood: true },
+];
+const onsen = { steam: null, steamPos: null, steamPool: null };
+function inOnsen(x, z) { return x > ONSEN.x0 && x < ONSEN.x1 && z > ONSEN.z0 - 1 && z < ONSEN.z1; }
+function inWalkZone(x, z) { return inCafe(x, z) || inOnsen(x, z); }
+function poolAt(x, z) {
+  for (let i = 0; i < POOLS.length; i++) {
+    const P = POOLS[i];
+    if (P.wood ? Math.abs(x - P.x) < P.r - 0.5 && Math.abs(z - P.z) < P.r - 0.5 : Math.hypot(x - P.x, z - P.z) < P.r - 0.5) return i;
+  }
+  return -1;
+}
+function buildOnsen() {
+  const O = ONSEN, wood = lam(0x8a5a32), rocks = [lam(0x8a8f98), lam(0x6f747c), lam(0x9aa0a8)], rr2 = mulberry32(31);
+  // stepping-stone path from the cafe back door to the big pool
+  const pathM = lam(0x9aa0a8);
+  for (let z = 74.5, i = 0; z < 103; z += 1.5, i++) { const st = mesh(new THREE.CylinderGeometry(0.6, 0.65, 0.12, 7), pathM, 46 + (i % 2 ? 0.5 : -0.5) - Math.min(1, (z - 74) / 10), 0.07, z); st.rotation.y = i; }
+  // fence with a gate
+  const fenceRun = (x0, z0, x1, z1) => {
+    const L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.round(L / 2.4)), ang = Math.atan2(x1 - x0, z1 - z0);
+    for (let i = 0; i <= n; i++) mesh(new THREE.CylinderGeometry(0.12, 0.14, 1.6, 6), wood, x0 + (x1 - x0) * i / n, 0.8, z0 + (z1 - z0) * i / n);
+    for (const y of [0.55, 1.25]) { const r = mesh(new THREE.BoxGeometry(0.1, 0.12, L), wood, (x0 + x1) / 2, y, (z0 + z1) / 2); r.rotation.y = ang; }
+    wallObs(x0, z0, x1, z1);
+  };
+  fenceRun(O.x0, O.z0, 41, O.z0); fenceRun(51, O.z0, O.x1, O.z0);
+  fenceRun(O.x0, O.z0, O.x0, O.z1); fenceRun(O.x1, O.z0, O.x1, O.z1); fenceRun(O.x0, O.z1, O.x1, O.z1);
+  for (const x of [41, 51]) { mesh(new THREE.CylinderGeometry(0.28, 0.3, 4.2, 8), lam(0x6b4a2b), x, 2.1, O.z0); addObstacle(x, O.z0, 0.5); }
+  mesh(new THREE.BoxGeometry(11.6, 0.4, 0.5), lam(0x6b4a2b), 46, 4.1, O.z0);
+  const gs = textPlane(['♨ 눈꽃 온천'], 6.4, 1.3, '#3b2a1e', '#ffe2a8', { size: 140 }); gs.position.set(46, 3.4, O.z0 - 0.3); scene.add(gs);
+  // pools
+  POOLS.forEach((P) => {
+    const water = new THREE.MeshPhongMaterial({ color: P.cold ? 0xa9e4f5 : (P.tint || 0x7ccfe6), emissive: P.cold ? 0x183848 : 0x0b3a4a, shininess: 90, transparent: true, opacity: 0.9 });
+    const wm = new THREE.Mesh(P.wood ? new THREE.PlaneGeometry(P.r * 2, P.r * 2) : new THREE.CircleGeometry(P.r, 40), water);
+    wm.rotation.x = -Math.PI / 2; wm.position.set(P.x, 0.32, P.z); scene.add(wm);
+    if (P.wood) {
+      for (const [dx, dz, w2, d2] of [[0, -P.r, P.r * 2 + 0.8, 0.4], [0, P.r, P.r * 2 + 0.8, 0.4], [-P.r, 0, 0.4, P.r * 2], [P.r, 0, 0.4, P.r * 2]]) mesh(new THREE.BoxGeometry(w2, 0.55, d2), lam(0xc99a62), P.x + dx, 0.28, P.z + dz);
+    } else {
+      const n = Math.ceil(P.r * Math.PI * 2 / 1.15);
+      for (let i = 0; i < n; i++) {
+        const a = i / n * Math.PI * 2 + rr2() * 0.2, s = 0.45 + rr2() * 0.35;
+        const r = mesh(new THREE.DodecahedronGeometry(1, 0), rocks[i % 3], P.x + Math.cos(a) * (P.r + 0.35), 0.18 + s * 0.3, P.z + Math.sin(a) * (P.r + 0.35));
+        r.scale.set(s * 1.1, s * 0.7, s); r.rotation.set(rr2() * 3, rr2() * 3, 0);
+      }
+    }
+    const post = mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.8, 6), wood, P.x + (P.wood ? P.r + 1.2 : (P.r + 1.4) * 0.7), 0.9, P.z - (P.wood ? 0 : (P.r + 1.4) * 0.7)); void post;
+    const sg = textPlane([P.name, P.temp], 2.4, 1.2, P.cold ? '#2f7de1' : '#3b2a1e', '#ffffff');
+    sg.position.set(post.position.x, 2.2, post.position.z); sg.rotation.y = Math.PI * 0.85; scene.add(sg);
+  });
+  // steam
+  const SN = 34 * POOLS.length; onsen.steamPos = new Float32Array(SN * 3); onsen.steamPool = new Uint8Array(SN);
+  for (let i = 0; i < SN; i++) { const pi = i % POOLS.length; onsen.steamPool[i] = pi; resetSteam(i, Math.random() * 3.2); }
+  const sgeo = new THREE.BufferGeometry(); sgeo.setAttribute('position', new THREE.BufferAttribute(onsen.steamPos, 3));
+  const steamTex = canvasTex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 2, 32, 32, 31); gr.addColorStop(0, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
+  onsen.steam = new THREE.Points(sgeo, new THREE.PointsMaterial({ size: 2.2, map: steamTex, transparent: true, depthWrite: false, opacity: 0.55 }));
+  onsen.steam.frustumCulled = false; scene.add(onsen.steam);
+  // benches and stone lanterns
+  for (const [x, z, ry] of [[20, 112, Math.PI / 2], [76, 112, Math.PI / 2], [46, 139, 0], [35, 86, 0]]) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; scene.add(g);
+    mesh(new THREE.BoxGeometry(4, 0.15, 0.9), wood, 0, 0.55, 0, g);
+    for (const sx of [-1.6, 1.6]) mesh(new THREE.BoxGeometry(0.15, 0.55, 0.8), wood, sx, 0.27, 0, g);
+  }
+  const lanternLight = new THREE.MeshBasicMaterial({ color: 0xffd28a }), lst = lam(0xa4a9b0);
+  for (const [x, z] of [[24, 86], [68, 86], [20, 122], [76, 122], [46, 136], [36, 103], [56, 103]]) {
+    mesh(new THREE.BoxGeometry(0.8, 0.3, 0.8), lst, x, 0.15, z); mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.9, 6), lst, x, 0.75, z);
+    mesh(new THREE.BoxGeometry(0.6, 0.5, 0.6), lanternLight, x, 1.45, z, scene, false);
+    const cap = mesh(new THREE.ConeGeometry(0.62, 0.4, 4), lst, x, 1.9, z); cap.rotation.y = Math.PI / 4;
+    addObstacle(x, z, 0.5); LANTERN_GLOW.push([x, 1.45, z]);
+  }
+}
+function resetSteam(i, y) {
+  const P = POOLS[onsen.steamPool[i]], a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * P.r * 0.85;
+  onsen.steamPos[i * 3] = P.x + Math.cos(a) * r; onsen.steamPos[i * 3 + 1] = 0.4 + (y || 0); onsen.steamPos[i * 3 + 2] = P.z + Math.sin(a) * r;
+}
+function updateWarmPlaces(dt, now) {
+  // campfire flicker and embers
+  for (const f of fire.flames) { const k = 1 + Math.sin(now / 90 + f.ph) * 0.12 + Math.sin(now / 37 + f.ph * 2) * 0.08; f.m.scale.set(1 / Math.sqrt(k), k, 1 / Math.sqrt(k)); f.m.position.y = 0.35 + f.hh * k / 2; f.m.rotation.y += dt * 1.5; }
+  if (fire.light) fire.light.intensity = 2.0 + Math.sin(now / 70) * 0.25 + Math.sin(now / 23) * 0.15;
+  if (fire.ember) {
+    for (let i = 0; i < fire.emberV.length; i++) {
+      let y = fire.emberPos[i * 3 + 1] + fire.emberV[i] * dt;
+      if (y > 4.2) { y = 0.5; fire.emberPos[i * 3] = FIRE.x + (Math.random() - 0.5) * 0.8; fire.emberPos[i * 3 + 2] = FIRE.z + (Math.random() - 0.5) * 0.8; }
+      fire.emberPos[i * 3 + 1] = y; fire.emberPos[i * 3] += Math.sin(now / 300 + i) * dt * 0.3;
+    }
+    fire.ember.geometry.attributes.position.needsUpdate = true;
+  }
+  if (onsen.steam) {
+    for (let i = 0; i < onsen.steamPool.length; i++) {
+      const y = onsen.steamPos[i * 3 + 1] + dt * 0.55;
+      if (y > 3.6) resetSteam(i, 0); else { onsen.steamPos[i * 3 + 1] = y; onsen.steamPos[i * 3] += Math.sin(now / 900 + i) * dt * 0.25; }
+    }
+    onsen.steam.geometry.attributes.position.needsUpdate = true;
+  }
 }
 
 /* ================= characters ================= */
@@ -704,9 +889,14 @@ function makeAnimal(sp, color) {
   for (const ch of [...rider.children]) if (ch !== armL && ch !== armR && ch !== poles && ch.position.y > 1.25) { rider.remove(ch); ch.position.y -= 1.2; headG.add(ch); }
   rider.add(headG);
   const pack = mesh(new THREE.BoxGeometry(0.5, 0.5, 0.26), hatM, 0, 0.88, 0.42, rider); pack.scale.set(1, 1, 1);
+  const mug = new THREE.Group(); armR.add(mug); mug.visible = false;
+  mesh(new THREE.CylinderGeometry(0.1, 0.085, 0.2, 10), lam(0xffffff), 0, -0.48, -0.1, mug); mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.02, 10), lam(0x6b3a1e), 0, -0.375, -0.1, mug);
+  const stickG = new THREE.Group(); armR.add(stickG); stickG.visible = false;
+  const stk = mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.1, 5), lam(0x8a5a32), 0, -0.45, -0.55, stickG); stk.rotation.x = Math.PI / 2 - 0.35;
+  sph(0.07, lam(0xfff3dc), 0, -0.26, -1.08, 1, 1.2, 1, stickG);
   mesh(new THREE.BoxGeometry(0.4, 0.16, 0.06), lam(0xffffff), 0, 0.8, 0.56, rider);
   scene.add(root);
-  return { root, tilt, rider, headG, armL, armR, skis, poles, board, sp, color, tag: null, bubble: null, bubbleY: 3.55, waveT: 0 };
+  return { root, tilt, rider, headG, armL, armR, skis, poles, board, mug, stickG, sp, color, tag: null, bubble: null, bubbleY: 3.55, waveT: 0 };
 }
 function setGear(av, g) { av.skis.visible = av.poles.visible = g === 0; av.board.visible = g === 1; av.gear = g; }
 function disposeGroup(o) {
@@ -796,6 +986,10 @@ function buildNpcs() {
     n.root.rotation.y = n.id === 'coco' ? Math.PI * 0.8 : -Math.PI * 0.2;
     addObstacle(n.x, n.z, 0.8);
   }
+  const bear = makeAnimal(1, '#ff8a2a'); setGear(bear, 0); bear.skis.visible = bear.poles.visible = false;
+  bear.root.position.set(36, 0, 72.3);
+  const tag = makeTag('곰 사장', '#ff8a2a'); tag.position.y = 2.8; bear.root.add(tag);
+  npcs.bear = { id: 'bear', name: '곰 사장', face: '🐻‍❄️', x: 36, z: 70.2, r: 3.2, root: bear.root, bubble: null, bubbleY: 3.5 };
 }
 
 /* ================= effects ================= */
@@ -838,7 +1032,7 @@ function updateFx(dt) {
 }
 
 /* ================= audio ================= */
-let actx = null, windGain = null, hissGain = null;
+let actx = null, windGain = null, hissGain = null, fireGain = null;
 function initAudio() {
   if (actx) { if (actx.resume) actx.resume(); return; }
   try {
@@ -846,7 +1040,7 @@ function initAudio() {
     const buf = actx.createBuffer(1, actx.sampleRate * 2, actx.sampleRate), d = buf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     const mk = (type, f, q) => { const src = actx.createBufferSource(); src.buffer = buf; src.loop = true; const fl = actx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = actx.createGain(); g.gain.value = 0; src.connect(fl); fl.connect(g); g.connect(actx.destination); src.start(); return g; };
-    windGain = mk('bandpass', 500, 0.6); hissGain = mk('highpass', 2500, 0.5);
+    windGain = mk('bandpass', 500, 0.6); hissGain = mk('highpass', 2500, 0.5); fireGain = mk('lowpass', 600, 0.5);
   } catch (e) { actx = null; }
 }
 function tone(freqs, vol, len, type, delay) {
@@ -872,7 +1066,7 @@ const me = {
   name: '', sp: 0, color: COLORS[0], gear: 0,
   x: 0, z: 48, y: 0, vx: 0, vz: 0, vy: 0, vyG: 0, heading: 0, air: false,
   state: 'ski', crashT: 0, steer: 0, brake: false,
-  chair: -1, seat: 0, boardAt: 0, rideMsgs: 0,
+  chair: -1, seat: 0, boardAt: 0, rideMsgs: 0, bath: -1, stump: -1, item: 0, itemT: 0,
   run: null, best: {}, finSeq: 0, fin: null, guide: null, chatSeq: 0, chat: null,
 };
 try { me.best = JSON.parse(store('ski.best') || '{}') || {}; } catch (e) { me.best = {}; }
@@ -897,6 +1091,8 @@ function stepSki(dt) {
   const spd0 = Math.hypot(me.vx, me.vz);
   if (me.state === 'crash') { me.crashT -= dt; me.y = H(me.x, me.z); if (me.crashT <= 0) me.state = 'ski'; return; }
   if (me.raceHold) { me.vx = me.vz = 0; me.y = H(me.x, me.z); me.air = false; return; }
+  if (!me.air && inWalkZone(me.x, me.z)) { walkStep(dt); return; }
+  me.bath = -1;
   const gx = (H(me.x + 0.5, me.z) - H(me.x - 0.5, me.z)), gz = (H(me.x, me.z + 0.5) - H(me.x, me.z - 0.5));
   const steer = clamp(((keys.KeyD || keys.ArrowRight) ? 1 : 0) - ((keys.KeyA || keys.ArrowLeft) ? 1 : 0) + stick.x, -1, 1);
   const push = (keys.KeyW || keys.ArrowUp) || stick.y < -0.5;
@@ -919,6 +1115,7 @@ function stepSki(dt) {
   const sp = Math.hypot(me.vx, me.vz); if (sp > 26) { me.vx *= 26 / sp; me.vz *= 26 / sp; }
   const ox = me.x, oz = me.z;
   me.x = clamp(me.x + me.vx * dt, BOUNDS.minX, BOUNDS.maxX); me.z = clamp(me.z + me.vz * dt, BOUNDS.minZ, BOUNDS.maxZ);
+  collideWalls(me, ox, oz);
   const ob = nearObstacle(me.x, me.z);
   if (ob) {
     if (sp > 7) { me.x = ox; me.z = oz; crash('나무에 부딪혔어요'); return; }
@@ -944,22 +1141,44 @@ function stepSki(dt) {
   }
   if (!me.air && (me.brake || Math.abs(vl) > 2.2) && sp > 4) emitSpray(me.x, h, me.z, me.vx, me.vz, me.brake ? 3 : 2);
 }
+function walkStep(dt) {
+  const steer = clamp(((keys.KeyD || keys.ArrowRight) ? 1 : 0) - ((keys.KeyA || keys.ArrowLeft) ? 1 : 0) + stick.x, -1, 1);
+  const f = clamp(((keys.KeyW || keys.ArrowUp) ? 1 : 0) - ((keys.KeyS || keys.ArrowDown) ? 0.6 : 0) - stick.y, -0.6, 1);
+  me.steer = 0; me.brake = false;
+  me.heading -= steer * 2.6 * dt;
+  const fx = -Math.sin(me.heading), fz = -Math.cos(me.heading), spd = me.bath >= 0 ? 2.2 : 4.2, k = Math.min(1, dt * 8);
+  me.vx += (fx * f * spd - me.vx) * k; me.vz += (fz * f * spd - me.vz) * k;
+  const px = me.x, pz = me.z;
+  me.x = clamp(me.x + me.vx * dt, BOUNDS.minX, BOUNDS.maxX); me.z = clamp(me.z + me.vz * dt, BOUNDS.minZ, BOUNDS.maxZ);
+  const ob = nearObstacle(me.x, me.z);
+  if (ob) { const dx = me.x - ob[0], dz = me.z - ob[1], d = Math.hypot(dx, dz) || 1, r = ob[2] + 0.41; me.x = ob[0] + dx / d * r; me.z = ob[1] + dz / d * r; }
+  collideWalls(me, px, pz);
+  me.y = H(me.x, me.z); me.vyG = 0; me.air = false;
+  const pi = poolAt(me.x, me.z);
+  if (pi !== me.bath) {
+    if (pi >= 0) { const P = POOLS[pi]; notice(P.cold ? '🥶 으슬으슬! ' + P.name + ' ' + P.temp : '♨ ' + P.name + ' ' + P.temp + ' · 아~ 따뜻해요'); if (myAv) setBubble(myAv, P.cold ? '앗 차가워!' : '아~ 따뜻해 ♨', 3500); }
+    me.bath = pi;
+  }
+}
 function poseAvatar(av, o) {
   // o: {x,y,z,heading,steer,speed,air,state,yaw?}
-  av.root.position.set(o.x, o.y, o.z);
+  av.root.position.set(o.x, o.y - (o.bath ? 1.0 : 0), o.z);
   av.root.rotation.y = o.heading;
-  const lean = o.state === 'crash' ? 1.35 : clamp(-o.steer * 0.32 * Math.min(1, o.speed / 8), -0.45, 0.45);
-  av.tilt.rotation.z += (lean - av.tilt.rotation.z) * 0.2;
-  av.rider.rotation.y = av.gear === 1 ? -1.25 : 0;
+  if (o.walk) { const b = Math.min(1, o.speed / 3); av.tilt.rotation.z = Math.sin(performance.now() / 120) * 0.09 * b; }
+  else { const lean = o.state === 'crash' ? 1.35 : clamp(-o.steer * 0.32 * Math.min(1, o.speed / 8), -0.45, 0.45); av.tilt.rotation.z += (lean - av.tilt.rotation.z) * 0.2; }
+  av.skis.visible = av.poles.visible = !o.walk && av.gear === 0; av.board.visible = !o.walk && av.gear === 1;
+  av.rider.rotation.y = av.gear === 1 && !o.walk ? -1.25 : 0;
+  av.mug.visible = o.item === 1; av.stickG.visible = o.item === 2;
   const crouch = o.state === 'lift' || o.state === 'queue' || o.state === 'sit' ? 0 : Math.min(0.14, o.speed * 0.006);
   av.rider.scale.y = 1 - crouch;
   const ry = o.state === 'lift' ? -0.08 : o.state === 'sit' ? -0.38 : 0;
   av.rider.position.y += (ry - av.rider.position.y) * 0.2;
-  const up = o.air ? 1.3 : o.state === 'sit' ? 0.9 : 0.45;
+  const up = o.air ? 1.3 : o.state === 'sit' ? 0.9 : 0.45, upR = o.item ? 0.25 : up;
   av.armL.rotation.z += (-up - av.armL.rotation.z) * 0.2;
   if (av.throwT > 0) { av.throwT -= 1 / 60; av.armR.rotation.z = 0.45 + 2.5 * Math.max(0, av.throwT / 0.35); }
   else if (av.waveT > 0) { av.waveT -= 1 / 60; av.armR.rotation.z = 2.5 + Math.sin(performance.now() / 90) * 0.45; }
-  else av.armR.rotation.z += (up - av.armR.rotation.z) * 0.2;
+  else av.armR.rotation.z += (upR - av.armR.rotation.z) * 0.2;
+  av.armR.rotation.x += ((o.item ? -0.9 : 0) - av.armR.rotation.x) * 0.2;
   if (o.state === 'lift') { av.skis.rotation.x = 0.25; av.board.rotation.x = 0.25; } else { av.skis.rotation.x = 0; av.board.rotation.x = 0; }
 }
 
@@ -1096,14 +1315,47 @@ function talkBu() {
     say(npcs.bu, c.id + ' ' + c.name + ' 코스는 ' + (c.s[0][0] < 0 ? '서쪽(리프트에서 내려 뒤돌았을 때 오른쪽)' : '동쪽(리프트에서 내려 뒤돌았을 때 왼쪽)') + '에 있어요. ' + c.tip, [], 7000);
   }));
 }
+function talkBear() {
+  setBubble(npcs.bear, '어서 와요~', 2500);
+  say(npcs.bear, '어서 와요! 산장 카페 곰 사장이에요 🐻‍❄️ 꽁꽁 언 몸 좀 녹이고 가요. 따끈한 핫초코 한 잔 줄까요?', [
+    { label: '핫초코 주세요 ☕', fn: () => { me.item = 1; me.itemT = 45; sfx.pop(); say(npcs.bear, '여기 있어요! 뜨거우니까 호호 불어서 마셔요. 모닥불 옆 통나무에 앉으면 더 따뜻해요 🔥 뒷문으로 나가면 온천도 있어요 ♨', [], 6000); if (myAv) setBubble(myAv, '따뜻해~ ☕', 3500); } },
+    { label: '온천은 어디예요?', fn: () => say(npcs.bear, '카페 뒷문으로 나가서 디딤돌을 따라가면 눈꽃 온천이에요 ♨ 탕에 들어가면 스키 피로가 싹 풀려요. 냉탕은 정말 차가우니 조심!', [], 6500) },
+    { label: '괜찮아요', fn: () => say(npcs.bear, '언제든 불러요~ 모닥불 쬐고 가요!', [], 2500) },
+  ]);
+}
+function nearStump() {
+  if (me.state !== 'ski' || !inCafe(me.x, me.z)) return -1;
+  for (let i = 0; i < STUMPS.length; i++) if (Math.hypot(me.x - STUMPS[i].x, me.z - STUMPS[i].z) < 1.4) return i;
+  return -1;
+}
+function sitStump(i) {
+  const s0 = STUMPS[i];
+  for (const [, a] of avatars) if (a.st === 5 && Math.hypot(a.pos.x - s0.x, a.pos.z - s0.z) < 0.5) { notice('이미 누가 앉아 있어요'); return; }
+  me.x = s0.x; me.z = s0.z; me.vx = me.vz = 0; me.y = 0.5; me.stump = i; me.state = 'sit';
+  me.heading = Math.atan2(-(FIRE.x - s0.x), -(FIRE.z - s0.z)); cam.yawOff = 0;
+  notice('🔥 모닥불 앞에 앉았어요' + (isTouch ? '' : ' · E로 마시멜로 굽기'));
+}
+function useAction() {
+  if (nearNpc()) { interact(); return true; }
+  if (me.state === 'sit' && me.stump >= 0) { if (me.item !== 2) { me.item = 2; me.itemT = 6; notice('🔥 마시멜로를 굽는 중…'); } return true; }
+  const st = nearStump(); if (st >= 0) { sitStump(st); return true; }
+  return false;
+}
+function promptText() {
+  const n = nearNpc();
+  if (n) return n.name + (n.id === 'coco' ? '에게 말 걸기 · 리프트 타기' : n.id === 'bear' ? '에게 핫초코 주문하기' : '에게 길 물어보기');
+  if (me.state === 'sit' && me.stump >= 0) return me.item === 2 ? '' : '마시멜로 굽기 · 움직이면 일어나요';
+  if (nearStump() >= 0) return '통나무 의자에 앉기';
+  return '';
+}
 function nearNpc() {
-  if (me.state !== 'ski' && me.state !== 'sit') return null;
-  for (const n of Object.values(npcs)) if (Math.hypot(me.x - n.x, me.z - n.z) < 6) return n;
+  if (me.state !== 'ski') return null;
+  for (const n of Object.values(npcs)) if (Math.hypot(me.x - n.x, me.z - n.z) < (n.r || 6)) return n;
   return null;
 }
 function interact() {
   const n = nearNpc(); if (!n) return;
-  if (n.id === 'coco') talkCoco(); else talkBu();
+  if (n.id === 'coco') talkCoco(); else if (n.id === 'bear') talkBear(); else talkBu();
 }
 
 /* ---------- guide arrow ---------- */
@@ -1134,6 +1386,8 @@ function placeName(st, x, z, co) {
   if (st === 4) return '🚡 리프트';
   if (co && courseById[co]) return co + ' 코스 주행 중';
   if (z < -240) return '정상';
+  if (inCafe(x, z)) return '☕ 산장 카페';
+  if (inOnsen(x, z)) return '♨ 눈꽃 온천';
   if (z > 0) return '베이스';
   return '슬로프';
 }
@@ -1164,7 +1418,7 @@ function renderRecords() {
   }
 }
 // minimap
-const MM = { c: $('#mini'), bg: null, minX: -150, maxX: 150, minZ: -285, maxZ: 95 };
+const MM = { c: $('#mini'), bg: null, minX: -150, maxX: 150, minZ: -285, maxZ: 145 };
 function mmXY(x, z) { const w = MM.c.width, h = MM.c.height; return [(x - MM.minX) / (MM.maxX - MM.minX) * w, (z - MM.minZ) / (MM.maxZ - MM.minZ) * h]; }
 function buildMinimap() {
   const off = document.createElement('canvas'); off.width = MM.c.width; off.height = MM.c.height;
@@ -1181,6 +1435,12 @@ function buildMinimap() {
   const [a1, b1] = mmXY(0, LIFT.zBot), [a2, b2] = mmXY(0, LIFT.zTop); g.beginPath(); g.moveTo(a1, b1); g.lineTo(a2, b2); g.stroke(); g.setLineDash([]);
   g.fillStyle = '#1b2a4a'; g.font = '15px Jua, sans-serif'; g.textAlign = 'center';
   g.fillText('정상', a2, b2 - 12); g.fillText('베이스', a1, b1 + 34);
+  const [c0x, c0y] = mmXY(CAFE.x0, CAFE.z0), [c1x, c1y] = mmXY(CAFE.x1, CAFE.z1);
+  g.fillStyle = '#9a6a3c'; g.fillRect(c0x, c0y, c1x - c0x, c1y - c0y);
+  for (const P of POOLS) { const [px, py] = mmXY(P.x, P.z), pr = P.r / (MM.maxX - MM.minX) * off.width; g.fillStyle = P.cold ? '#a9e4f5' : '#7ccfe6'; g.beginPath(); g.arc(px, py, Math.max(3, pr), 0, 7); g.fill(); }
+  g.fillStyle = '#1b2a4a'; g.font = '14px Jua, sans-serif';
+  const [kx, ky] = mmXY(56, 66); g.textAlign = 'left'; g.fillText('카페', kx, ky); g.textAlign = 'center';
+  const [ox, oy] = mmXY(46, 120); g.fillText('온천', ox + 26, oy);
   MM.bg = off;
 }
 function drawMinimap() {
@@ -1283,6 +1543,8 @@ function syncPeers(peers) {
       a.hbI = hb.i;
     }
     a.sh = clamp(pr.sh | 0, 0, 99999);
+    a.bt = typeof pr.bt === 'number' ? clamp(pr.bt | 0, -1, POOLS.length - 1) : -1;
+    a.it = clamp(pr.it | 0, 0, 2);
     a.rc = validRace(pr.rc);
     if (a.rc && !race.seen.has(a.rc.id)) {
       race.seen.add(a.rc.id);
@@ -1310,7 +1572,7 @@ function sendPresence(now, force) {
     s: me.air ? 1 : STATE_CODE[me.state], st: r2(me.steer), v: r2(Math.hypot(me.vx, me.vz)),
     ch: me.state === 'queue' || me.state === 'lift' ? me.chair : -1, se: me.seat,
     co: me.run ? me.run.c.id : '', b: me.best, f: me.fin, m: me.chat, w: me.waveSeq || 0,
-    sb: me.sb, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf,
+    sb: me.sb, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, bt: me.bath, it: me.item || 0,
   };
   const key = JSON.stringify(pr);
   if (key === lastSent) return;
@@ -1375,7 +1637,7 @@ function updatePeers(dt, t) {
       if (a.pos.distanceTo(a.tpos) > 25) a.pos.copy(a.tpos); else a.pos.lerp(a.tpos, k);
       let d = a.th - a.h; d = Math.atan2(Math.sin(d), Math.cos(d)); a.h += d * k;
     }
-    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : 'ski' });
+    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : 'ski', walk: inWalkZone(a.pos.x, a.pos.z), bath: a.bt >= 0, item: a.it || 0 });
   }
 }
 
@@ -1385,7 +1647,7 @@ addEventListener('keydown', (e) => {
   if (!playing) return;
   if (e.key === 'Enter') { e.preventDefault(); openChat(); return; }
   keys[e.code] = true;
-  if (e.code === 'KeyE' && !(dlg && dlg.choices.length)) { if (nearNpc()) interact(); else closeDialog(); }
+  if (e.code === 'KeyE' && !(dlg && dlg.choices.length)) { if (!useAction()) closeDialog(); }
   if (e.code === 'Escape') closeDialog();
   if (/^Digit[1-9]$/.test(e.code) && dlg) pick(+e.code.slice(5) - 1);
   if (e.code === 'KeyQ') toggleGear();
@@ -1433,7 +1695,7 @@ stickEl.addEventListener('pointerup', endStick); stickEl.addEventListener('point
 $('#jumpBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); keys._jump = true; setTimeout(() => { keys._jump = false; }, 150); });
 $('#actGear').addEventListener('click', toggleGear);
 $('#homeBtn').addEventListener('click', goHome);
-$('#actTalk').addEventListener('click', () => { if (nearNpc()) interact(); else notice('리프트 앞 코코나 정상의 부엉이 가까이에서 말을 걸 수 있어요'); });
+$('#actTalk').addEventListener('click', () => { if (!useAction()) notice('NPC나 카페의 통나무 의자 가까이에서 눌러 주세요'); });
 $('#actSit').addEventListener('click', toggleSit);
 $('#actWave').addEventListener('click', wave);
 $('#actMore').addEventListener('click', () => { const m = $('#more'); m.hidden = !m.hidden; $('#actMore').setAttribute('aria-pressed', String(!m.hidden)); renderPlayers(); renderRecords(); });
@@ -1443,9 +1705,10 @@ $('#soundBtn').addEventListener('click', () => {
   if (muted) actx.suspend(); else actx.resume();
   $('#soundBtn').textContent = muted ? '🔇' : '🔊'; $('#soundBtn').setAttribute('aria-label', muted ? '소리 켜기' : '소리 끄기');
 });
-$('#prompt').addEventListener('click', interact);
+$('#prompt').addEventListener('click', useAction);
 function toggleSit() {
-  if (me.state === 'sit') { me.state = 'ski'; return; }
+  if (me.state === 'sit') { me.state = 'ski'; me.stump = -1; return; }
+  const st = nearStump(); if (st >= 0) { sitStump(st); return; }
   if (me.state !== 'ski' || me.air || Math.hypot(me.vx, me.vz) > 2) { notice('멈춘 상태에서 앉을 수 있어요'); return; }
   me.state = 'sit'; me.vx = me.vz = 0; if (me.run) cancelRun();
 }
@@ -1546,7 +1809,9 @@ function buildNight() {
   });
   const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.BufferAttribute(gpos, 3));
   const glow = new THREE.Points(gg, new THREE.PointsMaterial({ size: 7, map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-  scene.add(poles, heads, glow); night.lamps = [poles, heads, glow];
+  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(LANTERN_GLOW.flat()), 3));
+  const lglow = new THREE.Points(lg, new THREE.PointsMaterial({ size: 3.2, map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  scene.add(poles, heads, glow, lglow); night.lamps = [poles, heads, glow, lglow];
   // stars and moon (follow the camera so they read as far away)
   const sp = new Float32Array(1100 * 3), sr = mulberry32(77);
   for (let i = 0; i < 1100; i++) { const a = sr() * Math.PI * 2, e = 0.08 + sr() * 1.4, r = 600; sp[i * 3] = Math.cos(a) * Math.cos(e) * r; sp[i * 3 + 1] = Math.sin(e) * r; sp[i * 3 + 2] = Math.sin(a) * Math.cos(e) * r; }
@@ -1737,8 +2002,8 @@ function updateStatus(sp) {
     title = c.id + ' ' + c.level + ' · ' + c.name; right = fmtTime(performance.now() - me.run.t0); fill = me.run.i / (c.s.length - 1);
     sub = me.best[c.id] ? '내 최고 기록 ' + fmtTime(me.best[c.id]) : '골인 아치까지 달려요!';
   } else {
-    chip = me.state === 'sit' ? '쉬는 중' : me.state === 'crash' ? '꽈당' : sp > 0.8 ? '이동' : '멈춤';
-    title = placeName(STATE_CODE[me.state], me.x, me.z, '');
+    chip = me.state === 'sit' ? '쉬는 중' : me.state === 'crash' ? '꽈당' : me.bath >= 0 ? '온천' : sp > 0.8 ? '이동' : '멈춤';
+    title = me.bath >= 0 ? '♨ ' + POOLS[me.bath].name + ' ' + POOLS[me.bath].temp : me.stump >= 0 ? '🔥 모닥불 앞' : placeName(STATE_CODE[me.state], me.x, me.z, '');
     const g = me.guide && courseById[me.guide];
     if (g) title += ' → ' + g.id + ' ' + g.name + ' 코스';
     sub = others;
@@ -1759,8 +2024,10 @@ function updateCamera(dt) {
   camTarget.set(me.x, me.y + 1.4, me.z);
   if (!cam.drag) cam.yawOff *= Math.exp(-dt * 0.8);
   const yaw = me.heading + cam.yawOff;
-  const d = me.state === 'lift' ? 6.5 : cam.dist, up = me.state === 'lift' ? 2.6 : 2.9 + cam.dist * 0.12;
+  const indoor = inCafe(me.x, me.z);
+  const d = me.state === 'lift' ? 6.5 : indoor ? 6 : cam.dist, up = me.state === 'lift' ? 2.6 : indoor ? 5.4 : 2.9 + cam.dist * 0.12;
   camPos.set(me.x + Math.sin(yaw) * d, me.y + up, me.z + Math.cos(yaw) * d);
+  if (indoor) { camPos.x = clamp(camPos.x, CAFE.x0 + 0.6, CAFE.x1 - 0.6); camPos.z = Math.min(camPos.z, CAFE.z1 - 0.6); }
   const gy = H(camPos.x, camPos.z) + 1.0; if (camPos.y < gy) camPos.y = gy;
   camera.position.lerp(camPos, 1 - Math.exp(-dt * 7));
   camera.lookAt(camTarget.x - Math.sin(yaw) * 3, camTarget.y + 0.4, camTarget.z - Math.cos(yaw) * 3);
@@ -1782,19 +2049,22 @@ function frame(now) {
   if (playing) {
     if (me.state === 'sit') {
       const moving = keys.KeyW || keys.KeyS || keys.KeyA || keys.KeyD || keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight || keys.Space || Math.hypot(stick.x, stick.y) > 0.3;
-      if (moving) me.state = 'ski'; else me.y = H(me.x, me.z);
+      if (moving) { me.state = 'ski'; me.stump = -1; } else me.y = me.stump >= 0 ? 0.5 : H(me.x, me.z);
     }
     if (me.state === 'ski' || me.state === 'crash') stepSki(dt);
     updateLift(dt);
     updateRun(dt);
     updateRace();
     if (night.light) night.light.position.set(me.x, me.y + 3.2, me.z);
-    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state });
+    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: inWalkZone(me.x, me.z), bath: me.bath >= 0, item: me.item || 0 });
     // prompt + guide
-    const n = nearNpc();
+    const ptxt = promptText();
     const pr = $('#prompt');
-    if (n && !(dlg && dlg.choices.length)) { pr.hidden = false; pr.textContent = ''; if (!isTouch) { const k = document.createElement('kbd'); k.textContent = 'E'; pr.append(k, ' '); } pr.append(n.name + (n.id === 'coco' ? '에게 말 걸기 · 리프트 타기' : '에게 길 물어보기')); }
-    else pr.hidden = true;
+    if (ptxt && !(dlg && dlg.choices.length)) { if (pr.dataset.t !== ptxt) { pr.dataset.t = ptxt; pr.textContent = ''; if (!isTouch) { const k = document.createElement('kbd'); k.textContent = 'E'; pr.append(k, ' '); } pr.append(ptxt); } pr.hidden = false; }
+    else { pr.hidden = true; pr.dataset.t = ''; }
+    if (me.itemT > 0) { me.itemT -= dt; if (me.itemT <= 0) { if (me.item === 2) { notice('🍡 노릇노릇 맛있게 구워졌어요!'); if (myAv) setBubble(myAv, '냠냠 🍡', 3000); } me.item = 0; } }
+    if (fireGain) { const fd = Math.hypot(me.x - FIRE.x, me.z - FIRE.z), near = inCafe(me.x, me.z) ? clamp(1 - fd / 12, 0, 1) : 0; fireGain.gain.value = near * 0.16; if (near > 0.3 && Math.random() < dt * 5 * near) tone([1500 + Math.random() * 1800], 0.025 * near, 0.03, 'square'); }
+    const indoor = inCafe(me.x, me.z); cafeHide.visible = !indoor; snow.visible = !indoor;
     if (dlg && dlg.npc && dlg.npc.id !== 'race' && me.state === 'ski' && dlg.choices.length && Math.hypot(me.x - dlg.npc.x, me.z - dlg.npc.z) > 9) closeDialog();
     const gc = me.guide && !me.run && me.state === 'ski' ? courseById[me.guide] : null;
     if (gc && me.z < -200) {
@@ -1805,13 +2075,13 @@ function frame(now) {
     } else guideArrow.visible = false;
     sun.position.set(me.x + SUN_OFF.x, me.y + SUN_OFF.y, me.z + SUN_OFF.z); sun.target.position.set(me.x, me.y, me.z);
     const sp = Math.hypot(me.vx, me.vz);
-    if (windGain) { windGain.gain.value = me.state === 'ski' ? clamp(sp / 26, 0, 1) * 0.22 : 0.02; hissGain.gain.value = me.state === 'ski' && !me.air ? clamp(sp / 20, 0, 1) * (me.brake ? 0.12 : 0.04) : 0; }
+    if (windGain) { windGain.gain.value = me.state === 'ski' && !inWalkZone(me.x, me.z) ? clamp(sp / 26, 0, 1) * 0.22 : 0.01; hissGain.gain.value = me.state === 'ski' && !me.air ? clamp(sp / 20, 0, 1) * (me.brake ? 0.12 : 0.04) : 0; }
     hudT -= dt;
     if (hudT <= 0) {
       hudT = 0.1;
       $('#spd').textContent = Math.round(sp * 3.6);
       $('#placeChip').textContent = placeName(STATE_CODE[me.state], me.x, me.z, me.run && me.run.c.id);
-      $('#placeIcon').textContent = me.state === 'lift' || me.state === 'queue' ? '🚡' : me.run ? '⛷' : me.z < -240 ? '⛰' : me.z > 0 ? '🏠' : '🌲';
+      $('#placeIcon').textContent = me.state === 'lift' || me.state === 'queue' ? '🚡' : me.run ? '⛷' : me.z < -240 ? '⛰' : inCafe(me.x, me.z) ? '☕' : inOnsen(me.x, me.z) ? '♨' : me.z > 0 ? '🏠' : '🌲';
       updateStatus(sp);
       drawMinimap();
     }
@@ -1819,6 +2089,7 @@ function frame(now) {
   }
   updatePeers(dt, t);
   updateBalls(dt);
+  updateWarmPlaces(dt, now);
   if (night.stars) { night.stars.position.copy(camera.position); night.moon.position.set(camera.position.x - 180, camera.position.y + 240, camera.position.z - 380); }
   updateFx(dt);
   updateCamera(dt);
@@ -1829,7 +2100,7 @@ void playersT;
 
 (async function boot() {
   try { await Promise.race([Promise.all([document.fonts.load('60px Jua'), document.fonts.load('40px "Noto Sans KR"')]), new Promise((r) => setTimeout(r, 1500))]); } catch (e) {}
-  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildNpcs(); buildMinimap(); buildNight();
+  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildCafe(); buildOnsen(); buildNpcs(); buildMinimap(); buildNight();
   const sn = store('ski.night'), hr = new Date().getHours();
   setNight(sn === '1' || (sn === null && (hr >= 18 || hr < 6)));
   rebuildMine();
