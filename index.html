@@ -157,6 +157,12 @@ body.is-touch #hint { display: none; }
   #chatLog { min-width: 0; width: 60%; }
   .pill > * { padding: 5px 7px; }
 }
+#splat { inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(circle at 52% 46%, rgba(255,255,255,0.95) 0 9%, rgba(255,255,255,0.75) 14%, rgba(255,255,255,0) 32%), radial-gradient(circle at 38% 58%, rgba(255,255,255,0.85) 0 4%, rgba(255,255,255,0) 9%), radial-gradient(circle at 63% 60%, rgba(255,255,255,0.85) 0 5%, rgba(255,255,255,0) 10%); }
+#splat.show { animation: splat 1.6s ease-out; }
+@keyframes splat { 0% { opacity: 1; transform: scale(0.9); } 60% { opacity: 0.85; } 100% { opacity: 0; transform: scale(1.05); } }
+#throwBtn { right: calc(28px + env(safe-area-inset-right, 0px)); bottom: calc(200px + env(safe-area-inset-bottom, 0px)); width: 62px; height: 62px; border-radius: 50%; border: 0; background: rgba(255,255,255,0.9); color: var(--ink); font-weight: 900; font-size: 12px; box-shadow: 0 4px 14px rgba(20,30,50,0.25); }
+.morebtn { width: 100%; padding: 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.5); background: transparent; color: #fff; font-size: 12.5px; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { #splat.show { animation-duration: 0.3s; } }
 #err { position: fixed; inset: auto 16px 16px 16px; z-index: 40; background: var(--berry); color: #fff; padding: 10px 14px; border-radius: 12px; font-weight: 700; }
 </style>
 </head>
@@ -173,6 +179,7 @@ body.is-touch #hint { display: none; }
     <div class="pill glass">
       <span title="지금 접속한 사람"><span aria-hidden="true">👥</span><span id="netTxt">1</span></span>
       <span class="sep"></span>
+      <button type="button" id="nightBtn" aria-label="밤 스키 켜기">🌙</button>
       <button type="button" id="soundBtn" aria-label="소리 끄기">🔊</button>
       <button type="button" id="mapBtn" aria-pressed="true" aria-label="지도 보기">🗺</button>
     </div>
@@ -185,8 +192,9 @@ body.is-touch #hint { display: none; }
   <div id="more" class="glass" hidden>
     <div><h3>지금 스키장에</h3><ul id="players"></ul></div>
     <div><h3>코스 최고 기록</h3><ul id="records"></ul></div>
+    <button id="homeBtn" type="button" class="morebtn">🏠 베이스로 돌아가기</button>
     <button id="copy2" type="button">친구 초대 링크 복사</button>
-    <div class="help" id="keys"><kbd>A</kbd><kbd>D</kbd> 방향 · <kbd>W</kbd> 밀기 · <kbd>S</kbd> 브레이크<br><kbd>Space</kbd> 점프 · <kbd>E</kbd> NPC와 대화 · <kbd>Enter</kbd> 채팅<br><kbd>Q</kbd> 스키↔보드 · <kbd>X</kbd> 앉기 · <kbd>G</kbd> 인사 · <kbd>R</kbd> 베이스로<br>화면을 끌면 시점 회전, 휠로 확대</div>
+    <div class="help" id="keys"><kbd>A</kbd><kbd>D</kbd> 방향 · <kbd>W</kbd> 밀기 · <kbd>S</kbd> 브레이크<br><kbd>Space</kbd> 점프 · <kbd>E</kbd> NPC와 대화 · <kbd>Enter</kbd> 채팅<br><kbd>Q</kbd> 스키↔보드 · <kbd>X</kbd> 앉기 · <kbd>G</kbd> 인사 · <kbd>R</kbd> 베이스로<br><kbd>F</kbd> 눈덩이 · <kbd>T</kbd> 레이스 · <kbd>N</kbd> 낮/밤<br>화면을 끌면 시점 회전, 휠로 확대</div>
   </div>
   <div class="bottom">
     <button id="prompt" type="button" hidden></button>
@@ -203,11 +211,14 @@ body.is-touch #hint { display: none; }
       <button type="button" id="actSit"><span class="ic">🧘</span><span class="lb">앉기</span></button>
       <button type="button" id="actWave"><span class="ic">👋</span><span class="lb">인사</span></button>
       <button type="button" id="chatOpen"><span class="ic">💬</span><span class="lb">말 남기기</span></button>
-      <button type="button" id="homeBtn"><span class="ic">🏠</span><span class="lb">베이스로</span></button>
+      <button type="button" id="actThrow"><span class="ic">❄</span><span class="lb">눈덩이</span></button>
+      <button type="button" id="actRace"><span class="ic">🏁</span><span class="lb">레이스</span></button>
       <button type="button" id="actMore" aria-pressed="false"><span class="ic">⋯</span><span class="lb">더 보기</span></button>
     </div>
   </div>
+  <div id="splat"></div>
   <div id="stick" class="touch" hidden><div id="knob"></div></div>
+  <button id="throwBtn" class="touch" type="button" hidden>❄ 던지기</button>
   <button id="jumpBtn" class="touch" type="button" hidden>점프</button>
 </div>
 
@@ -293,6 +304,7 @@ for (const c of COURSES) {
   const xs = c.s.map((p) => p[0]), zs = c.s.map((p) => p[1]), pad = c.width / 2 + 30;
   c.box = [Math.min(...xs) - pad, Math.max(...xs) + pad, Math.min(...zs) - pad, Math.max(...zs) + pad];
 }
+const FINISH_BACK = 10; // finish arch sits this many samples (~20 m) before the course end, still on the slope
 const courseById = Object.fromEntries(COURSES.map((c) => [c.id, c]));
 function nearestOnCourse(c, x, z, i0, i1) {
   i0 = Math.max(0, i0 || 0); i1 = Math.min(c.s.length - 1, i1 === undefined ? c.s.length - 1 : i1);
@@ -378,7 +390,8 @@ scene.background = canvasTex(4, 256, (g, w, h) => { const gr = g.createLinearGra
 scene.fog = new THREE.Fog(0xdcecfb, 120, 420);
 const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 900);
 scene.add(camera);
-scene.add(new THREE.HemisphereLight(0xe4f1ff, 0xf6f8ff, 0.72));
+const hemi = new THREE.HemisphereLight(0xe4f1ff, 0xf6f8ff, 0.72);
+scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff4e2, 0.75);
 sun.castShadow = true;
 sun.shadow.mapSize.set(isTouch ? 1024 : 2048, isTouch ? 1024 : 2048);
@@ -420,6 +433,7 @@ function buildTerrain() {
   }
   geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
   geo.computeVertexNormals();
+  G.geo = geo;
   const snowTex = canvasTex(256, 256, (g, w, h) => {
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
     const r = mulberry32(5);
@@ -500,7 +514,7 @@ function buildCourseDecor() {
     }
     poles.count = k; flags.count = k; scene.add(poles, flags);
     arch(c, 2, c.id + ' ' + c.level, c.name + ' 코스 출발');
-    arch(c, c.s.length - 4, '골인!', c.id + ' ' + c.name);
+    arch(c, c.s.length - FINISH_BACK, '골인!', c.id + ' ' + c.name);
     // grade sign beside start
     const [sx, sz] = c.s[0];
     const sign = textPlane([c.id], 1.6, 1.6, c.color, '#ffffff', { size: 190 });
@@ -847,6 +861,10 @@ const sfx = {
   start: () => { tone([880], 0.15, 0.15, 'triangle'); tone([1320], 0.15, 0.3, 'triangle', 0.18); },
   finish: () => { [523, 659, 784, 1047].forEach((f, i) => tone([f], 0.13, 0.35, 'triangle', i * 0.12)); },
   chat: () => tone([1200], 0.05, 0.08, 'sine'),
+  whoosh: () => tone([520, 380], 0.05, 0.14, 'sawtooth'),
+  splat: () => { tone([220, 140], 0.18, 0.18, 'square'); },
+  hit: () => { tone([1320, 1760], 0.09, 0.3, 'triangle'); },
+  beep: (hi) => tone([hi ? 1320 : 880], 0.14, hi ? 0.4 : 0.16, 'triangle'),
 };
 
 /* ================= player ================= */
@@ -873,11 +891,12 @@ function nearObstacle(x, z) {
 function crash(msg) {
   me.state = 'crash'; me.crashT = 1.6; me.vx = me.vz = 0; me.air = false;
   sfx.thud(); centerMsg('꽈당!', msg || '');
-  if (me.run) cancelRun('넘어져서 기록이 취소됐어요');
+  if (me.run && !me.run.race) cancelRun('넘어져서 기록이 취소됐어요');
 }
 function stepSki(dt) {
   const spd0 = Math.hypot(me.vx, me.vz);
   if (me.state === 'crash') { me.crashT -= dt; me.y = H(me.x, me.z); if (me.crashT <= 0) me.state = 'ski'; return; }
+  if (me.raceHold) { me.vx = me.vz = 0; me.y = H(me.x, me.z); me.air = false; return; }
   const gx = (H(me.x + 0.5, me.z) - H(me.x - 0.5, me.z)), gz = (H(me.x, me.z + 0.5) - H(me.x, me.z - 0.5));
   const steer = clamp(((keys.KeyD || keys.ArrowRight) ? 1 : 0) - ((keys.KeyA || keys.ArrowLeft) ? 1 : 0) + stick.x, -1, 1);
   const push = (keys.KeyW || keys.ArrowUp) || stick.y < -0.5;
@@ -938,7 +957,8 @@ function poseAvatar(av, o) {
   av.rider.position.y += (ry - av.rider.position.y) * 0.2;
   const up = o.air ? 1.3 : o.state === 'sit' ? 0.9 : 0.45;
   av.armL.rotation.z += (-up - av.armL.rotation.z) * 0.2;
-  if (av.waveT > 0) { av.waveT -= 1 / 60; av.armR.rotation.z = 2.5 + Math.sin(performance.now() / 90) * 0.45; }
+  if (av.throwT > 0) { av.throwT -= 1 / 60; av.armR.rotation.z = 0.45 + 2.5 * Math.max(0, av.throwT / 0.35); }
+  else if (av.waveT > 0) { av.waveT -= 1 / 60; av.armR.rotation.z = 2.5 + Math.sin(performance.now() / 90) * 0.45; }
   else av.armR.rotation.z += (up - av.armR.rotation.z) * 0.2;
   if (o.state === 'lift') { av.skis.rotation.x = 0.25; av.board.rotation.x = 0.25; } else { av.skis.rotation.x = 0; av.board.rotation.x = 0; }
 }
@@ -948,11 +968,12 @@ function startRun(c) {
   me.run = { c, t0: performance.now(), i: 0, off: 0 };
   me.guide = null; sfx.start(); centerMsg(c.id + ' 코스 출발!', c.level + ' · ' + c.name);
 }
-function cancelRun(msg) { me.run = null; if (msg) notice(msg); }
+function cancelRun(msg) { if (me.run && me.run.race && me.rc) me.rf = { id: me.rc.id, ms: -1 }; me.run = null; if (msg) notice(msg); }
 function updateRun(dt) {
   if (me.state !== 'ski') return;
   const sp = Math.hypot(me.vx, me.vz);
   if (!me.run) {
+    if (me.rc) return;
     for (const c of COURSES) {
       const n = nearestOnCourse(c, me.x, me.z, 0, 4);
       if (n.d < c.width / 2 && sp > 1.5 && me.vx * c.dir[0][0] + me.vz * c.dir[0][1] > 0 && me.z > c.s[0][1] + 2) { startRun(c); break; }
@@ -964,8 +985,9 @@ function updateRun(dt) {
   r.off = n.d > c.width / 2 + 22 ? r.off + dt : 0;
   if (r.off > 2.5) { cancelRun('코스를 벗어나서 기록이 취소됐어요'); return; }
   const ms = performance.now() - r.t0;
-  if (n.i >= c.s.length - 4) {
+  if (n.i >= c.s.length - FINISH_BACK) {
     me.run = null;
+    if (r.race && me.rc && me.rc.id === r.race) { me.rf = { id: r.race, ms: Math.round(ms) }; race.finishedAt = Date.now(); }
     const isBest = !me.best[c.id] || ms < me.best[c.id];
     if (isBest) { me.best[c.id] = Math.round(ms); store('ski.best', JSON.stringify(me.best)); }
     me.fin = { i: ++me.finSeq, co: c.id, ms: Math.round(ms) };
@@ -995,6 +1017,7 @@ function requestBoard() {
   if (pick < 0) { say(npcs.coco, '지금은 의자가 꽉 찼어요. 잠깐 뒤에 다시 말 걸어 주세요!'); return; }
   me.state = 'queue'; me.chair = pick; me.boardAt = t + wait; me.vx = me.vz = 0;
   if (me.run) cancelRun();
+  if (me.rc) leaveRace();
   const friends = occupants(pick).map(nameOfPeer).filter(Boolean);
   const extra = friends.length ? ' ' + friends.join(', ') + '님과 같은 의자예요. 함께 올라가요!' : '';
   say(npcs.coco, '노란 선에 서서 기다려 주세요. 의자가 뒤에서 와요! ' + Math.ceil(wait) + '초 남았어요.' + extra, [], 6000);
@@ -1117,13 +1140,13 @@ function placeName(st, x, z, co) {
 const STATE_CODE = { ski: 0, crash: 2, queue: 3, lift: 4, sit: 5 };
 function renderPlayers() {
   const ul = $('#players'); ul.textContent = '';
-  const rows = [{ name: me.name, color: me.color, sp: me.sp, place: placeName(STATE_CODE[me.state], me.x, me.z, me.run && me.run.c.id), me: true }];
-  for (const [, a] of avatars) rows.push({ name: a.name, color: a.color, sp: a.sp, place: placeName(a.st, a.pos.x, a.pos.z, a.co) });
+  const rows = [{ name: me.name, color: me.color, sp: me.sp, sh: me.sbHits || 0, place: placeName(STATE_CODE[me.state], me.x, me.z, me.run && me.run.c.id), me: true }];
+  for (const [, a] of avatars) rows.push({ name: a.name, color: a.color, sp: a.sp, sh: a.sh || 0, place: placeName(a.st, a.pos.x, a.pos.z, a.co) });
   for (const r of rows.slice(0, 10)) {
     const li = document.createElement('li'); if (r.me) li.className = 'me';
     const sw = document.createElement('span'); sw.className = 'sw'; sw.style.background = r.color;
     const em = document.createElement('span'); em.textContent = SPECIES[r.sp] ? SPECIES[r.sp].emoji : '❄';
-    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name + (r.me ? ' (나)' : '');
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name + (r.me ? ' (나)' : '') + (r.sh ? ' ❄' + r.sh : '');
     const sm = document.createElement('small'); sm.textContent = r.place; nm.appendChild(sm);
     li.append(sw, em, nm); ul.appendChild(li);
   }
@@ -1227,12 +1250,12 @@ function syncPeers(peers) {
     seen.add(p.peer);
     const name = cleanName(pr.n) || '스키어', color = cleanColor(pr.c), sp = clamp(pr.a | 0, 0, SPECIES.length - 1);
     let a = avatars.get(p.peer), keep = null;
-    if (a && (a.name !== name || a.color !== color || a.sp !== sp)) { keep = { chatI: a.chatI, finI: a.finI, waveI: a.waveI }; scene.remove(a.av.root); disposeGroup(a.av.root); avatars.delete(p.peer); a = null; }
+    if (a && (a.name !== name || a.color !== color || a.sp !== sp)) { keep = { chatI: a.chatI, finI: a.finI, waveI: a.waveI, sbI: a.sbI, hbI: a.hbI }; scene.remove(a.av.root); disposeGroup(a.av.root); avatars.delete(p.peer); a = null; }
     const isNew = !a;
     if (!a) {
       const av = makeAnimal(sp, color); av.tag = makeTag(name, color); av.tag.position.y = 2.8; av.root.add(av.tag);
       a = { av, name, color, sp, pos: new V3().fromArray(pr.p), tpos: new V3().fromArray(pr.p), h: 0, th: 0, st: 0, ch: -1, se: 0, steer: 0, spd: 0, co: '', best: {} };
-      if (keep) { a.chatI = keep.chatI; a.finI = keep.finI; a.waveI = keep.waveI; }
+      if (keep) { a.chatI = keep.chatI; a.finI = keep.finI; a.waveI = keep.waveI; a.sbI = keep.sbI; a.hbI = keep.hbI; }
       avatars.set(p.peer, a);
       if (!keep) { notice(name + (firstSync ? '님이 스키장에 있어요' : '님이 들어왔어요')); if (!firstSync) addChatLine('', '', name + '님이 들어왔어요', true); }
     }
@@ -1249,6 +1272,23 @@ function syncPeers(peers) {
       if (!isNew && a.chatI !== ct.i) { const t = cleanText(ct.t, 60); if (t) { addChatLine(a.name, a.color, t); setBubble(a.av, t, 6000); sfx.chat(); } }
       a.chatI = ct.i;
     }
+    const sb = pr.sb;
+    if (sb && typeof sb === 'object' && typeof sb.i === 'number') {
+      if (!isNew && a.sbI !== sb.i && vec3ok(sb.o) && vec3ok(sb.v)) { spawnBall(new V3().fromArray(sb.o), new V3().fromArray(sb.v), p.peer); a.av.throwT = 0.35; }
+      a.sbI = sb.i;
+    }
+    const hb = pr.hb;
+    if (hb && typeof hb === 'object' && typeof hb.i === 'number') {
+      if (!isNew && a.hbI !== hb.i && hb.by === myId()) { me.sbHits = (me.sbHits || 0) + 1; sfx.hit(); notice('🎯 명중! ' + a.name + '님을 맞혔어요'); }
+      a.hbI = hb.i;
+    }
+    a.sh = clamp(pr.sh | 0, 0, 99999);
+    a.rc = validRace(pr.rc);
+    if (a.rc && !race.seen.has(a.rc.id)) {
+      race.seen.add(a.rc.id);
+      if (a.rc.t0 > Date.now() + 3000 && !(me.rc && me.rc.id === a.rc.id)) { notice('🏁 ' + a.rc.h + '님이 ' + a.rc.co + ' 코스 레이스를 열었어요!'); addChatLine('', '', '🏁 ' + a.rc.h + '님이 ' + a.rc.co + ' 코스 레이스를 열었어요. 🏁 레이스 버튼으로 참가하세요!', true); }
+    }
+    a.rf = pr.rf && typeof pr.rf === 'object' && typeof pr.rf.id === 'string' && typeof pr.rf.ms === 'number' ? { id: pr.rf.id, ms: pr.rf.ms } : null;
     if (typeof pr.w === 'number') { if (!isNew && a.waveI !== pr.w) a.av.waveT = 2; a.waveI = pr.w; }
     const fn = pr.f;
     if (fn && typeof fn === 'object' && typeof fn.i === 'number') {
@@ -1270,6 +1310,7 @@ function sendPresence(now, force) {
     s: me.air ? 1 : STATE_CODE[me.state], st: r2(me.steer), v: r2(Math.hypot(me.vx, me.vz)),
     ch: me.state === 'queue' || me.state === 'lift' ? me.chair : -1, se: me.seat,
     co: me.run ? me.run.c.id : '', b: me.best, f: me.fin, m: me.chat, w: me.waveSeq || 0,
+    sb: me.sb, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf,
   };
   const key = JSON.stringify(pr);
   if (key === lastSent) return;
@@ -1350,6 +1391,9 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyQ') toggleGear();
   if (e.code === 'KeyX') toggleSit();
   if (e.code === 'KeyG') wave();
+  if (e.code === 'KeyF') throwBall();
+  if (e.code === 'KeyT') raceMenu();
+  if (e.code === 'KeyN') setNight(!night.on);
   if (e.code === 'KeyR') goHome();
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
 });
@@ -1363,6 +1407,7 @@ function updateGearChip() { $('#gearChip').textContent = me.gear ? '🏂 스노�
 function goHome() {
   if (me.state === 'lift' || me.state === 'queue') { notice('리프트에서는 이동할 수 없어요'); return; }
   if (me.run) cancelRun();
+  if (me.rc) leaveRace();
   me.state = 'ski'; me.x = (Math.random() - 0.5) * 24; me.z = 50; me.y = 0; me.vx = me.vz = 0; me.heading = 0; me.air = false;
   notice('베이스로 돌아왔어요');
 }
@@ -1452,7 +1497,7 @@ function enter() {
   playing = true;
   rebuildMine(); updateGearChip();
   $('#start').hidden = true; $('#hud').hidden = false;
-  if (isTouch) ['#stick', '#jumpBtn'].forEach((s) => { $(s).hidden = false; });
+  if (isTouch) ['#stick', '#jumpBtn', '#throwBtn'].forEach((s) => { $(s).hidden = false; });
   setTimeout(() => { $('#hint').style.opacity = '0'; setTimeout(() => { $('#hint').hidden = true; }, 900); }, 12000);
   me.x = (Math.random() - 0.5) * 20; me.z = 50; me.heading = 0;
   renderPlayers(); renderRecords();
@@ -1461,6 +1506,215 @@ function enter() {
 }
 $('#enter').addEventListener('click', enter);
 $('#nick').addEventListener('keydown', (e) => { if (e.key === 'Enter') enter(); });
+
+/* ================= night skiing ================= */
+const night = { on: false, overlay: null, lamps: [], stars: null, moon: null, light: null };
+const dayBg = scene.background;
+const nightBg = canvasTex(4, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#050a1a'); gr.addColorStop(0.6, '#12224a'); gr.addColorStop(1, '#2c3f6e'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+const glowTex = canvasTex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 1, 32, 32, 31); gr.addColorStop(0, 'rgba(255,236,190,1)'); gr.addColorStop(0.25, 'rgba(255,210,140,0.55)'); gr.addColorStop(1, 'rgba(255,190,110,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
+function buildNight() {
+  // lit pistes: an unlit additive copy of the terrain, black where it stays dark
+  const geo = G.geo, n = geo.attributes.position.count, col = new Float32Array(n * 3);
+  for (let k = 0; k < n; k++) {
+    const ix = k % G.nx, iz = Math.floor(k / G.nx), x = G.minX + ix * G.step, z = G.minZ + iz * G.step;
+    let l = G.groom[k] * 0.26;
+    if (z > -4 && z < 96 && Math.abs(x) < 90) l = Math.max(l, 0.2 * (1 - sstep(60, 90, Math.abs(x))));
+    if (Math.abs(x) < 9 && z > LIFT.zTop - 8 && z < LIFT.zBot + 8) l = Math.max(l, 0.14);
+    if (z < -238 && z > -276 && Math.abs(x) < 110) l = Math.max(l, 0.16);
+    col[k * 3] = l; col[k * 3 + 1] = l * 0.9; col[k * 3 + 2] = l * 0.72;
+  }
+  const og = new THREE.BufferGeometry();
+  og.setAttribute('position', geo.attributes.position); og.setIndex(geo.index); og.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  night.overlay = new THREE.Mesh(og, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, fog: false }));
+  night.overlay.renderOrder = 1; scene.add(night.overlay);
+  // lamp posts
+  const spots = [];
+  for (const c of COURSES) for (let i = 4; i < c.s.length - 2; i += 9) {
+    const [x, z] = c.s[i], [dx, dz] = c.dir[i], side = (Math.floor(i / 9) % 2) ? 1 : -1, off = c.width / 2 + 1.8;
+    spots.push([x + dz * off * side, z - dx * off * side]);
+  }
+  for (const [x, z] of [[-30, 8], [-10, 12], [10, 12], [30, 8], [-45, 40], [45, 40], [-22, 66], [22, 66], [0, 76]]) spots.push([x, z]);
+  for (let x = -100; x <= 100; x += 25) spots.push([x, -266]);
+  const poles = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.08, 0.1, 5, 6), lam(0x3a4250), spots.length);
+  const heads = new THREE.InstancedMesh(new THREE.SphereGeometry(0.28, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffe2a8 }), spots.length);
+  const gpos = new Float32Array(spots.length * 3), m = new THREE.Matrix4();
+  spots.forEach(([x, z], i) => {
+    const y = H(x, z);
+    m.makeTranslation(x, y + 2.5, z); poles.setMatrixAt(i, m);
+    m.makeTranslation(x, y + 5.1, z); heads.setMatrixAt(i, m);
+    gpos[i * 3] = x; gpos[i * 3 + 1] = y + 5.1; gpos[i * 3 + 2] = z;
+  });
+  const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.BufferAttribute(gpos, 3));
+  const glow = new THREE.Points(gg, new THREE.PointsMaterial({ size: 7, map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  scene.add(poles, heads, glow); night.lamps = [poles, heads, glow];
+  // stars and moon (follow the camera so they read as far away)
+  const sp = new Float32Array(1100 * 3), sr = mulberry32(77);
+  for (let i = 0; i < 1100; i++) { const a = sr() * Math.PI * 2, e = 0.08 + sr() * 1.4, r = 600; sp[i * 3] = Math.cos(a) * Math.cos(e) * r; sp[i * 3 + 1] = Math.sin(e) * r; sp[i * 3 + 2] = Math.sin(a) * Math.cos(e) * r; }
+  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
+  night.stars = new THREE.Points(sg, new THREE.PointsMaterial({ size: 2, sizeAttenuation: false, color: 0xffffff, fog: false, transparent: true, opacity: 0.9 }));
+  night.stars.frustumCulled = false; scene.add(night.stars);
+  night.moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 10, 64, 64, 63); gr.addColorStop(0, '#fffbe8'); gr.addColorStop(0.32, '#fff3c8'); gr.addColorStop(0.36, 'rgba(255,240,200,0.35)'); gr.addColorStop(1, 'rgba(255,240,200,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); }), fog: false, depthWrite: false, transparent: true }));
+  night.moon.scale.set(110, 110, 1); scene.add(night.moon);
+  night.light = new THREE.PointLight(0xffe2b0, 0, 20, 1.6); scene.add(night.light);
+}
+function setNight(on) {
+  night.on = on;
+  scene.background = on ? nightBg : dayBg;
+  scene.fog.color.set(on ? 0x0e1730 : 0xdcecfb); scene.fog.near = on ? 60 : 120; scene.fog.far = on ? 320 : 420;
+  hemi.intensity = on ? 0.16 : 0.72; hemi.color.set(on ? 0x6d84c4 : 0xe4f1ff); hemi.groundColor.set(on ? 0x1c2440 : 0xf6f8ff);
+  sun.intensity = on ? 0.16 : 0.75; sun.color.set(on ? 0xa8bdff : 0xfff4e2);
+  renderer.toneMappingExposure = on ? 1.0 : 1.05;
+  if (night.overlay) { night.overlay.visible = on; night.lamps.forEach((l) => { l.visible = on; }); night.stars.visible = on; night.moon.visible = on; night.light.intensity = on ? 1.1 : 0; }
+  const b = $('#nightBtn'); b.textContent = on ? '☀' : '🌙'; b.setAttribute('aria-label', on ? '낮으로 바꾸기' : '밤 스키 켜기');
+  store('ski.night', on ? '1' : '0');
+}
+$('#nightBtn').addEventListener('click', () => { setNight(!night.on); if (playing) notice(night.on ? '🌙 밤 스키 시작! 슬로프에 조명이 켜졌어요' : '☀ 낮으로 바뀌었어요'); });
+
+/* ================= snowball fight ================= */
+const balls = [], ballGeo = new THREE.SphereGeometry(0.17, 10, 8), ballMat = lam(0xffffff);
+let sbCool = 0;
+function spawnBall(o, v, owner) {
+  const m = new THREE.Mesh(ballGeo, ballMat); m.position.copy(o); m.castShadow = true; scene.add(m);
+  balls.push({ m, v: v.clone(), owner, life: 4 });
+}
+function throwBall() {
+  if (!playing || sbCool > 0) return;
+  if (!(me.state === 'ski' || me.state === 'sit') || me.raceHold) { notice('지금은 눈덩이를 던질 수 없어요'); return; }
+  if (me.state === 'sit') me.state = 'ski';
+  sbCool = 0.6;
+  const yaw = me.heading + cam.yawOff, fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+  const o = new V3(me.x + fx * 0.7, me.y + 1.8, me.z + fz * 0.7);
+  const v = new V3(fx * 22 + me.vx, 3, fz * 22 + me.vz);
+  me.sbSeq = (me.sbSeq || 0) + 1;
+  me.sb = { i: me.sbSeq, o: [r2(o.x), r2(o.y), r2(o.z)], v: [r2(v.x), r2(v.y), r2(v.z)] };
+  spawnBall(o, v, 'me'); if (myAv) myAv.throwT = 0.35; sfx.whoosh();
+  sendPresence(performance.now(), true);
+}
+function gotHit(b) {
+  const a = avatars.get(b.owner), nm = a ? a.name : '누군가';
+  me.hbSeq = (me.hbSeq || 0) + 1; me.hb = { i: me.hbSeq, by: b.owner };
+  me.vx *= 0.4; me.vz *= 0.4; if (me.state === 'sit') me.state = 'ski';
+  sfx.splat(); notice('퍽! ' + nm + '님의 눈덩이에 맞았어요 ❄');
+  const sp = $('#splat'); sp.classList.remove('show'); void sp.offsetWidth; sp.classList.add('show');
+  sendPresence(performance.now(), true);
+}
+function updateBalls(dt) {
+  sbCool = Math.max(0, sbCool - dt);
+  for (let i = balls.length - 1; i >= 0; i--) {
+    const b = balls[i], p = b.m.position;
+    b.v.y -= 9.8 * dt; p.addScaledVector(b.v, dt); b.life -= dt;
+    let hit = false;
+    if (b.owner !== 'me' && playing && me.state !== 'lift' && me.state !== 'queue') {
+      const dx = p.x - me.x, dy = p.y - (me.y + 1.1), dz = p.z - me.z;
+      if (dx * dx + dy * dy + dz * dz < 1.21) { hit = true; gotHit(b); }
+    }
+    if (!hit) for (const [id, a] of avatars) {
+      if (id === b.owner || a.st === 4) continue;
+      const dx = p.x - a.pos.x, dy = p.y - (a.pos.y + 1.1), dz = p.z - a.pos.z;
+      if (dx * dx + dy * dy + dz * dz < 1.21) { hit = true; break; }
+    }
+    if (!hit && p.y < H(p.x, p.z)) hit = true;
+    if (hit || b.life <= 0) { emitSpray(p.x, p.y - 0.1, p.z, 0, 0, 12); scene.remove(b.m); balls.splice(i, 1); }
+  }
+}
+$('#actThrow').addEventListener('click', throwBall);
+$('#throwBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); throwBall(); });
+
+/* ================= friend race ================= */
+const race = { seen: new Set(), lastCount: null, finishedAt: 0, shown: false };
+const RACE_NPC = { id: 'race', name: '레이스 진행요원', face: '🏁', x: 0, z: 0 };
+function validRace(r) {
+  if (!r || typeof r !== 'object' || typeof r.id !== 'string' || !/^[a-z0-9]{4,12}$/.test(r.id) || !courseById[r.co] || typeof r.t0 !== 'number') return null;
+  if (Math.abs(r.t0 - Date.now()) > 600000) return null;
+  return { id: r.id, co: r.co, t0: r.t0, h: cleanName(r.h) || '누군가' };
+}
+function raceParticipants() {
+  if (!me.rc) return [];
+  const list = [{ name: me.name, rf: me.rf, me: true }];
+  for (const [, a] of avatars) if (a.rc && a.rc.id === me.rc.id) list.push({ name: a.name, rf: a.rf && a.rf.id === me.rc.id ? a.rf : null });
+  return list;
+}
+function openRaces() {
+  const t = Date.now(), list = [];
+  for (const [, a] of avatars) if (a.rc && a.rc.t0 > t + 2500 && !list.some((r) => r.id === a.rc.id)) list.push(a.rc);
+  return list;
+}
+function raceMenu() {
+  if (!playing) return;
+  if (me.state === 'lift' || me.state === 'queue') { notice('리프트에서는 레이스에 참가할 수 없어요'); return; }
+  if (me.rc && !me.rf) {
+    say(RACE_NPC, me.raceHold ? '출발을 기다리는 중이에요. 레이스를 그만둘까요?' : '레이스 중이에요! 그만둘까요?', [
+      { label: '레이스 그만두기', fn: () => { leaveRace(); closeDialog(); notice('레이스에서 나왔어요'); } },
+      { label: '계속하기', fn: closeDialog },
+    ]); return;
+  }
+  const open = openRaces();
+  const choices = open.map((r) => ({ label: r.h + '님의 ' + courseById[r.co].name + ' 레이스 참가', grade: r.co, fn: () => joinRace(r) }));
+  choices.push({ label: '새 레이스 열기', fn: () => say(RACE_NPC, '어느 코스에서 겨룰까요? 레이스를 열면 접속한 모두에게 알림이 가고, 15초 뒤에 다 같이 출발해요.', courseChoices(hostRace)) });
+  choices.push({ label: '닫기', fn: closeDialog });
+  say(RACE_NPC, open.length ? '지금 참가할 수 있는 레이스가 있어요! 참가하면 출발선으로 바로 이동해요.' : '친구와 같은 코스를 동시에 출발해서 누가 먼저 골인하는지 겨뤄요. 넘어져도 다시 일어나서 달리면 돼요!', choices);
+}
+function hostRace(c) {
+  const id = Math.random().toString(36).slice(2, 10).replace(/[^a-z0-9]/g, 'x').padEnd(6, 'x');
+  const r = { id, co: c.id, t0: Date.now() + 15000, h: me.name };
+  race.seen.add(id); joinRace(r);
+  addChatLine('', '', '🏁 ' + c.id + ' ' + c.name + ' 레이스를 열었어요. 15초 뒤에 출발해요!', true);
+}
+function joinRace(r) {
+  const c = courseById[r.co];
+  if (me.run) cancelRun();
+  closeDialog();
+  me.rc = { id: r.id, co: r.co, t0: r.t0, h: r.h }; me.rf = null;
+  race.lastCount = null; race.finishedAt = 0; race.shown = false;
+  let hsh = 0; for (const ch of myId() + me.name) hsh = (hsh * 31 + ch.charCodeAt(0)) | 0;
+  const slot = (Math.abs(hsh) % 5) - 2, [x, z] = c.s[1], [dx, dz] = c.dir[1], off = slot * Math.min(2.6, c.width / 6);
+  me.x = x + dz * off; me.z = z - dx * off; me.y = H(me.x, me.z);
+  me.heading = Math.atan2(-dx, -dz); me.vx = me.vz = 0; me.air = false; me.state = 'ski'; me.raceHold = true;
+  cam.yawOff = 0;
+  notice('🏁 ' + c.id + ' ' + c.name + ' 레이스 출발선에 섰어요!');
+  sendPresence(performance.now(), true);
+}
+function leaveRace() {
+  if (me.run && me.run.race) { me.run = null; }
+  me.rc = null; me.rf = null; me.raceHold = false;
+}
+function updateRace() {
+  if (!me.rc) return;
+  const now = Date.now(), left = me.rc.t0 - now, c = courseById[me.rc.co];
+  if (me.raceHold) {
+    const n = Math.ceil(left / 1000);
+    if (n !== race.lastCount && n > 0 && n <= 10) { race.lastCount = n; centerMsg(String(n), c.id + ' ' + c.name + ' 레이스 · ' + raceParticipants().length + '명 참가'); if (n <= 3) sfx.beep(false); }
+    if (left <= 0) {
+      me.raceHold = false;
+      me.run = { c, t0: performance.now() + left, i: 1, off: 0, race: me.rc.id };
+      me.vx = c.dir[1][0] * 6; me.vz = c.dir[1][1] * 6;
+      sfx.beep(true); centerMsg('출발!', c.id + ' ' + c.name + ' 레이스');
+    }
+    return;
+  }
+  if (!me.rf && !me.run && now > me.rc.t0 + 1000) me.rf = { id: me.rc.id, ms: -1 };
+  if (me.rf && !race.shown) {
+    const ps = raceParticipants(), done = ps.every((x) => x.rf);
+    if (done || (race.finishedAt && now - race.finishedAt > 45000) || (me.rf.ms < 0 && now - me.rc.t0 > 90000)) { race.shown = true; showRaceResults(ps); }
+  }
+  if (now - me.rc.t0 > 300000) leaveRace();
+}
+function showRaceResults(ps) {
+  const c = courseById[me.rc.co];
+  const fin = ps.filter((x) => x.rf && x.rf.ms > 0).sort((a, b) => a.rf.ms - b.rf.ms);
+  const dnf = ps.filter((x) => !x.rf || x.rf.ms <= 0);
+  const medals = ['🥇', '🥈', '🥉'];
+  const lines = fin.map((x, i) => (medals[i] || (i + 1) + '등') + ' ' + x.name + ' ' + fmtTime(x.rf.ms));
+  if (dnf.length) lines.push('완주 못 함: ' + dnf.map((x) => x.name).join(', '));
+  const myRank = fin.findIndex((x) => x.me);
+  if (myRank === 0 && fin.length > 1) sfx.finish();
+  say(RACE_NPC, c.id + ' ' + c.name + ' 레이스 결과! ' + lines.join(' · '), [
+    { label: '한 판 더! 같은 코스로 새 레이스', fn: () => { const cc = c; leaveRace(); hostRace(cc); } },
+    { label: '닫기', fn: () => { leaveRace(); closeDialog(); } },
+  ]);
+  addChatLine('', '', '🏁 ' + c.id + ' 레이스 결과: ' + lines.join(' · '), true);
+}
+$('#actRace').addEventListener('click', raceMenu);
 
 /* ---------- status card ---------- */
 function updateStatus(sp) {
@@ -1474,8 +1728,12 @@ function updateStatus(sp) {
     sub = mates.length ? '같은 의자: ' + mates.join(', ') : 'Enter로 친구에게 말을 걸 수 있어요';
   } else if (me.state === 'queue') {
     chip = '대기'; title = '리프트 의자를 기다리는 중'; right = Math.max(0, Math.ceil(me.boardAt - nowS())) + '초'; sub = '노란 선에 서 있으면 의자가 뒤에서 태워 줘요';
+  } else if (me.raceHold && me.rc) {
+    const c = courseById[me.rc.co];
+    chip = '레이스'; title = '🏁 ' + c.id + ' ' + c.name + ' 레이스 출발 대기'; right = Math.max(0, Math.ceil((me.rc.t0 - Date.now()) / 1000)) + '초';
+    sub = '참가: ' + raceParticipants().map((x) => x.name).join(', ');
   } else if (me.run) {
-    const c = me.run.c; chip = '주행';
+    const c = me.run.c; chip = me.run.race ? '레이스' : '주행';
     title = c.id + ' ' + c.level + ' · ' + c.name; right = fmtTime(performance.now() - me.run.t0); fill = me.run.i / (c.s.length - 1);
     sub = me.best[c.id] ? '내 최고 기록 ' + fmtTime(me.best[c.id]) : '골인 아치까지 달려요!';
   } else {
@@ -1529,13 +1787,15 @@ function frame(now) {
     if (me.state === 'ski' || me.state === 'crash') stepSki(dt);
     updateLift(dt);
     updateRun(dt);
+    updateRace();
+    if (night.light) night.light.position.set(me.x, me.y + 3.2, me.z);
     if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state });
     // prompt + guide
     const n = nearNpc();
     const pr = $('#prompt');
     if (n && !(dlg && dlg.choices.length)) { pr.hidden = false; pr.textContent = ''; if (!isTouch) { const k = document.createElement('kbd'); k.textContent = 'E'; pr.append(k, ' '); } pr.append(n.name + (n.id === 'coco' ? '에게 말 걸기 · 리프트 타기' : '에게 길 물어보기')); }
     else pr.hidden = true;
-    if (dlg && dlg.npc && me.state === 'ski' && dlg.choices.length && Math.hypot(me.x - dlg.npc.x, me.z - dlg.npc.z) > 9) closeDialog();
+    if (dlg && dlg.npc && dlg.npc.id !== 'race' && me.state === 'ski' && dlg.choices.length && Math.hypot(me.x - dlg.npc.x, me.z - dlg.npc.z) > 9) closeDialog();
     const gc = me.guide && !me.run && me.state === 'ski' ? courseById[me.guide] : null;
     if (gc && me.z < -200) {
       const [gx, gz] = gc.s[2], dx = gx - me.x, dz = gz - me.z;
@@ -1558,6 +1818,8 @@ function frame(now) {
     sendPresence(now);
   }
   updatePeers(dt, t);
+  updateBalls(dt);
+  if (night.stars) { night.stars.position.copy(camera.position); night.moon.position.set(camera.position.x - 180, camera.position.y + 240, camera.position.z - 380); }
   updateFx(dt);
   updateCamera(dt);
   renderer.render(scene, camera);
@@ -1567,7 +1829,9 @@ void playersT;
 
 (async function boot() {
   try { await Promise.race([Promise.all([document.fonts.load('60px Jua'), document.fonts.load('40px "Noto Sans KR"')]), new Promise((r) => setTimeout(r, 1500))]); } catch (e) {}
-  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildNpcs(); buildMinimap();
+  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildNpcs(); buildMinimap(); buildNight();
+  const sn = store('ski.night'), hr = new Date().getHours();
+  setNight(sn === '1' || (sn === null && (hr >= 18 || hr < 6)));
   rebuildMine();
   requestAnimationFrame(frame);
   connect();
