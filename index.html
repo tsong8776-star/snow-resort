@@ -109,6 +109,9 @@ h1 em { font-style: normal; color: var(--berry); }
 #actions button:hover, #actions button[aria-pressed="true"] { background: rgba(255,255,255,0.2); }
 #actions .ic { font-size: 19px; line-height: 1.1; }
 #actions .lb { font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+#offWarn { background: #e5484d; color: #fff; font-weight: 900; border-radius: 999px; padding: 8px 18px; box-shadow: 0 6px 18px rgba(229,72,77,0.45); animation: invitePulse 0.6s ease-in-out infinite; }
+#raceInvite { pointer-events: auto; border: 0; border-radius: 999px; background: #ff7a1a; color: #fff; font-weight: 900; padding: 9px 18px; box-shadow: 0 6px 18px rgba(255,122,26,0.4); animation: invitePulse 1.4s ease-in-out infinite; }
+@keyframes invitePulse { 50% { transform: scale(1.04); } }
 #prompt { position: static; background: rgba(255,255,255,0.92); color: var(--ink); border-radius: 999px; padding: 7px 16px; font-weight: 700; white-space: nowrap; pointer-events: auto; border: 0; box-shadow: 0 6px 18px rgba(20,30,50,0.2); }
 #dlgClose { position: absolute; top: 8px; right: 8px; width: 34px; height: 34px; border-radius: 50%; border: 0; background: rgba(27,42,74,0.08); color: var(--ink); font-size: 16px; font-weight: 900; }
 #dlgClose:hover { background: rgba(27,42,74,0.16); }
@@ -192,6 +195,12 @@ body.is-touch #hint { display: none; }
   #chatLog { min-width: 0; width: 60%; }
   .pill > * { padding: 5px 7px; }
 }
+#catchCard { left: 50%; top: 22%; transform: translateX(-50%); width: min(320px, 80vw); padding: 12px 14px; display: grid; justify-items: center; gap: 2px; background: rgba(255,255,255,0.94); color: var(--ink); border: 3px solid #5f97a6; }
+#catchCard canvas { width: 100%; height: auto; }
+#catchCard b { font-family: var(--font-display); font-weight: 400; font-size: 34px; line-height: 1; }
+#catchTag { font-weight: 900; font-size: 14px; color: #3c7384; }
+#catchCard.pop { animation: catchPop 0.45s cubic-bezier(.2,1.6,.4,1); }
+@keyframes catchPop { 0% { transform: translateX(-50%) scale(0.4); opacity: 0; } 100% { transform: translateX(-50%) scale(1); opacity: 1; } }
 #fade { inset: 0; pointer-events: none; opacity: 0; background: #0b0806; }
 #fade.go { animation: fade 0.7s ease-out; }
 @keyframes fade { 0% { opacity: 1; } 35% { opacity: 1; } 100% { opacity: 0; } }
@@ -244,6 +253,8 @@ body.is-touch #hint { display: none; }
     <div class="help" id="keys"><kbd>A</kbd><kbd>D</kbd> 방향 · <kbd>W</kbd> 밀기 · <kbd>S</kbd> 브레이크<br><kbd>Space</kbd> 점프 · <kbd>E</kbd> NPC와 대화 · <kbd>Enter</kbd> 채팅<br><kbd>Q</kbd> 스키↔보드 · <kbd>X</kbd> 앉기 · <kbd>G</kbd> 인사 · <kbd>R</kbd> 베이스로<br><kbd>Shift</kbd> 부스트 · <kbd>F</kbd> 눈덩이 · <kbd>T</kbd> 레이스 · <kbd>N</kbd> 낮/밤<br>화면을 끌면 시점 회전, 휠로 확대</div>
   </div>
   <div class="bottom">
+    <div id="offWarn" hidden></div>
+    <button id="raceInvite" type="button" hidden></button>
     <button id="prompt" type="button" hidden></button>
     <div id="dialog" class="glass" hidden><button type="button" id="dlgClose" aria-label="대화창 닫기">✕</button><div class="who"><span id="dlgFace"></span><span id="dlgName"></span></div><p id="dlgText"></p><div id="dlgChoices"></div></div>
     <form id="chatForm" hidden><input id="chatInput" maxlength="60" autocomplete="off" placeholder="친구에게 할 말을 입력하고 Enter"><button type="submit">보내기</button></form>
@@ -265,6 +276,7 @@ body.is-touch #hint { display: none; }
   </div>
   <div id="splat"></div>
   <div id="fade"></div>
+  <div id="catchCard" class="glass" hidden><span id="catchTag"></span><canvas id="catchCanvas" width="360" height="180"></canvas><b id="catchSize"></b></div>
   <div id="stick" class="touch" hidden><div id="knob"></div></div>
   <button id="throwBtn" class="touch" type="button" hidden>❄ 던지기</button>
   <button id="boostBtn" class="touch" type="button" hidden>⚡ 부스트</button>
@@ -1082,6 +1094,60 @@ function updateWarmPlaces(dt, now) {
   }
 }
 
+/* ---------- smelt (빙어) model ---------- */
+const SMELT = { belly: null, back: null, fin: null, eye: null, eyeW: null };
+function makeSmelt(len) {
+  if (!SMELT.belly) {
+    SMELT.belly = new THREE.MeshPhongMaterial({ color: 0xe6edf2, shininess: 90, specular: 0xffffff });
+    SMELT.back = new THREE.MeshPhongMaterial({ color: 0x5f97a6, shininess: 60 });
+    SMELT.fin = new THREE.MeshLambertMaterial({ color: 0xcfe0e8, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
+    SMELT.eye = lam(0x111111); SMELT.eyeW = lam(0xffffff);
+  }
+  const g = new THREE.Group(), L = len || 0.3;
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 10), SMELT.belly); body.scale.set(L * 0.17, L * 0.24, L); g.add(body);
+  const back = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 10), SMELT.back); back.scale.set(L * 0.13, L * 0.12, L * 0.9); back.position.set(0, L * 0.07, -L * 0.02); g.add(back);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(L * 0.172, L * 0.012, L * 0.7), lam(0xb8d8e4)); stripe.position.y = L * 0.01; g.add(stripe);
+  for (const s2 of [-1, 1]) {
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(L * 0.09, L * 0.28, 4), SMELT.fin);
+    tail.scale.set(0.25, 1, 1); tail.rotation.x = Math.PI / 2 + s2 * 0.55; tail.position.set(0, s2 * L * 0.06, L * 0.6); g.add(tail);
+    const eyeW = new THREE.Mesh(new THREE.SphereGeometry(L * 0.035, 8, 6), SMELT.eyeW); eyeW.position.set(s2 * L * 0.07, L * 0.03, -L * 0.36); g.add(eyeW);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(L * 0.02, 6, 5), SMELT.eye); eye.position.set(s2 * L * 0.085, L * 0.03, -L * 0.37); g.add(eye);
+  }
+  const dorsal = new THREE.Mesh(new THREE.ConeGeometry(L * 0.06, L * 0.14, 3), SMELT.fin); dorsal.scale.set(0.3, 1, 1.4); dorsal.position.set(0, L * 0.15, L * 0.02); g.add(dorsal);
+  const adipose = new THREE.Mesh(new THREE.ConeGeometry(L * 0.03, L * 0.07, 3), SMELT.fin); adipose.scale.set(0.3, 1, 1); adipose.position.set(0, L * 0.11, L * 0.28); g.add(adipose);
+  return g;
+}
+function drawSmelt(g, w, h) {
+  // a slender silver smelt with a blue-green back, pointing left
+  const cx = w * 0.48, cy = h * 0.52, L = w * 0.36, H2 = h * 0.17;
+  g.save();
+  g.fillStyle = 'rgba(207,224,232,0.85)';
+  g.beginPath(); g.moveTo(cx + L * 0.92, cy); g.lineTo(cx + L * 1.28, cy - H2 * 1.1); g.lineTo(cx + L * 1.16, cy); g.lineTo(cx + L * 1.28, cy + H2 * 1.1); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(cx - L * 0.05, cy - H2 * 0.9); g.lineTo(cx + L * 0.12, cy - H2 * 1.6); g.lineTo(cx + L * 0.25, cy - H2 * 0.9); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(cx + L * 0.1, cy + H2 * 0.85); g.lineTo(cx + L * 0.22, cy + H2 * 1.4); g.lineTo(cx + L * 0.34, cy + H2 * 0.8); g.closePath(); g.fill();
+  const gr = g.createLinearGradient(0, cy - H2, 0, cy + H2);
+  gr.addColorStop(0, '#4f8797'); gr.addColorStop(0.42, '#9cc6d3'); gr.addColorStop(0.55, '#e9f2f6'); gr.addColorStop(1, '#f7fbfd');
+  g.fillStyle = gr;
+  g.beginPath(); g.moveTo(cx - L, cy);
+  g.bezierCurveTo(cx - L * 0.7, cy - H2 * 1.15, cx + L * 0.5, cy - H2 * 1.05, cx + L, cy - H2 * 0.18);
+  g.lineTo(cx + L, cy + H2 * 0.18);
+  g.bezierCurveTo(cx + L * 0.5, cy + H2 * 1.05, cx - L * 0.7, cy + H2 * 1.1, cx - L, cy);
+  g.fill();
+  g.strokeStyle = 'rgba(200,230,240,0.9)'; g.lineWidth = Math.max(1.5, h * 0.012); g.beginPath(); g.moveTo(cx - L * 0.6, cy + H2 * 0.05); g.quadraticCurveTo(cx, cy - H2 * 0.08, cx + L * 0.9, cy); g.stroke();
+  g.fillStyle = '#ffffff'; g.beginPath(); g.arc(cx - L * 0.72, cy - H2 * 0.18, H2 * 0.28, 0, 7); g.fill();
+  g.fillStyle = '#111111'; g.beginPath(); g.arc(cx - L * 0.74, cy - H2 * 0.18, H2 * 0.16, 0, 7); g.fill();
+  g.strokeStyle = 'rgba(60,90,100,0.6)'; g.lineWidth = 1.5; g.beginPath(); g.arc(cx - L * 0.55, cy, H2 * 0.55, -1.0, 1.0); g.stroke();
+  g.restore();
+}
+function showCatch(size) {
+  const card = $('#catchCard'), cv = $('#catchCanvas'), g = cv.getContext('2d');
+  g.clearRect(0, 0, cv.width, cv.height); drawSmelt(g, cv.width, cv.height);
+  $('#catchSize').textContent = size + 'cm';
+  $('#catchTag').textContent = size >= 15 ? '👑 왕빙어!' : size >= 12 ? '튼실한 빙어' : '귀여운 빙어';
+  card.hidden = false; card.classList.remove('pop'); void card.offsetWidth; card.classList.add('pop');
+  clearTimeout(showCatch.t); showCatch.t = setTimeout(() => { card.hidden = true; }, 2600);
+}
+
 /* ================= characters ================= */
 const SPECIES = [
   { name: '펭귄', emoji: '🐧', body: 0x2b3550, belly: 0xffffff, head: 0x2b3550 },
@@ -1191,7 +1257,7 @@ function makeAnimal(sp, color) {
   const rp = mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.8, 5), lam(0x2f3e5c), 0, -0.45, -0.38, rod); rp.rotation.x = Math.PI / 2 - 0.5;
   mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.9, 3), lam(0xffffff), 0, -0.5, -0.74, rod, false);
   const fishM = new THREE.Group(); fishM.position.set(0, -0.95, -0.74); rod.add(fishM); fishM.visible = false;
-  sph(0.07, lam(0xcfd8e2), 0, 0, 0, 0.6, 1.8, 0.6, fishM); const ft = cone(0.05, 0.1, lam(0xcfd8e2), 0, -0.16, 0, Math.PI, fishM); void ft;
+  { const sm = makeSmelt(0.34); sm.rotation.x = Math.PI / 2; fishM.add(sm); } const ft = null; void ft;
   const marsh = sph(0.07, new THREE.MeshLambertMaterial({ color: 0xfff3dc }), 0, -0.26, -1.08, 1, 1.2, 1, stickG);
   mesh(new THREE.BoxGeometry(0.4, 0.16, 0.06), lam(0xffffff), 0, 0.8, 0.56, rider);
   scene.add(root);
@@ -1555,7 +1621,8 @@ function startRun(c) {
   me.run = { c, t0: performance.now(), i: 0, off: 0 };
   me.guide = null; sfx.start(); centerMsg(c.id + ' 코스 출발!', c.level + ' · ' + c.name);
 }
-function cancelRun(msg) { if (me.run && me.run.race && me.rc) me.rf = { id: me.rc.id, ms: -1 }; me.run = null; if (msg) notice(msg); }
+function cancelRun(msg) {
+  $('#offWarn').hidden = true; if (me.run && me.run.race && me.rc) me.rf = { id: me.rc.id, ms: -1 }; me.run = null; if (msg) notice(msg); }
 function updateRun(dt) {
   if (me.state !== 'ski') return;
   const sp = Math.hypot(me.vx, me.vz);
@@ -1568,24 +1635,39 @@ function updateRun(dt) {
     }
     return;
   }
-  const r = me.run, c = r.c, n = nearestOnCourse(c, me.x, me.z, r.i - 8, r.i + 40);
-  r.i = n.i;
+  // only look a short way ahead: cutting across the mountain can't jump the progress forward
+  const r = me.run, c = r.c, n = nearestOnCourse(c, me.x, me.z, r.i - 8, r.i + 12);
+  r.i = Math.max(r.i, n.i);
+  const onCourse = n.d <= c.width / 2 + 3;
+  if (onCourse) r.okMax = Math.max(r.okMax || 0, n.i);
+  // checkpoints every ~20 m that must be passed inside the course
+  if (!c.cps) { c.cps = []; for (let i = 10; i < c.s.length - FINISH_BACK; i += 10) c.cps.push(i); }
+  while ((r.cp || 0) < c.cps.length && r.i >= c.cps[r.cp || 0]) {
+    if ((r.okMax || 0) < c.cps[r.cp || 0] - 3) { r.cpMiss = (r.cpMiss || 0) + 1; notice('🚩 체크포인트를 건너뛰었어요 +3초'); sfx.beep(false); }
+    r.cp = (r.cp || 0) + 1;
+  }
   if (c.gates) while ((r.g || 0) < c.gates.length && n.i >= c.gates[r.g || 0].i) {
     const g = c.gates[r.g || 0], [gx, gz] = c.s[g.i], [ddx, ddz] = c.dir[g.i];
     const lat = (me.x - gx) * ddz - (me.z - gz) * ddx;
     if (Math.abs(lat - g.off) > 3.0) { r.miss = (r.miss || 0) + 1; notice('🚩 기문을 놓쳤어요 +2초'); sfx.beep(false); }
     r.g = (r.g || 0) + 1;
   }
-  r.off = n.d > c.width / 2 + 22 ? r.off + dt : 0;
-  if (r.off > 2.5) { cancelRun('코스를 벗어나서 기록이 취소됐어요'); return; }
-  const ms = performance.now() - r.t0 + (r.miss || 0) * 2000;
-  if (n.i >= c.s.length - FINISH_BACK) {
+  // time spent off the course is added to the time; staying out too long disqualifies
+  if (!onCourse) { r.off += dt; r.offTotal = (r.offTotal || 0) + dt; } else r.off = 0;
+  $('#offWarn').hidden = onCourse;
+  if (!onCourse) $('#offWarn').textContent = '⚠️ 코스 이탈! 돌아오세요 · ' + Math.max(0, 4 - r.off).toFixed(1) + '초';
+  if (r.off > 4 || n.d > c.width / 2 + 30) { $('#offWarn').hidden = true; cancelRun(r.race ? '❌ 코스를 벗어나 실격됐어요 (완주 못 함)' : '❌ 코스를 벗어나서 기록이 취소됐어요'); return; }
+  const pen = (r.miss || 0) * 2000 + (r.cpMiss || 0) * 3000 + (r.offTotal || 0) * 1000;
+  r.pen = pen;
+  const ms = performance.now() - r.t0 + pen;
+  if (n.i >= c.s.length - FINISH_BACK && onCourse) {
+    $('#offWarn').hidden = true;
     me.run = null;
     if (r.race && me.rc && me.rc.id === r.race) { me.rf = { id: r.race, ms: Math.round(ms) }; race.finishedAt = Date.now(); }
     const isBest = !me.best[c.id] || ms < me.best[c.id];
     if (isBest) { me.best[c.id] = Math.round(ms); store('ski.best', JSON.stringify(me.best)); }
     me.fin = { i: ++me.finSeq, co: c.id, ms: Math.round(ms) };
-    sfx.finish(); centerMsg(fmtTime(ms), c.id + ' ' + c.name + ' 완주!' + (isBest ? ' · 내 최고 기록' : ''));
+    sfx.finish(); centerMsg(fmtTime(ms), c.id + ' ' + c.name + ' 완주!' + (pen >= 100 ? ' · 패널티 +' + (pen / 1000).toFixed(1) + '초' : '') + (isBest ? ' · 내 최고 기록' : ''));
     renderRecords();
   }
   if (ms > 600000) cancelRun('시간이 너무 오래 걸려 기록이 취소됐어요');
@@ -1756,8 +1838,7 @@ function addPileFish(owner, x, z, heading, n) {
   const g = new THREE.Group();
   const px = x + rx * (0.9 + row * 0.22) + fx * (col - 2.5) * 0.17, pz = z + rz * (0.9 + row * 0.22) + fz * (col - 2.5) * 0.17;
   g.position.set(px, 0.13, pz); g.rotation.y = heading + (Math.random() - 0.5) * 0.5;
-  const b = new THREE.Mesh(pileFishGeo, pileMat); b.scale.set(0.6, 0.45, 1.9); g.add(b);
-  const t = new THREE.Mesh(pileTailGeo, pileMat); t.rotation.x = Math.PI / 2; t.position.z = 0.17; g.add(t);
+  const sm = makeSmelt(0.3); sm.rotation.z = Math.PI / 2; sm.position.y = 0.02; g.add(sm);
   scene.add(g); list.push(g);
   void n;
 }
@@ -1768,6 +1849,7 @@ function reelIn() {
   me.fishCount = (me.fishCount || 0) + 1; if (size > (me.fishBest || 0)) { me.fishBest = size; store('ski.fish', String(size)); if (net.room && net.room.fish) net.room.fish(me.name, size); }
   addPileFish('me', me.x, me.z, me.heading, me.fishCount + 1);
   me.item = 6; f.showT = 2.2; f.phase = 'wait'; f.biteAt = f.t + 3 + Math.random() * 6;
+  showCatch(size);
   sfx.finish(); notice('🐟 빙어를 낚았어요! ' + size + 'cm' + (size >= 15 ? ' · 왕빙어!' : '') + ' (오늘 ' + me.fishCount + '마리)');
   if (myAv) setBubble(myAv, '🐟 ' + size + 'cm!', 3000);
   sendPresence(performance.now(), true); renderRecords();
@@ -1945,11 +2027,13 @@ function drawMinimap() {
 
 /* ================= chat ================= */
 /* ================= notices ================= */
-const NOTICE_VER = '2026-10-31-d';
+const NOTICE_VER = '2026-10-31-f';
 const NOTICES = [
+  { date: '10월 31일', title: '🚩 코스 이탈 패널티', items: ['기록을 잴 때(레이스 포함) 약 20m마다 체크포인트가 있어요. 코스 안으로 지나가지 않으면 +3초!', '코스 밖에 있는 동안 빨간 경고가 뜨고, 밖에 있던 시간만큼 기록이 늘어나요.', '코스 밖에 4초 넘게 있으면 실격이에요. 골인 아치도 코스 안으로 통과해야 인정돼요.'] },
+  { date: '10월 31일', title: '🏁 레이스 참가가 쉬워졌어요 · 🐟 진짜 빙어', items: ['누가 레이스를 열면 화면 아래 주황색 🏁 참가하기 버튼이 떠요. 한 번 누르면 바로 출발선으로!', '레이스 대기는 90초까지 기다려요. 출발선에서 서로 겹치지 않게 줄을 서요.', '빙어를 낚으면 빙어 카드가 뜨고, 진짜 빙어 모양으로 쌓여요.', '모두 같은 버전이어야 레이스가 잘 맞아요. 화면이 예전 같으면 새로고침(Ctrl+Shift+R) 해 주세요.'] },
   { date: '10월 31일', title: '👥 참가자 탭 · 🌌 롱 코스 · 🐟 잡은 빙어 쌓기', items: ['오른쪽 위 👥 숫자를 누르면 접속한 사람과 지금 하는 일이 보여요. 📍 같이 가기로 친구 옆으로 이동해요.', '서쪽 능선 너머에 거의 일직선인 가장 긴 L 은하수 코스가 생겼어요. 코코나 부엉이에게 말 걸면 설상차로 데려다줘요.', '잡은 빙어가 의자 옆 얼음 위에 차곡차곡 쌓여요.', '레이스 중에는 눈덩이가 더 잘 맞아요. R 코스 기문은 주황색 한 가지예요.', '나무 사이에 끼면 자동으로 빠져나와요. 더 보기 → 🆘 버튼도 있어요.'] },
   { date: '10월 31일', title: '🎣 빙어 랭킹 · 📜 대화 기록 · 📢 공지사항', items: ['빙어 낚시터에 길이 순위가 생겼어요. 더 보기와 낚시터 입구 게시판에서 확인하세요.', '대화창 위 📜 대화 기록에서 이전 대화를 볼 수 있어요. 늦게 들어와도 최근 대화가 보여요.', '오른쪽 위 📢 버튼으로 공지사항을 다시 볼 수 있어요.'] },
-  { date: '10월 31일', title: '🏁 레이스 전용 계곡 · 🔥 장작 넣기 · 🎣 빙어 낚시터', items: ['R 챔피언 코스가 동쪽 능선 너머 레이스 전용 계곡으로 옮겨졌어요.', '레이스를 연 사람이 “출발!”을 누르면 모두 같이 출발해요. 60초 뒤엔 자동 출발해요.', '카페 안에서 F(🪵 버튼)로 장작을 던져 모닥불을 키워 보세요.', '온천 서쪽 얼음 호수에서 빙어 낚시! 입질이 오면 E를 눌러요.', 'Shift 부스트가 더 빨라졌어요.'] },
+  { date: '10월 31일', title: '🏁 레이스 전용 계곡 · 🔥 장작 넣기 · 🎣 빙어 낚시터', items: ['R 챔피언 코스가 동쪽 능선 너머 레이스 전용 계곡으로 옮겨졌어요.', '레이스를 연 사람이 “출발!”을 누르면 모두 같이 출발해요. 90초 뒤엔 자동 출발해요.', '카페 안에서 F(🪵 버튼)로 장작을 던져 모닥불을 키워 보세요.', '온천 서쪽 얼음 호수에서 빙어 낚시! 입질이 오면 E를 눌러요.', 'Shift 부스트가 더 빨라졌어요.'] },
   { date: '이용 방법', title: '⛷ 눈꽃 스키장 즐기는 법', items: ['리프트 앞 코코에게 말을 걸어 정상에 올라가요.', 'A(초급)부터 D(최상급)까지 코스를 골라 기록에 도전해요.', 'F로 눈덩이를 던져요. 5번 맞으면 ⛄ 눈사람이 돼요.', '베이스 뒤 산장 카페와 ♨ 온천에서 쉬어 가요.'] },
 ];
 function renderNotices() {
@@ -2633,13 +2717,32 @@ function raceMenu() {
   const choices = open.map((r) => ({ label: r.h + '님의 ' + courseById[r.co].name + ' 레이스 참가', grade: r.co, fn: () => joinRace(r) }));
   choices.push({ label: '새 레이스 열기', fn: () => say(RACE_NPC, '어느 코스에서 겨룰까요? 레이스를 열면 접속한 모두에게 알림이 가요. 친구들이 출발선에 모이면 “출발!”을 눌러 다 같이 출발해요.', courseChoices(hostRace, true)) });
   choices.push({ label: '닫기', fn: closeDialog });
-  say(RACE_NPC, open.length ? '지금 참가할 수 있는 레이스가 있어요! 참가하면 출발선으로 바로 이동해요.' : '친구와 같은 코스를 동시에 출발해서 누가 먼저 골인하는지 겨뤄요. 넘어져도 다시 일어나서 달리면 돼요!', choices);
+  const running = [];
+  for (const [, a] of avatars) if (a.rc && a.rc.t0 && a.rc.t0 <= netNow() + 2500 && netNow() - a.rc.t0 < 180000 && !running.some((r) => r.id === a.rc.id)) running.push(a.rc);
+  const runTxt = running.length ? ' (지금 ' + running.map((r) => r.h + '님의 ' + r.co + ' 레이스').join(', ') + '가 진행 중이라 참가할 수 없어요. 끝나면 다음 판에 함께해요!)' : '';
+  say(RACE_NPC, open.length ? '지금 참가할 수 있는 레이스가 있어요! 참가하면 출발선으로 바로 이동해요.' + runTxt : runTxt ? '참가할 수 있는 레이스가 없어요.' + runTxt + ' 새 레이스를 열 수도 있어요.' : '친구와 같은 코스를 동시에 출발해서 누가 먼저 골인하는지 겨뤄요. 넘어져도 다시 일어나서 달리면 돼요!', choices);
 }
+function updateRaceInvite() {
+  const btn = $('#raceInvite');
+  if (me.rc || me.state === 'lift' || me.state === 'queue' || !playing) { btn.hidden = true; return; }
+  const r = openRaces()[0];
+  if (!r) { btn.hidden = true; btn.dataset.id = ''; return; }
+  const left = r.t0 ? Math.max(0, Math.ceil((r.t0 - netNow()) / 1000)) + '초 뒤 출발' : '대기 중';
+  btn.textContent = '🏁 ' + r.h + '님의 ' + r.co + ' ' + courseById[r.co].name + ' 레이스 참가하기 · ' + left;
+  btn.dataset.id = r.id; btn.hidden = false;
+}
+$('#raceInvite').addEventListener('click', () => {
+  const r = openRaces().find((x) => x.id === $('#raceInvite').dataset.id);
+  if (!r) { notice('이미 출발한 레이스예요. 다음 판에 함께해요!'); return; }
+  if (me.state === 'lift' || me.state === 'queue') { notice('리프트에서는 레이스에 참가할 수 없어요'); return; }
+  joinRace(r);
+});
+setInterval(updateRaceInvite, 500);
 function hostRace(c) {
   const id = Math.random().toString(36).slice(2, 10).replace(/[^a-z0-9]/g, 'x').padEnd(6, 'x');
   const r = { id, co: c.id, t0: 0, c0: netNow(), h: me.name, hid: myId() };
   race.seen.add(id); joinRace(r);
-  addChatLine('', '', '🏁 ' + c.id + ' ' + c.name + ' 레이스를 열었어요. 친구들이 모이면 ' + (isTouch ? '[출발!]' : 'E') + '를 눌러 출발시키세요 (60초 뒤 자동 출발)', true);
+  addChatLine('', '', '🏁 ' + c.id + ' ' + c.name + ' 레이스를 열었어요. 친구들이 모이면 ' + (isTouch ? '[출발!]' : 'E') + '를 눌러 출발시키세요 (90초 뒤 자동 출발)', true);
 }
 function startRaceNow() {
   if (!me.rc || me.rc.t0) return;
@@ -2653,13 +2756,23 @@ function joinRace(r) {
   closeDialog();
   me.rc = { id: r.id, co: r.co, t0: r.t0 || 0, c0: r.c0 || netNow(), h: r.h, hid: r.hid || myId() }; me.rf = null;
   race.lastCount = null; race.finishedAt = 0; race.shown = false;
-  let hsh = 0; for (const ch of myId() + me.name) hsh = (hsh * 31 + ch.charCodeAt(0)) | 0;
-  const slot = (Math.abs(hsh) % 5) - 2, [x, z] = c.s[1], [dx, dz] = c.dir[1], off = slot * Math.min(2.6, c.width / 6);
-  me.x = x + dz * off; me.z = z - dx * off; me.y = H(me.x, me.z);
+  const sp0 = gridSpot(c, me.rc.id);
+  me.x = sp0.x; me.z = sp0.z; me.y = H(me.x, me.z);
   me.heading = Math.atan2(-dx, -dz); me.vx = me.vz = 0; me.air = false; me.state = 'ski'; me.raceHold = true;
   cam.yawOff = 0;
   notice('🏁 ' + c.id + ' ' + c.name + ' 레이스 출발선에 섰어요!');
   sendPresence(performance.now(), true);
+}
+// starting grid: everyone in the race gets their own spot, ordered by id; side by side, then rows behind
+function gridSpot(c, raceId) {
+  const ids = [myId()];
+  for (const [id, a] of avatars) if (a.rc && a.rc.id === raceId) ids.push(id);
+  ids.sort();
+  const k = Math.max(0, ids.indexOf(myId())), perRow = Math.max(2, Math.floor((c.width - 2) / 2.3));
+  const row = Math.floor(k / perRow), col = k % perRow, n = Math.min(perRow, ids.length - row * perRow);
+  const off = (col - (n - 1) / 2) * 2.3;
+  const i = Math.min(c.s.length - 1, 2), [x, z] = c.s[i], [dx, dz] = c.dir[i];
+  return { x: x + dz * off - dx * row * 2.6, z: z - dx * off - dz * row * 2.6 };
 }
 function leaveRace() {
   if (me.run && me.run.race) { me.run = null; }
@@ -2674,9 +2787,10 @@ function updateRace() {
       const host = avatars.get(me.rc.hid);
       if (host && host.rc && host.rc.id === me.rc.id) { if (host.rc.t0 && host.rc.t0 !== me.rc.t0) me.rc.t0 = host.rc.t0; }
       else if (!me.rc.t0 && now - me.rc.c0 > 4000) { me.rc.hid = myId(); notice('🏁 방장이 나가서 내가 출발 신호를 맡았어요'); }
-    } else if (!me.rc.t0 && now - me.rc.c0 > 60000) startRaceNow();
+    } else if (!me.rc.t0 && now - me.rc.c0 > 90000) startRaceNow();
+    { const sp1 = gridSpot(c, me.rc.id); me.x += (sp1.x - me.x) * 0.2; me.z += (sp1.z - me.z) * 0.2; me.y = H(me.x, me.z); }
     if (!me.rc.t0) {
-      const w = Math.ceil(Math.max(0, 60000 - (now - me.rc.c0)) / 1000);
+      const w = Math.ceil(Math.max(0, 90000 - (now - me.rc.c0)) / 1000);
       if (race.lastCount !== 'wait' + raceParticipants().length) { race.lastCount = 'wait' + raceParticipants().length; centerMsg('🏁 ' + raceParticipants().length + '명 대기 중', me.rc.hid === myId() ? '모두 모이면 출발! (' + w + '초 뒤 자동 출발)' : me.rc.h + '님이 출발시키면 다 같이 출발해요'); }
       return;
     }
@@ -2746,7 +2860,8 @@ function updateStatus(sp) {
     const c = me.run.c; chip = me.run.race ? '레이스' : '주행';
     title = c.id + ' ' + c.level + ' · ' + c.name; right = fmtTime(performance.now() - me.run.t0); fill = me.run.i / (c.s.length - 1);
     sub = c.gates ? '기문 ' + (me.run.g || 0) + '/' + c.gates.length + (me.run.miss ? ' · 놓침 ' + me.run.miss + ' (+' + me.run.miss * 2 + '초)' : '') + ' · Shift 부스트' : me.best[c.id] ? '내 최고 기록 ' + fmtTime(me.best[c.id]) : '골인 아치까지 달려요!';
-    if (me.run.g !== undefined || c.gates) right = fmtTime(performance.now() - me.run.t0 + (me.run.miss || 0) * 2000);
+    right = fmtTime(performance.now() - me.run.t0 + (me.run.pen || 0));
+    if ((me.run.pen || 0) >= 100) sub = '패널티 +' + (me.run.pen / 1000).toFixed(1) + '초 · ' + sub;
   } else {
     chip = me.state === 'sit' ? '쉬는 중' : me.state === 'crash' ? '꽈당' : me.bath >= 0 ? '온천' : sp > 0.8 ? '이동' : '멈춤';
     if (me.indoor) { let tot = fire.logs || 0; for (const [, a] of avatars) tot = Math.max(tot, a.lt || 0); sub = '🔥 지금 모닥불에 넣은 장작 ' + tot + '개 · ' + (isTouch ? '🪵 버튼' : 'F') + '로 장작 넣기'; }
