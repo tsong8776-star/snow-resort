@@ -22,6 +22,9 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 8 * 1024 });
 const players = new Map(); // id -> { ws, presence }
+const history = []; // 최근 대화 50개 (늦게 온 사람도 볼 수 있게)
+const fishBoard = []; // 빙어 길이 순위 (사람마다 최고 기록 하나)
+const clean = (v, n) => String(v || '').replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g, '').trim().slice(0, n);
 let counter = 0;
 
 function send(ws, msg) {
@@ -41,7 +44,7 @@ wss.on('connection', (ws) => {
   const me = { ws, presence: {}, budget: 60, last: Date.now() };
   players.set(id, me);
 
-  send(ws, { t: 'hello', id, now: Date.now(), peers: [...players].filter(([k]) => k !== id).map(([k, v]) => ({ id: k, presence: v.presence })) });
+  send(ws, { t: 'hello', id, now: Date.now(), history, board: fishBoard, peers: [...players].filter(([k]) => k !== id).map(([k, v]) => ({ id: k, presence: v.presence })) });
   broadcast({ t: 'join', id }, id);
 
   ws.isAlive = true;
@@ -59,7 +62,21 @@ wss.on('connection', (ws) => {
     try { m = JSON.parse(raw); } catch (e) { return; }
     // clock sync: everyone starts races and sees lift chairs on the server's clock
     if (m && m.t === 'ping' && typeof m.c === 'number') { send(ws, { t: 'pong', c: m.c, now: Date.now() }); return; }
+    if (m && m.t === 'fish' && typeof m.s === 'number' && m.s > 0 && m.s <= 40) {
+      const n = clean(m.n, 10) || '스키어', size = Math.round(m.s * 10) / 10;
+      const cur = fishBoard.find((e) => e.n === n);
+      if (cur) { if (size <= cur.s) return; cur.s = size; cur.at = Date.now(); } else fishBoard.push({ n, s: size, at: Date.now() });
+      fishBoard.sort((a, b) => b.s - a.s); fishBoard.length = Math.min(fishBoard.length, 30);
+      broadcast({ t: 'board', board: fishBoard });
+      return;
+    }
     if (m && m.t === 'presence' && m.p && typeof m.p === 'object' && !Array.isArray(m.p)) {
+      const chat = m.p.m;
+      if (chat && typeof chat === 'object' && typeof chat.i === 'number' && me.chatI !== undefined && chat.i !== me.chatI) {
+        const text = clean(chat.t, 60);
+        if (text) { history.push({ n: clean(m.p.n, 10) || '스키어', c: /^#[0-9a-f]{6}$/i.test(m.p.c) ? m.p.c : '#ff4f6d', t: text, at: Date.now() }); if (history.length > 50) history.shift(); }
+      }
+      if (chat && typeof chat.i === 'number') me.chatI = chat.i; else if (me.chatI === undefined) me.chatI = null;
       me.presence = m.p;
       broadcast({ t: 'presence', id, p: m.p }, id);
     }
