@@ -2843,7 +2843,8 @@ function joinRace(r) {
   race.lastCount = null; race.finishedAt = 0; race.shown = false;
   const sp0 = gridSpot(c, me.rc.id);
   me.x = sp0.x; me.z = sp0.z; me.y = H(me.x, me.z);
-  me.heading = Math.atan2(-dx, -dz); me.vx = me.vz = 0; me.air = false; me.state = 'ski'; me.raceHold = true;
+  { const gi = Math.min(c.s.length - 1, 2); me.heading = Math.atan2(-c.dir[gi][0], -c.dir[gi][1]); }
+  me.vx = me.vz = 0; me.air = false; me.state = 'ski'; me.raceHold = true;
   cam.yawOff = 0;
   notice('🏁 ' + c.id + ' ' + c.name + ' 레이스 출발선에 섰어요!');
   sendPresence(performance.now(), true);
