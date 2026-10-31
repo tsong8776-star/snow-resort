@@ -160,6 +160,7 @@ body.is-touch #hint { display: none; }
 #splat { inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(circle at 52% 46%, rgba(255,255,255,0.95) 0 9%, rgba(255,255,255,0.75) 14%, rgba(255,255,255,0) 32%), radial-gradient(circle at 38% 58%, rgba(255,255,255,0.85) 0 4%, rgba(255,255,255,0) 9%), radial-gradient(circle at 63% 60%, rgba(255,255,255,0.85) 0 5%, rgba(255,255,255,0) 10%); }
 #splat.show { animation: splat 1.6s ease-out; }
 @keyframes splat { 0% { opacity: 1; transform: scale(0.9); } 60% { opacity: 0.85; } 100% { opacity: 0; transform: scale(1.05); } }
+#boostBtn { right: calc(110px + env(safe-area-inset-right, 0px)); bottom: calc(110px + env(safe-area-inset-bottom, 0px)); width: 62px; height: 62px; border-radius: 50%; border: 0; background: rgba(255,197,61,0.92); color: var(--ink); font-weight: 900; font-size: 12px; box-shadow: 0 4px 14px rgba(20,30,50,0.25); }
 #throwBtn { right: calc(28px + env(safe-area-inset-right, 0px)); bottom: calc(200px + env(safe-area-inset-bottom, 0px)); width: 62px; height: 62px; border-radius: 50%; border: 0; background: rgba(255,255,255,0.9); color: var(--ink); font-weight: 900; font-size: 12px; box-shadow: 0 4px 14px rgba(20,30,50,0.25); }
 .morebtn { width: 100%; padding: 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.5); background: transparent; color: #fff; font-size: 12.5px; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { #splat.show { animation-duration: 0.3s; } }
@@ -173,7 +174,7 @@ body.is-touch #hint { display: none; }
 <div id="hud" hidden>
   <div class="hud-tl glass">
     <span id="placeIcon">🏠</span>
-    <span class="txt"><span id="placeChip">베이스</span><small><span id="spd">0</span> km/h · <span id="gearChip">⛷ 스키</span></small></span>
+    <span class="txt"><span id="placeChip">베이스</span><small><span id="spd">0</span> km/h · <span id="gearChip">⛷ 스키</span><span id="snowTxt"></span><span id="boostTxt"></span></small></span>
   </div>
   <div class="hud-tr">
     <div class="pill glass">
@@ -194,7 +195,7 @@ body.is-touch #hint { display: none; }
     <div><h3>코스 최고 기록</h3><ul id="records"></ul></div>
     <button id="homeBtn" type="button" class="morebtn">🏠 베이스로 돌아가기</button>
     <button id="copy2" type="button">친구 초대 링크 복사</button>
-    <div class="help" id="keys"><kbd>A</kbd><kbd>D</kbd> 방향 · <kbd>W</kbd> 밀기 · <kbd>S</kbd> 브레이크<br><kbd>Space</kbd> 점프 · <kbd>E</kbd> NPC와 대화 · <kbd>Enter</kbd> 채팅<br><kbd>Q</kbd> 스키↔보드 · <kbd>X</kbd> 앉기 · <kbd>G</kbd> 인사 · <kbd>R</kbd> 베이스로<br><kbd>F</kbd> 눈덩이 · <kbd>T</kbd> 레이스 · <kbd>N</kbd> 낮/밤<br>화면을 끌면 시점 회전, 휠로 확대</div>
+    <div class="help" id="keys"><kbd>A</kbd><kbd>D</kbd> 방향 · <kbd>W</kbd> 밀기 · <kbd>S</kbd> 브레이크<br><kbd>Space</kbd> 점프 · <kbd>E</kbd> NPC와 대화 · <kbd>Enter</kbd> 채팅<br><kbd>Q</kbd> 스키↔보드 · <kbd>X</kbd> 앉기 · <kbd>G</kbd> 인사 · <kbd>R</kbd> 베이스로<br><kbd>Shift</kbd> 부스트 · <kbd>F</kbd> 눈덩이 · <kbd>T</kbd> 레이스 · <kbd>N</kbd> 낮/밤<br>화면을 끌면 시점 회전, 휠로 확대</div>
   </div>
   <div class="bottom">
     <button id="prompt" type="button" hidden></button>
@@ -219,6 +220,7 @@ body.is-touch #hint { display: none; }
   <div id="splat"></div>
   <div id="stick" class="touch" hidden><div id="knob"></div></div>
   <button id="throwBtn" class="touch" type="button" hidden>❄ 던지기</button>
+  <button id="boostBtn" class="touch" type="button" hidden>⚡ 부스트</button>
   <button id="jumpBtn" class="touch" type="button" hidden>점프</button>
 </div>
 
@@ -650,21 +652,38 @@ function collideWalls(o, prevX, prevZ) {
 }
 function buildCafe() {
   const C = CAFE, wood = lam(0x9a6a3c), dark = lam(0x6b4a2b), roofM = lam(0x7a2f3b), snowM = lam(0xffffff);
+  const logMat = new THREE.MeshLambertMaterial({ map: canvasTex(128, 256, (g, cw, ch) => {
+    const n = 8, lh = ch / n;
+    for (let i = 0; i < n; i++) {
+      const gr = g.createLinearGradient(0, i * lh, 0, (i + 1) * lh);
+      gr.addColorStop(0, '#5e3c20'); gr.addColorStop(0.18, '#a8763f'); gr.addColorStop(0.55, '#8c5c2e'); gr.addColorStop(0.9, '#6a4424'); gr.addColorStop(1, '#3d2614');
+      g.fillStyle = gr; g.fillRect(0, i * lh, cw, lh);
+      g.strokeStyle = 'rgba(60,35,15,0.25)'; g.lineWidth = 1; for (let k = 0; k < 4; k++) { const y = i * lh + 6 + k * 6; g.beginPath(); g.moveTo(0, y); g.lineTo(cw, y + (k % 2 ? 2 : -2)); g.stroke(); }
+    }
+  }, [4, 1]) });
+  const stoneMat = new THREE.MeshLambertMaterial({ map: canvasTex(128, 128, (g, cw, ch) => {
+    g.fillStyle = '#6f6a64'; g.fillRect(0, 0, cw, ch); const r = mulberry32(12);
+    for (let i = 0; i < 40; i++) { const x = r() * cw, y = r() * ch, w2 = 14 + r() * 20, h2 = 10 + r() * 12; g.fillStyle = ['#8b857d', '#9a948b', '#7c766f', '#a8a197'][i % 4]; g.beginPath(); g.ellipse(x, y, w2 / 2, h2 / 2, 0, 0, 7); g.fill(); g.strokeStyle = 'rgba(40,36,32,0.6)'; g.stroke(); }
+  }, [1, 3]) });
   const glass = new THREE.MeshBasicMaterial({ color: 0xffd98a });
   scene.add(cafeHide);
   const cx = (C.x0 + C.x1) / 2, w = C.x1 - C.x0, d = C.z1 - C.z0, t = 0.4, h = C.h;
   // floor + rug
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshLambertMaterial({ map: canvasTex(128, 128, (g, cw, ch) => { g.fillStyle = '#a77b4f'; g.fillRect(0, 0, cw, ch); g.strokeStyle = 'rgba(70,40,20,0.35)'; g.lineWidth = 2; for (let y = 0; y < ch; y += 16) { g.beginPath(); g.moveTo(0, y); g.lineTo(cw, y); g.stroke(); } }, [6, 5]) }));
   floor.rotation.x = -Math.PI / 2; floor.position.set(cx, 0.07, (C.z0 + C.z1) / 2); floor.receiveShadow = true; scene.add(floor);
-  const rug = new THREE.Mesh(new THREE.CircleGeometry(5.4, 40), lam(0xb8443a)); rug.rotation.x = -Math.PI / 2; rug.position.set(FIRE.x, 0.09, FIRE.z); rug.receiveShadow = true; scene.add(rug);
+  const rug = new THREE.Mesh(new THREE.CircleGeometry(5.4, 40), new THREE.MeshLambertMaterial({ map: canvasTex(128, 128, (g, cw, ch) => {
+    g.fillStyle = '#a3322a'; g.fillRect(0, 0, cw, ch);
+    g.fillStyle = 'rgba(25,20,22,0.55)'; for (let i = 0; i < 8; i += 2) { g.fillRect(i * 16, 0, 16, ch); g.fillRect(0, i * 16, cw, 16); }
+    g.fillStyle = 'rgba(255,214,120,0.5)'; for (let i = 0; i < 8; i++) { g.fillRect(i * 16 + 7, 0, 2, ch); g.fillRect(0, i * 16 + 7, cw, 2); }
+  }, [3, 3]) })); rug.rotation.x = -Math.PI / 2; rug.position.set(FIRE.x, 0.09, FIRE.z); rug.receiveShadow = true; scene.add(rug);
   const rug2 = new THREE.Mesh(new THREE.RingGeometry(4.6, 5.0, 40), lam(0xf2c14e)); rug2.rotation.x = -Math.PI / 2; rug2.position.set(FIRE.x, 0.1, FIRE.z); scene.add(rug2);
   // walls (front and back have door gaps; front pieces hide when you are inside)
-  const wall = (x0, x1, z, parent) => { const m = mesh(new THREE.BoxGeometry(x1 - x0, h, t), wood, (x0 + x1) / 2, h / 2, z, parent); wallObs(x0, z, x1, z); return m; };
+  const wall = (x0, x1, z, parent) => { const m = mesh(new THREE.BoxGeometry(x1 - x0, h, t), logMat, (x0 + x1) / 2, h / 2, z, parent); wallObs(x0, z, x1, z); return m; };
   wall(C.x0, 40.3, C.z0, cafeHide); wall(43.7, C.x1, C.z0, cafeHide);
-  mesh(new THREE.BoxGeometry(3.4, h - 3.2, t), wood, 42, 3.2 + (h - 3.2) / 2, C.z0, cafeHide);
+  mesh(new THREE.BoxGeometry(3.4, h - 3.2, t), logMat, 42, 3.2 + (h - 3.2) / 2, C.z0, cafeHide);
   wall(C.x0, 45.3, C.z1); wall(48.7, C.x1, C.z1);
-  mesh(new THREE.BoxGeometry(3.4, h - 3.2, t), wood, 47, 3.2 + (h - 3.2) / 2, C.z1);
-  for (const x of [C.x0, C.x1]) { mesh(new THREE.BoxGeometry(t, h, d), wood, x, h / 2, (C.z0 + C.z1) / 2); wallObs(x, C.z0, x, C.z1); }
+  mesh(new THREE.BoxGeometry(3.4, h - 3.2, t), logMat, 47, 3.2 + (h - 3.2) / 2, C.z1);
+  for (const x of [C.x0, C.x1]) { mesh(new THREE.BoxGeometry(t, h, d), logMat, x, h / 2, (C.z0 + C.z1) / 2); wallObs(x, C.z0, x, C.z1); }
   // log beams on the outside corners
   for (const [x, z] of [[C.x0, C.z0], [C.x1, C.z0], [C.x0, C.z1], [C.x1, C.z1]]) mesh(new THREE.CylinderGeometry(0.35, 0.35, h + 0.4, 8), dark, x, h / 2, z, z === C.z0 ? cafeHide : scene);
   // windows (glow inside and out)
@@ -679,7 +698,10 @@ function buildCafe() {
     const slab = mesh(new THREE.BoxGeometry(w + 2, 0.35, d / 2 + 1.6), roofM, cx, h + 1.6, (C.z0 + C.z1) / 2 + s2 * (d / 4 + 0.3), roofG); slab.rotation.x = s2 * 0.36;
     const sn = mesh(new THREE.BoxGeometry(w + 2.1, 0.18, d / 2 + 1.2), snowM, cx, h + 1.86, (C.z0 + C.z1) / 2 + s2 * (d / 4 + 0.2), roofG); sn.rotation.x = s2 * 0.36;
   }
-  for (const z of [C.z0, C.z1]) { const gab = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.6, 0.3, 3), wood); gab.rotation.x = Math.PI / 2; gab.rotation.z = Math.PI / 2; gab.scale.set(1, 1, 0.9); gab.position.set(cx, h + 0.55, z); roofG.add(gab); }
+  // triangular gable ends under the roof
+  const gShape = new THREE.Shape(); gShape.moveTo(-d / 2 - 0.3, 0); gShape.lineTo(d / 2 + 0.3, 0); gShape.lineTo(0, 3.3); gShape.closePath();
+  const gGeo = new THREE.ShapeGeometry(gShape);
+  for (const x of [C.x0, C.x1]) { const gab = new THREE.Mesh(gGeo, logMat); gab.rotation.y = Math.PI / 2; gab.position.set(x, h, (C.z0 + C.z1) / 2); gab.material.side = THREE.DoubleSide; roofG.add(gab); }
   const sign = textPlane(['☕ 산장 카페'], 6, 1.2, '#1b2a4a', '#ffc53d', { size: 130 }); sign.position.set(42, 4.3, C.z0 - 0.3); cafeHide.add(sign);
   // door lanterns
   for (const x of [39.6, 44.4]) { mesh(new THREE.BoxGeometry(0.4, 0.55, 0.4), new THREE.MeshBasicMaterial({ color: 0xffd28a }), x, 2.9, C.z0 - 0.45, scene, false); LANTERN_GLOW.push([x, 2.9, C.z0 - 0.5]); }
@@ -713,6 +735,42 @@ function buildCafe() {
   // corner sofa-benches and a bookshelf for coziness
   mesh(new THREE.BoxGeometry(1.2, 0.6, 5), lam(0x2f7de1), C.x1 - 1.1, 0.3, 60); mesh(new THREE.BoxGeometry(0.4, 1.2, 5), lam(0x2f7de1), C.x1 - 0.5, 0.6, 60); wallObs(C.x1 - 1.1, 57.8, C.x1 - 1.1, 62.2);
   mesh(new THREE.BoxGeometry(0.6, 3, 4), dark, C.x0 + 0.5, 1.5, 61); wallObs(C.x0 + 0.6, 59.2, C.x0 + 0.6, 62.8);
+  // stone fireplace with its own small fire and a chimney outside
+  mesh(new THREE.BoxGeometry(1.2, 3.2, 3.2), stoneMat, C.x0 + 0.75, 1.6, 67.2); wallObs(C.x0 + 0.7, 65.6, C.x0 + 0.7, 68.8);
+  mesh(new THREE.BoxGeometry(0.3, 1.1, 1.6), lam(0x1a1210), C.x0 + 1.32, 0.75, 67.2, scene, false);
+  mesh(new THREE.BoxGeometry(1.5, 0.18, 3.6), lam(0x5a3a22), C.x0 + 0.9, 3.25, 67.2);
+  for (const [r, hh, c, o] of [[0.32, 0.7, 0xe8340c, 0.75], [0.2, 0.85, 0xffa21e, 0.85]]) {
+    const f = new THREE.Mesh(new THREE.ConeGeometry(r, hh, 8, 1, true), fm(c, o)); f.position.set(C.x0 + 1.25, 0.35 + hh / 2, 67.2); scene.add(f); fire.flames.push({ m: f, hh, ph: Math.random() * 6 });
+  }
+  const chim = mesh(new THREE.BoxGeometry(1.4, h + 3.4, 2), stoneMat, C.x0 - 0.9, (h + 3.4) / 2, 67.2); void chim;
+  fire.smokeAt = [C.x0 - 0.9, h + 3.5, 67.2];
+  // firewood stacks (inside by the hearth and outside by the door)
+  const logM = lam(0x6b4a2b), endM = lam(0xd9b07a);
+  const pile = (x, z, rows, ry) => { const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; scene.add(g); for (let r = 0; r < rows; r++) for (let i = 0; i < rows - r + 1; i++) { const lg = mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.1, 8), logM, (i - (rows - r) / 2) * 0.34, 0.17 + r * 0.29, 0, g); lg.rotation.x = Math.PI / 2; mesh(new THREE.CircleGeometry(0.15, 8), endM, (i - (rows - r) / 2) * 0.34, 0.17 + r * 0.29, -0.56, g, false).rotation.y = Math.PI; } };
+  pile(C.x0 + 1.0, 70.4, 3, 0); pile(36.2, C.z0 - 1.3, 3, 0);
+  // two small tables with mugs
+  for (const [x, z] of [[35.2, 57.6], [49.4, 69.3]]) {
+    mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.08, 16), wood, x, 0.85, z); mesh(new THREE.CylinderGeometry(0.08, 0.12, 0.8, 8), dark, x, 0.42, z); addObstacle(x, z, 0.6);
+    mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.16, 10), lam(0xffffff), x + 0.2, 0.97, z); mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.16, 10), lam(0x2f3e5c), x - 0.25, 0.97, z + 0.15);
+    for (const s2 of [-1, 1]) { mesh(new THREE.BoxGeometry(0.5, 0.08, 0.5), wood, x + s2 * 1.1, 0.5, z); mesh(new THREE.BoxGeometry(0.5, 0.6, 0.08), wood, x + s2 * 1.35, 0.8, z).rotation.y = Math.PI / 2; }
+  }
+  // crossed skis, a mountain picture and string lights on the walls
+  for (const s2 of [-1, 1]) { const sk = mesh(new THREE.BoxGeometry(0.14, 2.2, 0.05), lam(s2 < 0 ? 0xe5484d : 0x2f7de1), 51, 2.9, C.z1 - 0.26); sk.rotation.z = s2 * 0.35; }
+  const pic = textPlane(['⛰ 눈꽃산'], 2.2, 1.4, '#2f4f6e', '#ffffff', { size: 110 }); pic.position.set(C.x1 - 0.26, 3, 67.5); pic.rotation.y = -Math.PI / 2; scene.add(pic);
+  mesh(new THREE.BoxGeometry(0.08, 1.6, 2.4), dark, C.x1 - 0.22, 3, 67.5, scene, false);
+  const bulbs = [];
+  const run = (x0, z0, x1, z1) => { const L = Math.hypot(x1 - x0, z1 - z0), n = Math.round(L / 0.9); for (let i = 0; i <= n; i++) { const t2 = i / n; bulbs.push([x0 + (x1 - x0) * t2, 4.75 - Math.sin(t2 * n * Math.PI / 3) ** 2 * 0.25, z0 + (z1 - z0) * t2]); } };
+  run(C.x0 + 0.35, C.z1 - 0.35, C.x1 - 0.35, C.z1 - 0.35); run(C.x0 + 0.35, C.z0 + 0.6, C.x0 + 0.35, C.z1 - 0.35); run(C.x1 - 0.35, C.z0 + 0.6, C.x1 - 0.35, C.z1 - 0.35);
+  const bm = new THREE.InstancedMesh(new THREE.SphereGeometry(0.07, 6, 5), new THREE.MeshBasicMaterial({ color: 0xffffff }), bulbs.length);
+  const bcol = [0xffc53d, 0xff4f6d, 0x2fb36d, 0x56ccf2], m4 = new THREE.Matrix4(), cc = new THREE.Color();
+  bulbs.forEach(([x, y, z], i) => { m4.makeTranslation(x, y, z); bm.setMatrixAt(i, m4); bm.setColorAt(i, cc.setHex(bcol[i % 4])); });
+  scene.add(bm);
+  // porch deck, railing and icicles on the front eave
+  mesh(new THREE.BoxGeometry(14, 0.2, 2.6), wood, 42, 0.1, C.z0 - 1.3, cafeHide);
+  for (const x of [35.2, 36.6, 38, 46, 47.4, 48.8]) mesh(new THREE.CylinderGeometry(0.07, 0.07, 1, 6), dark, x, 0.7, C.z0 - 2.5, cafeHide);
+  for (const [a2, b2] of [[35.2, 38.4], [45.6, 48.8]]) mesh(new THREE.BoxGeometry(b2 - a2, 0.1, 0.1), dark, (a2 + b2) / 2, 1.15, C.z0 - 2.5, cafeHide);
+  const ice = new THREE.MeshLambertMaterial({ color: 0xdff4ff, transparent: true, opacity: 0.85 });
+  for (let x = C.x0 - 0.6; x < C.x1 + 0.6; x += 0.55) { const ic = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.35 + ((x * 7) % 1) * 0.4, 5), ice); ic.rotation.x = Math.PI; ic.position.set(x, h - 0.15, C.z0 - 1.6); cafeHide.add(ic); }
   for (let i = 0; i < 9; i++) mesh(new THREE.BoxGeometry(0.4, 0.5, 0.25), lam([0xe5484d, 0x2fb36d, 0xffc53d, 0x2f7de1][i % 4]), C.x0 + 0.75, 0.6 + Math.floor(i / 3) * 0.9, 59.6 + (i % 3) * 1.3, scene, false);
 }
 
@@ -734,6 +792,14 @@ function poolAt(x, z) {
     if (P.wood ? Math.abs(x - P.x) < P.r - 0.5 && Math.abs(z - P.z) < P.r - 0.5 : Math.hypot(x - P.x, z - P.z) < P.r - 0.5) return i;
   }
   return -1;
+}
+function buildSmoke() {
+  if (!fire.smokeAt) return;
+  const N = 26; fire.smokePos = new Float32Array(N * 3); fire.smokeV = new Float32Array(N);
+  for (let i = 0; i < N; i++) { const k = i / N * 9; fire.smokePos[i * 3] = fire.smokeAt[0] + k * 0.35; fire.smokePos[i * 3 + 1] = fire.smokeAt[1] + k; fire.smokePos[i * 3 + 2] = fire.smokeAt[2]; fire.smokeV[i] = Math.random() * 0.3; }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(fire.smokePos, 3));
+  fire.smoke = new THREE.Points(g, new THREE.PointsMaterial({ size: 2.4, map: flakeTex, color: 0xc8ccd4, transparent: true, opacity: 0.5, depthWrite: false }));
+  fire.smoke.frustumCulled = false; scene.add(fire.smoke);
 }
 function buildOnsen() {
   const O = ONSEN, wood = lam(0x8a5a32), rocks = [lam(0x8a8f98), lam(0x6f747c), lam(0x9aa0a8)], rr2 = mulberry32(31);
@@ -807,6 +873,14 @@ function updateWarmPlaces(dt, now) {
       fire.emberPos[i * 3 + 1] = y; fire.emberPos[i * 3] += Math.sin(now / 300 + i) * dt * 0.3;
     }
     fire.ember.geometry.attributes.position.needsUpdate = true;
+  }
+  if (fire.smoke) {
+    for (let i = 0; i < fire.smokeV.length; i++) {
+      let y = fire.smokePos[i * 3 + 1] + dt * 1.1;
+      if (y > fire.smokeAt[1] + 9) { y = fire.smokeAt[1]; fire.smokePos[i * 3] = fire.smokeAt[0]; fire.smokePos[i * 3 + 2] = fire.smokeAt[2]; }
+      fire.smokePos[i * 3 + 1] = y; fire.smokePos[i * 3] += dt * (0.35 + fire.smokeV[i]); fire.smokePos[i * 3 + 2] += Math.sin(now / 700 + i) * dt * 0.2;
+    }
+    fire.smoke.geometry.attributes.position.needsUpdate = true;
   }
   if (onsen.steam) {
     for (let i = 0; i < onsen.steamPool.length; i++) {
@@ -890,13 +964,29 @@ function makeAnimal(sp, color) {
   rider.add(headG);
   const pack = mesh(new THREE.BoxGeometry(0.5, 0.5, 0.26), hatM, 0, 0.88, 0.42, rider); pack.scale.set(1, 1, 1);
   const mug = new THREE.Group(); armR.add(mug); mug.visible = false;
-  mesh(new THREE.CylinderGeometry(0.1, 0.085, 0.2, 10), lam(0xffffff), 0, -0.48, -0.1, mug); mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.02, 10), lam(0x6b3a1e), 0, -0.375, -0.1, mug);
+  const cupMat = new THREE.MeshLambertMaterial({ color: 0xffffff }), drinkMat = new THREE.MeshLambertMaterial({ color: 0x6b3a1e });
+  mesh(new THREE.CylinderGeometry(0.1, 0.085, 0.2, 10), cupMat, 0, -0.48, -0.1, mug); mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.02, 10), drinkMat, 0, -0.375, -0.1, mug);
+  // snow that sticks after snowball hits: four layers, then a full snowman
+  const snowM = lam(0xf8fbff), snowLv = [[], [], [], []];
+  const blob = (lv, r, x, y, z, sx, sy, sz) => { const m = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 1), snowM); m.position.set(x, y, z); m.scale.set(sx || 1, sy || 1, sz || 1); m.visible = false; m.castShadow = true; tilt.add(m); snowLv[lv].push(m); };
+  blob(0, 0.22, 0.12, 2.12, 0.04, 1.2, 0.6, 1.1); blob(0, 0.16, 0.38, 1.22, 0.02); blob(0, 0.13, -0.24, 1.98, -0.28);
+  blob(1, 0.2, -0.46, 0.85, -0.05, 1, 1.4, 1); blob(1, 0.18, 0.47, 0.8, 0, 1, 1.4, 1); blob(1, 0.26, 0, 1.0, 0.47, 1.2, 1, 0.8); blob(1, 0.12, 0.3, 1.6, -0.38);
+  blob(2, 0.6, 0, 0.42, 0, 1, 0.6, 1);
+  blob(3, 0.58, 0, 0.86, 0, 1, 1.05, 0.95); blob(3, 0.2, -0.36, 1.78, 0); blob(3, 0.16, 0.12, 1.55, -0.5); blob(3, 0.18, 0.36, 1.85, 0.12);
+  const snowman = new THREE.Group(); snowman.visible = false; tilt.add(snowman);
+  sph(0.66, snowM, 0, 0.62, 0, 1, 0.95, 1, snowman); sph(0.48, snowM, 0, 1.46, 0, 1, 1, 1, snowman); sph(0.38, snowM, 0, 2.12, 0, 1, 1, 1, snowman);
+  cone(0.07, 0.42, lam(0xff8a2a), 0, 2.1, -0.52, -Math.PI / 2, snowman);
+  for (const sx of [-1, 1]) { sph(0.05, lam(0x1a1a22), sx * 0.13, 2.22, -0.33, 1, 1, 1, snowman); const arm = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8, 5), lam(0x6b4a2b), sx * 0.75, 1.6, 0, snowman); arm.rotation.z = -sx * 1.0; }
+  for (let i = 0; i < 3; i++) sph(0.045, lam(0x1a1a22), 0, 1.3 + i * 0.17, -0.47 + Math.abs(i - 1) * 0.02, 1, 1, 1, snowman);
+  const smHat = new THREE.Mesh(new THREE.SphereGeometry(0.39, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), hatM); smHat.position.y = 2.3; smHat.scale.set(1, 0.8, 1); snowman.add(smHat);
+  sph(0.1, lam(0xffffff), 0, 2.64, 0, 1, 1, 1, snowman);
+  const smScarf = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.07, 8, 18), hatM); smScarf.rotation.x = Math.PI / 2; smScarf.position.y = 1.82; snowman.add(smScarf);
   const stickG = new THREE.Group(); armR.add(stickG); stickG.visible = false;
   const stk = mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.1, 5), lam(0x8a5a32), 0, -0.45, -0.55, stickG); stk.rotation.x = Math.PI / 2 - 0.35;
-  sph(0.07, lam(0xfff3dc), 0, -0.26, -1.08, 1, 1.2, 1, stickG);
+  const marsh = sph(0.07, new THREE.MeshLambertMaterial({ color: 0xfff3dc }), 0, -0.26, -1.08, 1, 1.2, 1, stickG);
   mesh(new THREE.BoxGeometry(0.4, 0.16, 0.06), lam(0xffffff), 0, 0.8, 0.56, rider);
   scene.add(root);
-  return { root, tilt, rider, headG, armL, armR, skis, poles, board, mug, stickG, sp, color, tag: null, bubble: null, bubbleY: 3.55, waveT: 0 };
+  return { root, tilt, rider, headG, armL, armR, skis, poles, board, mug, cupMat, drinkMat, stickG, marsh, snowLv, snowman, sp, color, tag: null, bubble: null, bubbleY: 3.55, waveT: 0, ph: Math.random() * 4 };
 }
 function setGear(av, g) { av.skis.visible = av.poles.visible = g === 0; av.board.visible = g === 1; av.gear = g; }
 function disposeGroup(o) {
@@ -1066,7 +1156,7 @@ const me = {
   name: '', sp: 0, color: COLORS[0], gear: 0,
   x: 0, z: 48, y: 0, vx: 0, vz: 0, vy: 0, vyG: 0, heading: 0, air: false,
   state: 'ski', crashT: 0, steer: 0, brake: false,
-  chair: -1, seat: 0, boardAt: 0, rideMsgs: 0, bath: -1, stump: -1, item: 0, itemT: 0,
+  chair: -1, seat: 0, boardAt: 0, rideMsgs: 0, bath: -1, stump: -1, item: 0, itemT: 0, snow: 0, snowIdle: 0, snowmanT: 0, slowT: 0, boost: 100, boosting: false,
   run: null, best: {}, finSeq: 0, fin: null, guide: null, chatSeq: 0, chat: null,
 };
 try { me.best = JSON.parse(store('ski.best') || '{}') || {}; } catch (e) { me.best = {}; }
@@ -1091,6 +1181,11 @@ function stepSki(dt) {
   const spd0 = Math.hypot(me.vx, me.vz);
   if (me.state === 'crash') { me.crashT -= dt; me.y = H(me.x, me.z); if (me.crashT <= 0) me.state = 'ski'; return; }
   if (me.raceHold) { me.vx = me.vz = 0; me.y = H(me.x, me.z); me.air = false; return; }
+  if (me.snowmanT > 0) {
+    me.vx *= Math.exp(-4 * dt); me.vz *= Math.exp(-4 * dt);
+    me.x = clamp(me.x + me.vx * dt, BOUNDS.minX, BOUNDS.maxX); me.z = clamp(me.z + me.vz * dt, BOUNDS.minZ, BOUNDS.maxZ);
+    me.y = H(me.x, me.z); me.air = false; me.steer = 0; return;
+  }
   if (!me.air && inWalkZone(me.x, me.z)) { walkStep(dt); return; }
   me.bath = -1;
   const gx = (H(me.x + 0.5, me.z) - H(me.x - 0.5, me.z)), gz = (H(me.x, me.z + 0.5) - H(me.x, me.z - 0.5));
@@ -1109,10 +1204,11 @@ function stepSki(dt) {
     vf -= Math.sign(vf) * Math.min(Math.abs(vf), drag * dt);
     if (brake) vf -= Math.sign(vf) * Math.min(Math.abs(vf), 9 * dt);
     if (push && vf < 7) vf += 3.4 * dt;
+    if (me.boosting && vf > 1.5) vf += 4.5 * dt;
     if (vf < 0) vf *= Math.exp(-3 * dt);
   }
   me.vx = fx * vf + rx * vl; me.vz = fz * vf + rz * vl;
-  const sp = Math.hypot(me.vx, me.vz); if (sp > 26) { me.vx *= 26 / sp; me.vz *= 26 / sp; }
+  const cap = me.slowT > 0 ? 8 : me.boosting ? 33 : 26, sp = Math.hypot(me.vx, me.vz); if (sp > cap) { const k = Math.max(cap / sp, 1 - dt * 3); me.vx *= k; me.vz *= k; }
   const ox = me.x, oz = me.z;
   me.x = clamp(me.x + me.vx * dt, BOUNDS.minX, BOUNDS.maxX); me.z = clamp(me.z + me.vz * dt, BOUNDS.minZ, BOUNDS.maxZ);
   collideWalls(me, ox, oz);
@@ -1135,10 +1231,10 @@ function stepSki(dt) {
     if (me.y <= h) {
       const impact = me.vy - me.vyG;
       me.air = false; me.y = h; me.vyG = 0;
-      if (impact < -17) { crash('착지가 너무 셌어요'); return; }
-      emitSpray(me.x, h, me.z, me.vx, me.vz, 14);
+      emitSpray(me.x, h, me.z, me.vx, me.vz, impact < -12 ? 26 : 14);
     }
   }
+  if (!me.air && me.boosting && sp > 6) emitSpray(me.x, h, me.z, -me.vx * 0.3, -me.vz * 0.3, 1);
   if (!me.air && (me.brake || Math.abs(vl) > 2.2) && sp > 4) emitSpray(me.x, h, me.z, me.vx, me.vz, me.brake ? 3 : 2);
 }
 function walkStep(dt) {
@@ -1168,8 +1264,15 @@ function poseAvatar(av, o) {
   else { const lean = o.state === 'crash' ? 1.35 : clamp(-o.steer * 0.32 * Math.min(1, o.speed / 8), -0.45, 0.45); av.tilt.rotation.z += (lean - av.tilt.rotation.z) * 0.2; }
   av.skis.visible = av.poles.visible = !o.walk && av.gear === 0; av.board.visible = !o.walk && av.gear === 1;
   av.rider.rotation.y = av.gear === 1 && !o.walk ? -1.25 : 0;
-  av.mug.visible = o.item === 1; av.stickG.visible = o.item === 2;
-  const crouch = o.state === 'lift' || o.state === 'queue' || o.state === 'sit' ? 0 : Math.min(0.14, o.speed * 0.006);
+  const snow = o.snow || 0, isSnowman = snow >= 100;
+  for (let k = 0; k < 4; k++) for (const m of av.snowLv[k]) m.visible = !isSnowman && snow >= (k + 1) * 20;
+  av.snowman.visible = isSnowman; av.rider.visible = !isSnowman;
+  if (isSnowman) av.skis.visible = av.poles.visible = av.board.visible = false;
+  av.mug.visible = o.item === 1 || o.item === 3; av.stickG.visible = o.item === 2 || o.item === 4;
+  if (av.mug.visible) { av.cupMat.color.setHex(o.item === 3 ? 0x2f3e5c : 0xffffff); av.drinkMat.color.setHex(o.item === 3 ? 0x2a1608 : 0x6b3a1e); }
+  if (o.item === 2) av.marsh.material.color.setRGB(1, 0.95 - 0.35 * (o.roast || 0), 0.86 - 0.6 * (o.roast || 0));
+  if (o.item === 4) av.marsh.material.color.setRGB(0.85, 0.55, 0.25);
+  const crouch = o.state === 'lift' || o.state === 'queue' || o.state === 'sit' ? 0 : o.boost ? 0.26 : Math.min(0.14, o.speed * 0.006);
   av.rider.scale.y = 1 - crouch;
   const ry = o.state === 'lift' ? -0.08 : o.state === 'sit' ? -0.38 : 0;
   av.rider.position.y += (ry - av.rider.position.y) * 0.2;
@@ -1178,7 +1281,13 @@ function poseAvatar(av, o) {
   if (av.throwT > 0) { av.throwT -= 1 / 60; av.armR.rotation.z = 0.45 + 2.5 * Math.max(0, av.throwT / 0.35); }
   else if (av.waveT > 0) { av.waveT -= 1 / 60; av.armR.rotation.z = 2.5 + Math.sin(performance.now() / 90) * 0.45; }
   else av.armR.rotation.z += (upR - av.armR.rotation.z) * 0.2;
-  av.armR.rotation.x += ((o.item ? -0.9 : 0) - av.armR.rotation.x) * 0.2;
+  // sip every few seconds; take bites of a toasted marshmallow
+  const tnow = performance.now() / 1000;
+  let ax = o.item ? -0.9 : 0, hx = 0;
+  if (o.item === 1 || o.item === 3) { const ph = (tnow + av.ph) % 4; if (ph < 1.4) { const k = Math.sin(ph / 1.4 * Math.PI); ax = -0.9 - 1.6 * k; av.armR.rotation.z = 0.25 - 0.75 * k; hx = -0.22 * k; } }
+  if (o.item === 4) { const k = 0.6 + 0.4 * Math.sin(tnow * 3); ax = -2.0 - 0.4 * k; av.armR.rotation.z = -0.35; hx = Math.sin(tnow * 14) * 0.06 - 0.1; }
+  av.armR.rotation.x += (ax - av.armR.rotation.x) * 0.25;
+  av.headG.rotation.x += (hx - av.headG.rotation.x) * 0.3;
   if (o.state === 'lift') { av.skis.rotation.x = 0.25; av.board.rotation.x = 0.25; } else { av.skis.rotation.x = 0; av.board.rotation.x = 0; }
 }
 
@@ -1317,7 +1426,8 @@ function talkBu() {
 }
 function talkBear() {
   setBubble(npcs.bear, '어서 와요~', 2500);
-  say(npcs.bear, '어서 와요! 산장 카페 곰 사장이에요 🐻‍❄️ 꽁꽁 언 몸 좀 녹이고 가요. 따끈한 핫초코 한 잔 줄까요?', [
+  say(npcs.bear, '어서 와요! 산장 카페 곰 사장이에요 🐻‍❄️ 꽁꽁 언 몸 좀 녹이고 가요. 핫초코나 커피 한 잔 줄까요?', [
+    { label: '커피 주세요 ☕', fn: () => { me.item = 3; me.itemT = 45; sfx.pop(); say(npcs.bear, '갓 내린 커피예요! 향 좋죠? 홀짝홀짝 천천히 마셔요 ☕', [], 4500); if (myAv) setBubble(myAv, '음~ 향 좋다 ☕', 3500); } },
     { label: '핫초코 주세요 ☕', fn: () => { me.item = 1; me.itemT = 45; sfx.pop(); say(npcs.bear, '여기 있어요! 뜨거우니까 호호 불어서 마셔요. 모닥불 옆 통나무에 앉으면 더 따뜻해요 🔥 뒷문으로 나가면 온천도 있어요 ♨', [], 6000); if (myAv) setBubble(myAv, '따뜻해~ ☕', 3500); } },
     { label: '온천은 어디예요?', fn: () => say(npcs.bear, '카페 뒷문으로 나가서 디딤돌을 따라가면 눈꽃 온천이에요 ♨ 탕에 들어가면 스키 피로가 싹 풀려요. 냉탕은 정말 차가우니 조심!', [], 6500) },
     { label: '괜찮아요', fn: () => say(npcs.bear, '언제든 불러요~ 모닥불 쬐고 가요!', [], 2500) },
@@ -1337,14 +1447,14 @@ function sitStump(i) {
 }
 function useAction() {
   if (nearNpc()) { interact(); return true; }
-  if (me.state === 'sit' && me.stump >= 0) { if (me.item !== 2) { me.item = 2; me.itemT = 6; notice('🔥 마시멜로를 굽는 중…'); } return true; }
+  if (me.state === 'sit' && me.stump >= 0) { if (me.item !== 2 && me.item !== 4) { me.item = 2; me.itemT = 6; notice('🔥 마시멜로를 굽는 중…'); } return true; }
   const st = nearStump(); if (st >= 0) { sitStump(st); return true; }
   return false;
 }
 function promptText() {
   const n = nearNpc();
-  if (n) return n.name + (n.id === 'coco' ? '에게 말 걸기 · 리프트 타기' : n.id === 'bear' ? '에게 핫초코 주문하기' : '에게 길 물어보기');
-  if (me.state === 'sit' && me.stump >= 0) return me.item === 2 ? '' : '마시멜로 굽기 · 움직이면 일어나요';
+  if (n) return n.name + (n.id === 'coco' ? '에게 말 걸기 · 리프트 타기' : n.id === 'bear' ? '에게 핫초코·커피 주문하기' : '에게 길 물어보기');
+  if (me.state === 'sit' && me.stump >= 0) return me.item === 2 || me.item === 4 ? '' : '마시멜로 굽기 · 움직이면 일어나요';
   if (nearStump() >= 0) return '통나무 의자에 앉기';
   return '';
 }
@@ -1532,6 +1642,9 @@ function syncPeers(peers) {
       if (!isNew && a.chatI !== ct.i) { const t = cleanText(ct.t, 60); if (t) { addChatLine(a.name, a.color, t); setBubble(a.av, t, 6000); sfx.chat(); } }
       a.chatI = ct.i;
     }
+    const sn = clamp(pr.sn | 0, 0, 100);
+    if (!isNew && sn >= 100 && (a.sn || 0) < 100) { notice('⛄ ' + a.name + '님이 눈사람이 됐어요!'); addChatLine('', '', '⛄ ' + a.name + '님이 눈사람이 됐어요!', true); }
+    a.sn = sn; a.bs = pr.bs === 1;
     const sb = pr.sb;
     if (sb && typeof sb === 'object' && typeof sb.i === 'number') {
       if (!isNew && a.sbI !== sb.i && vec3ok(sb.o) && vec3ok(sb.v)) { spawnBall(new V3().fromArray(sb.o), new V3().fromArray(sb.v), p.peer); a.av.throwT = 0.35; }
@@ -1539,12 +1652,12 @@ function syncPeers(peers) {
     }
     const hb = pr.hb;
     if (hb && typeof hb === 'object' && typeof hb.i === 'number') {
-      if (!isNew && a.hbI !== hb.i && hb.by === myId()) { me.sbHits = (me.sbHits || 0) + 1; sfx.hit(); notice('🎯 명중! ' + a.name + '님을 맞혔어요'); }
+      if (!isNew && a.hbI !== hb.i && hb.by === myId()) { me.sbHits = (me.sbHits || 0) + 1; sfx.hit(); notice('🎯 명중! ' + a.name + '님 ❄' + a.sn + '%'); }
       a.hbI = hb.i;
     }
     a.sh = clamp(pr.sh | 0, 0, 99999);
     a.bt = typeof pr.bt === 'number' ? clamp(pr.bt | 0, -1, POOLS.length - 1) : -1;
-    a.it = clamp(pr.it | 0, 0, 2);
+    const it = clamp(pr.it | 0, 0, 4); if (it !== a.it && it === 2) a.itT0 = performance.now(); a.it = it;
     a.rc = validRace(pr.rc);
     if (a.rc && !race.seen.has(a.rc.id)) {
       race.seen.add(a.rc.id);
@@ -1572,7 +1685,7 @@ function sendPresence(now, force) {
     s: me.air ? 1 : STATE_CODE[me.state], st: r2(me.steer), v: r2(Math.hypot(me.vx, me.vz)),
     ch: me.state === 'queue' || me.state === 'lift' ? me.chair : -1, se: me.seat,
     co: me.run ? me.run.c.id : '', b: me.best, f: me.fin, m: me.chat, w: me.waveSeq || 0,
-    sb: me.sb, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, bt: me.bath, it: me.item || 0,
+    sb: me.sb, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, bt: me.bath, it: me.item || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0,
   };
   const key = JSON.stringify(pr);
   if (key === lastSent) return;
@@ -1637,7 +1750,7 @@ function updatePeers(dt, t) {
       if (a.pos.distanceTo(a.tpos) > 25) a.pos.copy(a.tpos); else a.pos.lerp(a.tpos, k);
       let d = a.th - a.h; d = Math.atan2(Math.sin(d), Math.cos(d)); a.h += d * k;
     }
-    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : 'ski', walk: inWalkZone(a.pos.x, a.pos.z), bath: a.bt >= 0, item: a.it || 0 });
+    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : 'ski', walk: inWalkZone(a.pos.x, a.pos.z), bath: a.bt >= 0, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
   }
 }
 
@@ -1760,7 +1873,7 @@ function enter() {
   playing = true;
   rebuildMine(); updateGearChip();
   $('#start').hidden = true; $('#hud').hidden = false;
-  if (isTouch) ['#stick', '#jumpBtn', '#throwBtn'].forEach((s) => { $(s).hidden = false; });
+  if (isTouch) ['#stick', '#jumpBtn', '#throwBtn', '#boostBtn'].forEach((s) => { $(s).hidden = false; });
   setTimeout(() => { $('#hint').style.opacity = '0'; setTimeout(() => { $('#hint').hidden = true; }, 900); }, 12000);
   me.x = (Math.random() - 0.5) * 20; me.z = 50; me.heading = 0;
   renderPlayers(); renderRecords();
@@ -1844,12 +1957,26 @@ function spawnBall(o, v, owner) {
 }
 function throwBall() {
   if (!playing || sbCool > 0) return;
-  if (!(me.state === 'ski' || me.state === 'sit') || me.raceHold) { notice('지금은 눈덩이를 던질 수 없어요'); return; }
+  if (!(me.state === 'ski' || me.state === 'sit') || me.raceHold || me.snowmanT > 0) { notice(me.snowmanT > 0 ? '눈사람은 던질 수 없어요 ⛄' : '지금은 눈덩이를 던질 수 없어요'); return; }
   if (me.state === 'sit') me.state = 'ski';
   sbCool = 0.6;
   const yaw = me.heading + cam.yawOff, fx = -Math.sin(yaw), fz = -Math.cos(yaw);
   const o = new V3(me.x + fx * 0.7, me.y + 1.8, me.z + fz * 0.7);
-  const v = new V3(fx * 22 + me.vx, 3, fz * 22 + me.vz);
+  let v = new V3(fx * 22 + me.vx, 3, fz * 22 + me.vz);
+  // aim assist: lob toward the closest friend roughly in front, leading their movement
+  let tgt = null, best = 0.88;
+  for (const [, a] of avatars) {
+    if (a.st === 3 || a.st === 4 || (a.sn || 0) >= 100) continue;
+    const dx = a.pos.x - me.x, dz = a.pos.z - me.z, d = Math.hypot(dx, dz);
+    if (d < 2 || d > 42) continue;
+    const c = (dx * fx + dz * fz) / d; if (c > best) { best = c; tgt = a; }
+  }
+  if (tgt) {
+    const t = Math.max(0.25, Math.hypot(tgt.pos.x - o.x, tgt.pos.z - o.z) / 24);
+    const tvx = -Math.sin(tgt.h) * tgt.spd, tvz = -Math.cos(tgt.h) * tgt.spd;
+    const ax = tgt.pos.x + tvx * t, ay = tgt.pos.y + 1.1, az = tgt.pos.z + tvz * t;
+    v = new V3((ax - o.x) / t, (ay - o.y + 4.9 * t * t) / t, (az - o.z) / t);
+  }
   me.sbSeq = (me.sbSeq || 0) + 1;
   me.sb = { i: me.sbSeq, o: [r2(o.x), r2(o.y), r2(o.z)], v: [r2(v.x), r2(v.y), r2(v.z)] };
   spawnBall(o, v, 'me'); if (myAv) myAv.throwT = 0.35; sfx.whoosh();
@@ -1858,8 +1985,14 @@ function throwBall() {
 function gotHit(b) {
   const a = avatars.get(b.owner), nm = a ? a.name : '누군가';
   me.hbSeq = (me.hbSeq || 0) + 1; me.hb = { i: me.hbSeq, by: b.owner };
-  me.vx *= 0.4; me.vz *= 0.4; if (me.state === 'sit') me.state = 'ski';
-  sfx.splat(); notice('퍽! ' + nm + '님의 눈덩이에 맞았어요 ❄');
+  const racing = !!(me.run && me.run.race);
+  me.vx *= racing ? 0.35 : 0.5; me.vz *= racing ? 0.35 : 0.5; me.slowT = racing ? 2.5 : 1.2;
+  if (me.state === 'sit') { me.state = 'ski'; me.stump = -1; }
+  me.snowIdle = 0;
+  if (me.snowmanT <= 0) me.snow = Math.min(100, me.snow + 20);
+  sfx.splat();
+  if (me.snow >= 100 && me.snowmanT <= 0) { me.snowmanT = 4; centerMsg('⛄ 눈사람!', nm + '님의 눈덩이에 꽁꽁 · 4초 뒤에 풀려요'); }
+  else notice('퍽! ' + nm + '님의 눈덩이 · ❄' + Math.round(me.snow) + '%' + (racing ? ' · 속도가 느려졌어요' : ''));
   const sp = $('#splat'); sp.classList.remove('show'); void sp.offsetWidth; sp.classList.add('show');
   sendPresence(performance.now(), true);
 }
@@ -1884,6 +2017,9 @@ function updateBalls(dt) {
 }
 $('#actThrow').addEventListener('click', throwBall);
 $('#throwBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); throwBall(); });
+const bb = $('#boostBtn');
+bb.addEventListener('pointerdown', (e) => { e.preventDefault(); keys._boost = true; try { bb.setPointerCapture(e.pointerId); } catch (_) {} });
+for (const ev of ['pointerup', 'pointercancel']) bb.addEventListener(ev, () => { keys._boost = false; });
 
 /* ================= friend race ================= */
 const race = { seen: new Set(), lastCount: null, finishedAt: 0, shown: false };
@@ -2056,13 +2192,32 @@ function frame(now) {
     updateRun(dt);
     updateRace();
     if (night.light) night.light.position.set(me.x, me.y + 3.2, me.z);
-    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: inWalkZone(me.x, me.z), bath: me.bath >= 0, item: me.item || 0 });
+    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: inWalkZone(me.x, me.z), bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting });
     // prompt + guide
     const ptxt = promptText();
     const pr = $('#prompt');
     if (ptxt && !(dlg && dlg.choices.length)) { if (pr.dataset.t !== ptxt) { pr.dataset.t = ptxt; pr.textContent = ''; if (!isTouch) { const k = document.createElement('kbd'); k.textContent = 'E'; pr.append(k, ' '); } pr.append(ptxt); } pr.hidden = false; }
     else { pr.hidden = true; pr.dataset.t = ''; }
-    if (me.itemT > 0) { me.itemT -= dt; if (me.itemT <= 0) { if (me.item === 2) { notice('🍡 노릇노릇 맛있게 구워졌어요!'); if (myAv) setBubble(myAv, '냠냠 🍡', 3000); } me.item = 0; } }
+    if (me.itemT > 0) {
+      me.itemT -= dt;
+      if (me.itemT <= 0) {
+        if (me.item === 2) { me.item = 4; me.itemT = 3; notice('🍡 노릇노릇 구워졌어요! 냠냠'); if (myAv) setBubble(myAv, '냠냠 🍡 맛있다!', 3000); sfx.pop(); }
+        else { if (me.item === 1 || me.item === 3) notice(me.item === 3 ? '☕ 커피를 다 마셨어요' : '☕ 핫초코를 다 마셨어요'); me.item = 0; }
+      }
+    }
+    // snow on you melts slowly, fast in a warm pool or by the fire
+    if (me.snow > 0 && me.snowmanT <= 0) {
+      me.snowIdle += dt;
+      const warm = (me.bath >= 0 && !POOLS[me.bath].cold) ? 30 : inCafe(me.x, me.z) ? 15 : 0;
+      if (warm || me.snowIdle > 6) me.snow = Math.max(0, me.snow - (warm || 5) * dt);
+    }
+    if (me.snowmanT > 0) { me.snowmanT -= dt; if (me.snowmanT <= 0) { me.snow = 0; me.snowIdle = 0; emitSpray(me.x, me.y + 1, me.z, 0, 0, 60); sfx.splat(); notice('펑! 눈사람에서 풀려났어요'); centerMsg('펑!', '다시 움직일 수 있어요'); } }
+    me.slowT = Math.max(0, me.slowT - dt);
+    const wantBoost = (keys.ShiftLeft || keys.ShiftRight || keys._boost) && me.state === 'ski' && !inWalkZone(me.x, me.z) && me.snowmanT <= 0 && !me.raceHold;
+    if (wantBoost && (me.boosting ? me.boost > 0 : me.boost > 15)) { me.boosting = true; me.boost = Math.max(0, me.boost - 28 * dt); }
+    else { me.boosting = false; me.boost = Math.min(100, me.boost + 14 * dt); }
+    $('#boostTxt').textContent = me.boost < 99.5 || me.boosting ? ' · ⚡' + Math.round(me.boost) + '%' : '';
+    $('#snowTxt').textContent = me.snowmanT > 0 ? ' · ⛄ 눈사람!' : me.snow > 0 ? ' · ❄ ' + Math.round(me.snow) + '%' : '';
     if (fireGain) { const fd = Math.hypot(me.x - FIRE.x, me.z - FIRE.z), near = inCafe(me.x, me.z) ? clamp(1 - fd / 12, 0, 1) : 0; fireGain.gain.value = near * 0.16; if (near > 0.3 && Math.random() < dt * 5 * near) tone([1500 + Math.random() * 1800], 0.025 * near, 0.03, 'square'); }
     const indoor = inCafe(me.x, me.z); cafeHide.visible = !indoor; snow.visible = !indoor;
     if (dlg && dlg.npc && dlg.npc.id !== 'race' && me.state === 'ski' && dlg.choices.length && Math.hypot(me.x - dlg.npc.x, me.z - dlg.npc.z) > 9) closeDialog();
@@ -2100,7 +2255,7 @@ void playersT;
 
 (async function boot() {
   try { await Promise.race([Promise.all([document.fonts.load('60px Jua'), document.fonts.load('40px "Noto Sans KR"')]), new Promise((r) => setTimeout(r, 1500))]); } catch (e) {}
-  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildCafe(); buildOnsen(); buildNpcs(); buildMinimap(); buildNight();
+  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildCafe(); buildSmoke(); buildOnsen(); buildNpcs(); buildMinimap(); buildNight();
   const sn = store('ski.night'), hr = new Date().getHours();
   setNight(sn === '1' || (sn === null && (hr >= 18 || hr < 6)));
   rebuildMine();
