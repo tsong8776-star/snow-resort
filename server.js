@@ -41,7 +41,7 @@ wss.on('connection', (ws) => {
   const me = { ws, presence: {}, budget: 60, last: Date.now() };
   players.set(id, me);
 
-  send(ws, { t: 'hello', id, peers: [...players].filter(([k]) => k !== id).map(([k, v]) => ({ id: k, presence: v.presence })) });
+  send(ws, { t: 'hello', id, now: Date.now(), peers: [...players].filter(([k]) => k !== id).map(([k, v]) => ({ id: k, presence: v.presence })) });
   broadcast({ t: 'join', id }, id);
 
   ws.isAlive = true;
@@ -57,6 +57,8 @@ wss.on('connection', (ws) => {
 
     let m;
     try { m = JSON.parse(raw); } catch (e) { return; }
+    // clock sync: everyone starts races and sees lift chairs on the server's clock
+    if (m && m.t === 'ping' && typeof m.c === 'number') { send(ws, { t: 'pong', c: m.c, now: Date.now() }); return; }
     if (m && m.t === 'presence' && m.p && typeof m.p === 'object' && !Array.isArray(m.p)) {
       me.presence = m.p;
       broadcast({ t: 'presence', id, p: m.p }, id);
