@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>눈꽃 스키장</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,7 +24,9 @@
   color-scheme: light;
 }
 [hidden] { display: none !important; }
-html, body { height: 100%; overflow: hidden; margin: 0; }
+html, body { height: 100%; overflow: hidden; margin: 0; overscroll-behavior: none; touch-action: none; -webkit-text-size-adjust: 100%; }
+#hud button, #start button, #start input, #chatForm input { touch-action: manipulation; }
+#start { touch-action: pan-y; }
 body { background: #bfe0fb; color: var(--ink); font-family: var(--font-body); font-size: 14px; -webkit-user-select: none; user-select: none; }
 #game { position: fixed; inset: 0; }
 #game canvas { display: block; width: 100%; height: 100%; touch-action: none; }
@@ -32,7 +34,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 button:focus-visible, input:focus-visible { outline: 3px solid var(--berry); outline-offset: 2px; }
 kbd { font-family: var(--font-display); font-size: 0.85em; padding: 0 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; background: #fff; color: var(--ink); }
 .grade { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; color: #fff; font-family: var(--font-display); font-size: 14px; flex: none; }
-.gA { background: var(--A); } .gB { background: var(--B); } .gC { background: var(--C); } .gD { background: var(--D); }
+.gA { background: var(--A); } .gB { background: var(--B); } .gC { background: var(--C); } .gR { background: #ff7a1a; } .gD { background: var(--D); }
 
 /* ---------- entry ---------- */
 #start { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; overflow-y: auto;
@@ -59,7 +61,7 @@ h1 em { font-style: normal; color: var(--berry); }
 .seg button[aria-pressed="true"] { border-color: var(--B); background: #eaf2ff; color: var(--B); }
 #enter { font-family: var(--font-display); font-size: 22px; padding: 12px; border: 0; border-radius: 14px; background: var(--berry); color: #fff; box-shadow: 0 4px 0 #c9324f; }
 #enter:active { transform: translateY(2px); box-shadow: 0 2px 0 #c9324f; }
-.legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.legend { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .legend div { background: #fff; border-radius: 12px; padding: 6px 4px; display: grid; justify-items: center; gap: 2px; border: 1px solid var(--line); }
 .legend b { font-size: 12px; } .legend small { font-size: 11px; color: var(--ink-soft); }
 .controls { margin: 0; font-size: 12.5px; color: var(--ink-soft); line-height: 2; }
@@ -108,7 +110,9 @@ h1 em { font-style: normal; color: var(--berry); }
 #actions .ic { font-size: 19px; line-height: 1.1; }
 #actions .lb { font-size: 11.5px; font-weight: 700; white-space: nowrap; }
 #prompt { position: static; background: rgba(255,255,255,0.92); color: var(--ink); border-radius: 999px; padding: 7px 16px; font-weight: 700; white-space: nowrap; pointer-events: auto; border: 0; box-shadow: 0 6px 18px rgba(20,30,50,0.2); }
-#dialog { width: 100%; padding: 14px 16px; pointer-events: auto; display: grid; gap: 10px; box-sizing: border-box; background: rgba(255,255,255,0.93); color: var(--ink); border: 0; }
+#dlgClose { position: absolute; top: 8px; right: 8px; width: 34px; height: 34px; border-radius: 50%; border: 0; background: rgba(27,42,74,0.08); color: var(--ink); font-size: 16px; font-weight: 900; }
+#dlgClose:hover { background: rgba(27,42,74,0.16); }
+#dialog { position: relative; width: 100%; padding: 14px 16px; pointer-events: auto; display: grid; gap: 10px; box-sizing: border-box; background: rgba(255,255,255,0.93); color: var(--ink); border: 0; }
 .who { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-size: 19px; }
 .who span { font-size: 26px; }
 #dlgText { margin: 0; font-size: 15px; line-height: 1.6; }
@@ -157,6 +161,9 @@ body.is-touch #hint { display: none; }
   #chatLog { min-width: 0; width: 60%; }
   .pill > * { padding: 5px 7px; }
 }
+#fade { inset: 0; pointer-events: none; opacity: 0; background: #0b0806; }
+#fade.go { animation: fade 0.7s ease-out; }
+@keyframes fade { 0% { opacity: 1; } 35% { opacity: 1; } 100% { opacity: 0; } }
 #splat { inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(circle at 52% 46%, rgba(255,255,255,0.95) 0 9%, rgba(255,255,255,0.75) 14%, rgba(255,255,255,0) 32%), radial-gradient(circle at 38% 58%, rgba(255,255,255,0.85) 0 4%, rgba(255,255,255,0) 9%), radial-gradient(circle at 63% 60%, rgba(255,255,255,0.85) 0 5%, rgba(255,255,255,0) 10%); }
 #splat.show { animation: splat 1.6s ease-out; }
 @keyframes splat { 0% { opacity: 1; transform: scale(0.9); } 60% { opacity: 0.85; } 100% { opacity: 0; transform: scale(1.05); } }
@@ -180,6 +187,7 @@ body.is-touch #hint { display: none; }
     <div class="pill glass">
       <span title="지금 접속한 사람"><span aria-hidden="true">👥</span><span id="netTxt">1</span></span>
       <span class="sep"></span>
+      <button type="button" id="fsBtn" aria-label="전체화면">⛶</button>
       <button type="button" id="nightBtn" aria-label="밤 스키 켜기">🌙</button>
       <button type="button" id="soundBtn" aria-label="소리 끄기">🔊</button>
       <button type="button" id="mapBtn" aria-pressed="true" aria-label="지도 보기">🗺</button>
@@ -199,7 +207,7 @@ body.is-touch #hint { display: none; }
   </div>
   <div class="bottom">
     <button id="prompt" type="button" hidden></button>
-    <div id="dialog" class="glass" hidden><div class="who"><span id="dlgFace"></span><span id="dlgName"></span></div><p id="dlgText"></p><div id="dlgChoices"></div></div>
+    <div id="dialog" class="glass" hidden><button type="button" id="dlgClose" aria-label="대화창 닫기">✕</button><div class="who"><span id="dlgFace"></span><span id="dlgName"></span></div><p id="dlgText"></p><div id="dlgChoices"></div></div>
     <form id="chatForm" hidden><input id="chatInput" maxlength="60" autocomplete="off" placeholder="친구에게 할 말을 입력하고 Enter"><button type="submit">보내기</button></form>
     <div id="status" class="glass">
       <div class="row"><span id="stChip">멈춤</span><span id="stTitle">베이스</span><span id="stRight"></span></div>
@@ -218,6 +226,7 @@ body.is-touch #hint { display: none; }
     </div>
   </div>
   <div id="splat"></div>
+  <div id="fade"></div>
   <div id="stick" class="touch" hidden><div id="knob"></div></div>
   <button id="throwBtn" class="touch" type="button" hidden>❄ 던지기</button>
   <button id="boostBtn" class="touch" type="button" hidden>⚡ 부스트</button>
@@ -239,6 +248,7 @@ body.is-touch #hint { display: none; }
       <div><span class="grade gB">B</span><b>중급</b><small>솔바람</small></div>
       <div><span class="grade gC">C</span><b>상급</b><small>번개 · 점프대</small></div>
       <div><span class="grade gD">D</span><b>최상급</b><small>얼음절벽 · 모굴</small></div>
+      <div><span class="grade gR">R</span><b>레이스</b><small>챔피언 · 기문</small></div>
     </div>
     <div class="field invite" id="inviteField" hidden>
       <label class="lbl" for="link">친구 초대 링크</label>
@@ -292,6 +302,9 @@ const COURSES = [
   { id: 'D', level: '최상급', name: '얼음절벽', color: '#1d1f27', width: 16,
     pts: [[65, -248], [85, -200], [95, -130], [90, -60], [60, -10], [30, 22]],
     tip: '좁고 가파르고, 울퉁불퉁한 모굴이 가득해요. 자신 있는 분만 도전하세요! 검은 깃발이에요.' },
+  { id: 'R', level: '레이스 전용', name: '챔피언', color: '#ff7a1a', width: 12, race: true,
+    pts: [[10, -250], [30, -225], [70, -200], [40, -175], [-20, -160], [-60, -140], [-30, -115], [30, -100], [75, -80], [60, -55], [10, -40], [-35, -22], [-24, 2], [-10, 18]],
+    tip: '산 전체를 S자로 가로지르는 레이스 전용 코스! 점프대 5개, 모굴 2구간, 빨강·파랑 기문이 있어요. 기문을 놓치면 +2초!' },
 ];
 for (const c of COURSES) {
   const curve = new THREE.CatmullRomCurve3(c.pts.map(([x, z]) => new V3(x, 0, z)), false, 'centripetal');
@@ -305,6 +318,10 @@ for (const c of COURSES) {
   });
   const xs = c.s.map((p) => p[0]), zs = c.s.map((p) => p[1]), pad = c.width / 2 + 30;
   c.box = [Math.min(...xs) - pad, Math.max(...xs) + pad, Math.min(...zs) - pad, Math.max(...zs) + pad];
+}
+for (const c of COURSES) if (c.race) {
+  c.gates = [];
+  for (let i = 14, k = 0; i < c.s.length - 16; i += 9, k++) c.gates.push({ i, off: k % 2 ? 2.4 : -2.4, col: k % 2 ? 0x2f7de1 : 0xe5484d });
 }
 const FINISH_BACK = 10; // finish arch sits this many samples (~20 m) before the course end, still on the slope
 const courseById = Object.fromEntries(COURSES.map((c) => [c.id, c]));
@@ -349,6 +366,15 @@ function buildHeights() {
       const inside = 1 - sstep(-3, 0, best);
       if (bc.id === 'D' && bn.along > 40 && bn.along < bc.len - 50) h += inside * 0.45 * (Math.sin(x * 1.15) * Math.sin(z * 1.15 + 0.7) + 0.3 * Math.sin(x * 0.6 - z * 0.8));
       if (bc.id === 'B' && bn.along > 60 && bn.along < bc.len - 40) h += inside * 0.55 * Math.sin(bn.along * 0.22);
+      if (bc.id === 'R') {
+        const fr = bn.along / bc.len;
+        if ((fr > 0.38 && fr < 0.45) || (fr > 0.72 && fr < 0.79)) h += inside * 0.5 * (Math.sin(x * 1.25) * Math.sin(z * 1.25 + 0.4) + 0.35 * Math.sin(x * 0.7 + z * 0.6));
+        for (const jf of [0.12, 0.3, 0.52, 0.66, 0.86]) {
+          const s2 = bn.along - jf * bc.len, lf = 1 - sstep(4, 6.5, bn.lat);
+          if (s2 >= -13 && s2 <= 0) h += 2.3 * Math.pow((s2 + 13) / 13, 1.7) * lf;
+          else if (s2 > 0 && s2 <= 1.3) h += 2.3 * (1 - s2 / 1.3) * lf;
+        }
+      }
       if (bc.id === 'C') for (const jf of [0.28, 0.52, 0.76]) {
         const s = bn.along - jf * bc.len, lf = 1 - sstep(4, 7, bn.lat);
         if (s >= -11 && s <= 0) h += 1.7 * Math.pow((s + 11) / 11, 1.6) * lf;
@@ -517,6 +543,14 @@ function buildCourseDecor() {
     }
     poles.count = k; flags.count = k; scene.add(poles, flags);
     arch(c, 2, c.id + ' ' + c.level, c.name + ' 코스 출발');
+    if (c.gates) for (const g of c.gates) {
+      const [x, z] = c.s[g.i], [dx, dz] = c.dir[g.i];
+      for (const e of [-2, 2]) {
+        const px = x + dz * (g.off + e), pz = z - dx * (g.off + e), py = H(px, pz);
+        mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.9, 6), lam(g.col), px, py + 0.95, pz);
+        const fl = mesh(new THREE.BoxGeometry(0.03, 0.55, 0.75), lam(g.col), px, py + 1.55, pz); fl.rotation.y = Math.atan2(dx, dz) + Math.PI / 2;
+      }
+    }
     arch(c, c.s.length - FINISH_BACK, '골인!', c.id + ' ' + c.name);
     // grade sign beside start
     const [sx, sz] = c.s[0];
@@ -631,6 +665,8 @@ function buildBase() {
 const CAFE = { x0: 31, x1: 53, z0: 55, z1: 73, h: 5.6 };
 const FIRE = { x: 42, z: 64 };
 const STUMPS = [];
+const LANTERN_GLOW_IN = [];
+const cafe = { pendants: [], glow: null, k: 0 };
 const LANTERN_GLOW = [];
 const cafeHide = new THREE.Group();
 const fire = { flames: [], light: null, ember: null, emberPos: null, emberV: null };
@@ -682,6 +718,19 @@ function buildCafe() {
   wall(C.x0, 40.3, C.z0, cafeHide); wall(43.7, C.x1, C.z0, cafeHide);
   mesh(new THREE.BoxGeometry(3.4, h - 3.2, t), logMat, 42, 3.2 + (h - 3.2) / 2, C.z0, cafeHide);
   wall(C.x0, 45.3, C.z1); wall(48.7, C.x1, C.z1);
+  // ceiling with beams and pendant lamps
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshLambertMaterial({ color: 0x5a3a22 })); ceil.rotation.x = Math.PI / 2; ceil.position.set(cx, h - 0.05, (C.z0 + C.z1) / 2); scene.add(ceil);
+  for (let x = C.x0 + 2; x < C.x1; x += 3) mesh(new THREE.BoxGeometry(0.35, 0.35, d), lam(0x3d2614), x, h - 0.3, (C.z0 + C.z1) / 2, scene, false);
+  cafe.pendants = [];
+  for (const [x, z] of [[36.5, 61], [47.5, 61], [36.5, 68], [47.5, 68]]) {
+    mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.6, 4), lam(0x222222), x, h - 0.85, z, scene, false);
+    const shade = mesh(new THREE.ConeGeometry(0.42, 0.45, 14, 1, true), new THREE.MeshLambertMaterial({ color: 0x2f4a3a, side: THREE.DoubleSide }), x, h - 1.75, z, scene, false);
+    void shade; mesh(new THREE.SphereGeometry(0.13, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffd9a0 }), x, h - 1.9, z, scene, false);
+    LANTERN_GLOW_IN.push([x, h - 1.95, z]);
+  }
+  for (const [x, z] of [[36.5, 64.5], [47.5, 64.5]]) { const pl = new THREE.PointLight(0xffc27a, 0, 13, 1.8); pl.position.set(x, h - 2.1, z); scene.add(pl); cafe.pendants.push(pl); }
+  // candles on the tables
+  for (const [x, z] of [[35.2, 57.6], [49.4, 69.3]]) { mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.16, 8), lam(0xfff3dc), x, 0.97, z - 0.25, scene, false); LANTERN_GLOW_IN.push([x, 1.1, z - 0.25]); }
   mesh(new THREE.BoxGeometry(3.4, h - 3.2, t), logMat, 47, 3.2 + (h - 3.2) / 2, C.z1);
   for (const x of [C.x0, C.x1]) { mesh(new THREE.BoxGeometry(t, h, d), logMat, x, h / 2, (C.z0 + C.z1) / 2); wallObs(x, C.z0, x, C.z1); }
   // log beams on the outside corners
@@ -793,6 +842,11 @@ function poolAt(x, z) {
   }
   return -1;
 }
+function buildCafeGlow() {
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(LANTERN_GLOW_IN.flat()), 3));
+  cafe.glow = new THREE.Points(g, new THREE.PointsMaterial({ size: 1.6, map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
+  scene.add(cafe.glow);
+}
 function buildSmoke() {
   if (!fire.smokeAt) return;
   const N = 26; fire.smokePos = new Float32Array(N * 3); fire.smokeV = new Float32Array(N);
@@ -865,7 +919,15 @@ function resetSteam(i, y) {
 function updateWarmPlaces(dt, now) {
   // campfire flicker and embers
   for (const f of fire.flames) { const k = 1 + Math.sin(now / 90 + f.ph) * 0.12 + Math.sin(now / 37 + f.ph * 2) * 0.08; f.m.scale.set(1 / Math.sqrt(k), k, 1 / Math.sqrt(k)); f.m.position.y = 0.35 + f.hh * k / 2; f.m.rotation.y += dt * 1.5; }
-  if (fire.light) fire.light.intensity = 2.0 + Math.sin(now / 70) * 0.25 + Math.sin(now / 23) * 0.15;
+  const ik = cafe.k;
+  if (fire.light) { fire.light.intensity = (2.0 + Math.sin(now / 70) * 0.25 + Math.sin(now / 23) * 0.15) * (1 + ik * 0.7); fire.light.distance = 15 + ik * 6; }
+  for (const pl of cafe.pendants) pl.intensity = ik * (1.3 + Math.sin(now / 900) * 0.05);
+  if (cafe.glow) cafe.glow.material.opacity = Math.max(ik, night.on ? 0.6 : 0);
+  if (night.base) {
+    hemi.intensity = night.base.hemi + (0.035 - night.base.hemi) * ik;
+    sun.intensity = night.base.sun * (1 - ik);
+    renderer.toneMappingExposure = night.base.exp + (0.98 - night.base.exp) * ik;
+  }
   if (fire.ember) {
     for (let i = 0; i < fire.emberV.length; i++) {
       let y = fire.emberPos[i * 3 + 1] + fire.emberV[i] * dt;
@@ -974,13 +1036,26 @@ function makeAnimal(sp, color) {
   blob(2, 0.6, 0, 0.42, 0, 1, 0.6, 1);
   blob(3, 0.58, 0, 0.86, 0, 1, 1.05, 0.95); blob(3, 0.2, -0.36, 1.78, 0); blob(3, 0.16, 0.12, 1.55, -0.5); blob(3, 0.18, 0.36, 1.85, 0.12);
   const snowman = new THREE.Group(); snowman.visible = false; tilt.add(snowman);
-  sph(0.66, snowM, 0, 0.62, 0, 1, 0.95, 1, snowman); sph(0.48, snowM, 0, 1.46, 0, 1, 1, 1, snowman); sph(0.38, snowM, 0, 2.12, 0, 1, 1, 1, snowman);
-  cone(0.07, 0.42, lam(0xff8a2a), 0, 2.1, -0.52, -Math.PI / 2, snowman);
-  for (const sx of [-1, 1]) { sph(0.05, lam(0x1a1a22), sx * 0.13, 2.22, -0.33, 1, 1, 1, snowman); const arm = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8, 5), lam(0x6b4a2b), sx * 0.75, 1.6, 0, snowman); arm.rotation.z = -sx * 1.0; }
-  for (let i = 0; i < 3; i++) sph(0.045, lam(0x1a1a22), 0, 1.3 + i * 0.17, -0.47 + Math.abs(i - 1) * 0.02, 1, 1, 1, snowman);
-  const smHat = new THREE.Mesh(new THREE.SphereGeometry(0.39, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), hatM); smHat.position.y = 2.3; smHat.scale.set(1, 0.8, 1); snowman.add(smHat);
-  sph(0.1, lam(0xffffff), 0, 2.64, 0, 1, 1, 1, snowman);
-  const smScarf = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.07, 8, 18), hatM); smScarf.rotation.x = Math.PI / 2; smScarf.position.y = 1.82; snowman.add(smScarf);
+  const smW = lam(0xfdfeff), smRed = lam(0xd6303a), smBlack = lam(0x1d1d26), twig = lam(0x6b4a2b);
+  sph(0.95, smW, 0, 0.88, 0, 1, 0.92, 1, snowman);
+  sph(0.7, smW, 0, 2.12, 0, 1, 0.95, 1, snowman);
+  for (const sx of [-1, 1]) {
+    sph(0.1, smBlack, sx * 0.24, 2.27, -0.6, 1, 1.2, 0.6, snowman);
+    sph(0.035, lam(0xffffff), sx * 0.24 + 0.035, 2.33, -0.66, 1, 1, 1, snowman);
+    sph(0.14, lam(0xff9fb0), sx * 0.42, 2.03, -0.52, 1, 0.6, 0.4, snowman);
+    const arm = mesh(new THREE.CylinderGeometry(0.035, 0.045, 1.15, 5), twig, sx * 1.25, 1.42, 0, snowman); arm.rotation.z = -sx * 0.9;
+    for (const [fy, fr] of [[0.25, 0.6], [-0.05, -0.5]]) { const f = mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.32, 4), twig, sx * (1.62 + (fy > 0 ? 0.02 : 0.1)), 1.78 + fy, 0, snowman); f.rotation.z = -sx * (0.9 + fr); }
+  }
+  cone(0.1, 0.55, lam(0xff8a2a), 0, 2.12, -0.95, -Math.PI / 2, snowman);
+  const smile = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.028, 6, 16, Math.PI), smBlack); smile.position.set(0, 1.97, -0.64); smile.rotation.z = Math.PI; snowman.add(smile);
+  for (const [by, bz] of [[1.25, -0.84], [0.92, -0.93], [0.6, -0.86]]) sph(0.075, lam(0x3a3a44), 0, by, bz, 1, 1, 0.6, snowman);
+  const hatG = new THREE.Group(); hatG.position.set(0, 2.62, 0); hatG.rotation.z = -0.28; snowman.add(hatG);
+  cone(0.56, 1.05, smRed, 0, 0.5, 0, 0, hatG);
+  const fur = new THREE.Mesh(new THREE.TorusGeometry(0.56, 0.13, 8, 20), lam(0xffffff)); fur.rotation.x = Math.PI / 2; hatG.add(fur);
+  sph(0.17, lam(0xffffff), 0, 1.06, 0, 1, 1, 1, hatG);
+  const smScarf = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.15, 8, 22), smRed); smScarf.rotation.x = Math.PI / 2; smScarf.position.y = 1.58; snowman.add(smScarf);
+  const tailS = mesh(new THREE.BoxGeometry(0.3, 0.7, 0.12), smRed, 0.32, 1.22, -0.72, snowman); tailS.rotation.z = 0.18;
+  for (let i = 0; i < 3; i++) mesh(new THREE.BoxGeometry(0.31, 0.04, 0.13), lam(0xffffff), 0.32 + Math.sin(0.18) * (i - 1) * 0.2, 1.0 + i * 0.2, -0.72, snowman, false);
   const stickG = new THREE.Group(); armR.add(stickG); stickG.visible = false;
   const stk = mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.1, 5), lam(0x8a5a32), 0, -0.45, -0.55, stickG); stk.rotation.x = Math.PI / 2 - 0.35;
   const marsh = sph(0.07, new THREE.MeshLambertMaterial({ color: 0xfff3dc }), 0, -0.26, -1.08, 1, 1.2, 1, stickG);
@@ -1148,6 +1223,7 @@ const sfx = {
   whoosh: () => tone([520, 380], 0.05, 0.14, 'sawtooth'),
   splat: () => { tone([220, 140], 0.18, 0.18, 'square'); },
   hit: () => { tone([1320, 1760], 0.09, 0.3, 'triangle'); },
+  bump: () => { tone([140, 95], 0.3, 0.22, 'square'); tone([520], 0.08, 0.1, 'triangle', 0.05); },
   beep: (hi) => tone([hi ? 1320 : 880], 0.14, hi ? 0.4 : 0.16, 'triangle'),
 };
 
@@ -1212,6 +1288,7 @@ function stepSki(dt) {
   const ox = me.x, oz = me.z;
   me.x = clamp(me.x + me.vx * dt, BOUNDS.minX, BOUNDS.maxX); me.z = clamp(me.z + me.vz * dt, BOUNDS.minZ, BOUNDS.maxZ);
   collideWalls(me, ox, oz);
+  bumpPeers();
   const ob = nearObstacle(me.x, me.z);
   if (ob) {
     if (sp > 7) { me.x = ox; me.z = oz; crash('나무에 부딪혔어요'); return; }
@@ -1237,6 +1314,29 @@ function stepSki(dt) {
   if (!me.air && me.boosting && sp > 6) emitSpray(me.x, h, me.z, -me.vx * 0.3, -me.vz * 0.3, 1);
   if (!me.air && (me.brake || Math.abs(vl) > 2.2) && sp > 4) emitSpray(me.x, h, me.z, me.vx, me.vz, me.brake ? 3 : 2);
 }
+function bumpPeers() {
+  const now = performance.now();
+  for (const [, a] of avatars) {
+    if (a.st === 3 || a.st === 4 || inWalkZone(a.pos.x, a.pos.z)) continue;
+    const dx = me.x - a.pos.x, dz = me.z - a.pos.z, d = Math.hypot(dx, dz);
+    if (d > 1.15 || Math.abs(me.y - a.pos.y) > 1.6) continue;
+    const nx = d > 1e-3 ? dx / d : 1, nz = d > 1e-3 ? dz / d : 0;
+    me.x += nx * (1.15 - d); me.z += nz * (1.15 - d);
+    const pvx = -Math.sin(a.h) * a.spd, pvz = -Math.cos(a.h) * a.spd;
+    const vrel = (me.vx - pvx) * nx + (me.vz - pvz) * nz;
+    if (vrel < 0) { me.vx -= 1.6 * vrel * nx; me.vz -= 1.6 * vrel * nz; }
+    if (!a.bumpT || now - a.bumpT > 700) {
+      a.bumpT = now;
+      const shove = 2.2 + (a.bs ? 3.5 : 0), hard = Math.abs(vrel) + (a.bs ? 4 : 0);
+      me.vx += nx * shove; me.vz += nz * shove;
+      if (hard > 2.5) {
+        sfx.bump(); emitSpray(me.x, me.y, me.z, me.vx, me.vz, 18); if (myAv) myAv.wobT = 0.7;
+        notice('💥 ' + a.name + '님과 쾅!' + (a.bs ? ' (부스트 몸통 박치기!)' : ''));
+        if (hard > 9) me.slowT = Math.max(me.slowT, 0.8);
+      }
+    }
+  }
+}
 function walkStep(dt) {
   const steer = clamp(((keys.KeyD || keys.ArrowRight) ? 1 : 0) - ((keys.KeyA || keys.ArrowLeft) ? 1 : 0) + stick.x, -1, 1);
   const f = clamp(((keys.KeyW || keys.ArrowUp) ? 1 : 0) - ((keys.KeyS || keys.ArrowDown) ? 0.6 : 0) - stick.y, -0.6, 1);
@@ -1260,13 +1360,15 @@ function poseAvatar(av, o) {
   // o: {x,y,z,heading,steer,speed,air,state,yaw?}
   av.root.position.set(o.x, o.y - (o.bath ? 1.0 : 0), o.z);
   av.root.rotation.y = o.heading;
-  if (o.walk) { const b = Math.min(1, o.speed / 3); av.tilt.rotation.z = Math.sin(performance.now() / 120) * 0.09 * b; }
+  if (av.wobT > 0) { av.wobT -= 1 / 60; av.tilt.rotation.z = Math.sin(performance.now() / 45) * 0.5 * av.wobT; }
+  else if (o.walk) { const b = Math.min(1, o.speed / 3); av.tilt.rotation.z = Math.sin(performance.now() / 120) * 0.09 * b; }
   else { const lean = o.state === 'crash' ? 1.35 : clamp(-o.steer * 0.32 * Math.min(1, o.speed / 8), -0.45, 0.45); av.tilt.rotation.z += (lean - av.tilt.rotation.z) * 0.2; }
   av.skis.visible = av.poles.visible = !o.walk && av.gear === 0; av.board.visible = !o.walk && av.gear === 1;
   av.rider.rotation.y = av.gear === 1 && !o.walk ? -1.25 : 0;
   const snow = o.snow || 0, isSnowman = snow >= 100;
   for (let k = 0; k < 4; k++) for (const m of av.snowLv[k]) m.visible = !isSnowman && snow >= (k + 1) * 20;
   av.snowman.visible = isSnowman; av.rider.visible = !isSnowman;
+  if (av.tag) av.tag.position.y = isSnowman ? 3.95 : 2.8;
   if (isSnowman) av.skis.visible = av.poles.visible = av.board.visible = false;
   av.mug.visible = o.item === 1 || o.item === 3; av.stickG.visible = o.item === 2 || o.item === 4;
   if (av.mug.visible) { av.cupMat.color.setHex(o.item === 3 ? 0x2f3e5c : 0xffffff); av.drinkMat.color.setHex(o.item === 3 ? 0x2a1608 : 0x6b3a1e); }
@@ -1303,6 +1405,7 @@ function updateRun(dt) {
   if (!me.run) {
     if (me.rc) return;
     for (const c of COURSES) {
+      if (c.race) continue;
       const n = nearestOnCourse(c, me.x, me.z, 0, 4);
       if (n.d < c.width / 2 && sp > 1.5 && me.vx * c.dir[0][0] + me.vz * c.dir[0][1] > 0 && me.z > c.s[0][1] + 2) { startRun(c); break; }
     }
@@ -1310,9 +1413,15 @@ function updateRun(dt) {
   }
   const r = me.run, c = r.c, n = nearestOnCourse(c, me.x, me.z, r.i - 8, r.i + 40);
   r.i = n.i;
+  if (c.gates) while ((r.g || 0) < c.gates.length && n.i >= c.gates[r.g || 0].i) {
+    const g = c.gates[r.g || 0], [gx, gz] = c.s[g.i], [ddx, ddz] = c.dir[g.i];
+    const lat = (me.x - gx) * ddz - (me.z - gz) * ddx;
+    if (Math.abs(lat - g.off) > 2.3) { r.miss = (r.miss || 0) + 1; notice('🚩 기문을 놓쳤어요 +2초'); sfx.beep(false); }
+    r.g = (r.g || 0) + 1;
+  }
   r.off = n.d > c.width / 2 + 22 ? r.off + dt : 0;
   if (r.off > 2.5) { cancelRun('코스를 벗어나서 기록이 취소됐어요'); return; }
-  const ms = performance.now() - r.t0;
+  const ms = performance.now() - r.t0 + (r.miss || 0) * 2000;
   if (n.i >= c.s.length - FINISH_BACK) {
     me.run = null;
     if (r.race && me.rc && me.rc.id === r.race) { me.rf = { id: r.race, ms: Math.round(ms) }; race.finishedAt = Date.now(); }
@@ -1387,10 +1496,12 @@ function updateLift(dt) {
 
 /* ---------- dialog ---------- */
 let dlg = null, dlgTimer = 0;
+$('#dlgClose').addEventListener('click', (e) => { e.stopPropagation(); closeDialog(); });
+$('#dialog').addEventListener('click', (e) => { if (dlg && !dlg.choices.length && !e.target.closest('button')) closeDialog(); });
 function say(npc, text, choices, autoMs) {
   dlg = { npc, choices: choices || [] };
   $('#dlgFace').textContent = npc.face; $('#dlgName').textContent = npc.name;
-  $('#dlgText').textContent = text;
+  $('#dlgText').textContent = text + ((choices || []).length ? '' : (isTouch ? '  (탭하면 닫혀요)' : '  (클릭하면 닫혀요)'));
   const box = $('#dlgChoices'); box.textContent = '';
   dlg.choices.forEach((ch, i) => {
     const b = document.createElement('button'); b.type = 'button';
@@ -1406,7 +1517,7 @@ function say(npc, text, choices, autoMs) {
 }
 function closeDialog() { dlg = null; $('#dialog').hidden = true; $('#status').hidden = !$('#chatForm').hidden; }
 function pick(i) { if (!dlg || !dlg.choices[i]) return; const fn = dlg.choices[i].fn; fn(); }
-const courseChoices = (after) => COURSES.map((c) => ({ label: c.level + ' ' + c.name, grade: c.id, fn: () => after(c) }));
+const courseChoices = (after, all) => COURSES.filter((c) => all || !c.race).map((c) => ({ label: c.level + ' ' + c.name, grade: c.id, fn: () => after(c) }));
 function talkCoco() {
   setBubble(npcs.coco, '안녕하세요~!', 2500);
   say(npcs.coco, '어서 오세요! 저는 눈꽃 리프트 안내원 코코예요 🦭 오늘은 어느 코스를 타고 싶어요?', courseChoices((c) => {
@@ -1496,7 +1607,7 @@ function placeName(st, x, z, co) {
   if (st === 4) return '🚡 리프트';
   if (co && courseById[co]) return co + ' 코스 주행 중';
   if (z < -240) return '정상';
-  if (inCafe(x, z)) return '☕ 산장 카페';
+  if (x === me.x && z === me.z ? me.indoor : inCafe(x, z)) return '☕ 산장 카페';
   if (inOnsen(x, z)) return '♨ 눈꽃 온천';
   if (z > 0) return '베이스';
   return '슬로프';
@@ -1939,6 +2050,7 @@ function setNight(on) {
   night.on = on;
   scene.background = on ? nightBg : dayBg;
   scene.fog.color.set(on ? 0x0e1730 : 0xdcecfb); scene.fog.near = on ? 60 : 120; scene.fog.far = on ? 320 : 420;
+  night.base = { hemi: on ? 0.16 : 0.72, sun: on ? 0.16 : 0.75, exp: on ? 1.0 : 1.05 };
   hemi.intensity = on ? 0.16 : 0.72; hemi.color.set(on ? 0x6d84c4 : 0xe4f1ff); hemi.groundColor.set(on ? 0x1c2440 : 0xf6f8ff);
   sun.intensity = on ? 0.16 : 0.75; sun.color.set(on ? 0xa8bdff : 0xfff4e2);
   renderer.toneMappingExposure = on ? 1.0 : 1.05;
@@ -1946,6 +2058,25 @@ function setNight(on) {
   const b = $('#nightBtn'); b.textContent = on ? '☀' : '🌙'; b.setAttribute('aria-label', on ? '낮으로 바꾸기' : '밤 스키 켜기');
   store('ski.night', on ? '1' : '0');
 }
+// keep the game from zooming on phones and tablets (pinch, double-tap, ctrl+wheel)
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+document.addEventListener('touchmove', (e) => { if (e.touches.length > 1 || (e.scale && e.scale !== 1)) e.preventDefault(); }, { passive: false });
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => { const now = Date.now(); if (now - lastTouchEnd < 320 && !(e.target.closest && e.target.closest('input'))) e.preventDefault(); lastTouchEnd = now; }, { passive: false });
+document.addEventListener('wheel', (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+document.addEventListener('dblclick', (e) => e.preventDefault());
+(function () {
+  const b = $('#fsBtn'), el = document.documentElement;
+  const can = !!(el.requestFullscreen || el.webkitRequestFullscreen);
+  if (!can) { b.hidden = true; return; }
+  b.addEventListener('click', () => {
+    const on = document.fullscreenElement || document.webkitFullscreenElement;
+    try {
+      const r = on ? (document.exitFullscreen || document.webkitExitFullscreen).call(document) : (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+      if (r && r.catch) r.catch(() => notice('이 브라우저에서는 전체화면을 쓸 수 없어요'));
+    } catch (e) { notice('이 브라우저에서는 전체화면을 쓸 수 없어요'); }
+  });
+})();
 $('#nightBtn').addEventListener('click', () => { setNight(!night.on); if (playing) notice(night.on ? '🌙 밤 스키 시작! 슬로프에 조명이 켜졌어요' : '☀ 낮으로 바뀌었어요'); });
 
 /* ================= snowball fight ================= */
@@ -2051,7 +2182,7 @@ function raceMenu() {
   }
   const open = openRaces();
   const choices = open.map((r) => ({ label: r.h + '님의 ' + courseById[r.co].name + ' 레이스 참가', grade: r.co, fn: () => joinRace(r) }));
-  choices.push({ label: '새 레이스 열기', fn: () => say(RACE_NPC, '어느 코스에서 겨룰까요? 레이스를 열면 접속한 모두에게 알림이 가고, 15초 뒤에 다 같이 출발해요.', courseChoices(hostRace)) });
+  choices.push({ label: '새 레이스 열기', fn: () => say(RACE_NPC, '어느 코스에서 겨룰까요? 레이스를 열면 접속한 모두에게 알림이 가고, 15초 뒤에 다 같이 출발해요.', courseChoices(hostRace, true)) });
   choices.push({ label: '닫기', fn: closeDialog });
   say(RACE_NPC, open.length ? '지금 참가할 수 있는 레이스가 있어요! 참가하면 출발선으로 바로 이동해요.' : '친구와 같은 코스를 동시에 출발해서 누가 먼저 골인하는지 겨뤄요. 넘어져도 다시 일어나서 달리면 돼요!', choices);
 }
@@ -2118,6 +2249,14 @@ function showRaceResults(ps) {
 $('#actRace').addEventListener('click', raceMenu);
 
 /* ---------- status card ---------- */
+function doorTransition(entering) {
+  me.indoor = entering;
+  const f = $('#fade'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+  cam.snap = true; cam.yawOff = 0;
+  if (entering) { notice('☕ 산장 카페에 들어왔어요 · 따뜻해요'); return; }
+  if (me.z >= CAFE.z1 - 0.2) { me.z = Math.max(me.z, CAFE.z1 + 1.4); me.heading = Math.PI; notice('♨ 뒷문으로 나왔어요 · 디딤돌을 따라가면 눈꽃 온천!'); }
+  else if (me.z <= CAFE.z0 + 0.2) { me.z = Math.min(me.z, CAFE.z0 - 1.4); me.heading = 0; notice('❄ 카페 밖으로 나왔어요'); }
+}
 function updateStatus(sp) {
   let chip, title, right = '', fill = 0, sub;
   const others = net.count > 1 ? '지금 ' + net.count + '명이 함께 타고 있어요' : '지금은 혼자 타고 있어요 · 친구에게 링크를 보내 보세요';
@@ -2136,7 +2275,8 @@ function updateStatus(sp) {
   } else if (me.run) {
     const c = me.run.c; chip = me.run.race ? '레이스' : '주행';
     title = c.id + ' ' + c.level + ' · ' + c.name; right = fmtTime(performance.now() - me.run.t0); fill = me.run.i / (c.s.length - 1);
-    sub = me.best[c.id] ? '내 최고 기록 ' + fmtTime(me.best[c.id]) : '골인 아치까지 달려요!';
+    sub = c.gates ? '기문 ' + (me.run.g || 0) + '/' + c.gates.length + (me.run.miss ? ' · 놓침 ' + me.run.miss + ' (+' + me.run.miss * 2 + '초)' : '') + ' · Shift 부스트' : me.best[c.id] ? '내 최고 기록 ' + fmtTime(me.best[c.id]) : '골인 아치까지 달려요!';
+    if (me.run.g !== undefined || c.gates) right = fmtTime(performance.now() - me.run.t0 + (me.run.miss || 0) * 2000);
   } else {
     chip = me.state === 'sit' ? '쉬는 중' : me.state === 'crash' ? '꽈당' : me.bath >= 0 ? '온천' : sp > 0.8 ? '이동' : '멈춤';
     title = me.bath >= 0 ? '♨ ' + POOLS[me.bath].name + ' ' + POOLS[me.bath].temp : me.stump >= 0 ? '🔥 모닥불 앞' : placeName(STATE_CODE[me.state], me.x, me.z, '');
@@ -2160,12 +2300,18 @@ function updateCamera(dt) {
   camTarget.set(me.x, me.y + 1.4, me.z);
   if (!cam.drag) cam.yawOff *= Math.exp(-dt * 0.8);
   const yaw = me.heading + cam.yawOff;
-  const indoor = inCafe(me.x, me.z);
-  const d = me.state === 'lift' ? 6.5 : indoor ? 6 : cam.dist, up = me.state === 'lift' ? 2.6 : indoor ? 5.4 : 2.9 + cam.dist * 0.12;
+  const indoor = !!me.indoor;
+  const d = me.state === 'lift' ? 6.5 : indoor ? 5.2 : cam.dist, up = me.state === 'lift' ? 2.6 : indoor ? 3.9 : 2.9 + cam.dist * 0.12;
   camPos.set(me.x + Math.sin(yaw) * d, me.y + up, me.z + Math.cos(yaw) * d);
-  if (indoor) { camPos.x = clamp(camPos.x, CAFE.x0 + 0.6, CAFE.x1 - 0.6); camPos.z = Math.min(camPos.z, CAFE.z1 - 0.6); }
+  if (indoor) { camPos.x = clamp(camPos.x, CAFE.x0 + 0.5, CAFE.x1 - 0.5); camPos.z = clamp(camPos.z, CAFE.z0 + 0.5, CAFE.z1 - 0.5); camPos.y = Math.min(camPos.y, CAFE.h - 0.6); }
+  if (myAv && myAv.tag) myAv.tag.visible = !indoor;
+  else if (camPos.x > CAFE.x0 - 0.4 && camPos.x < CAFE.x1 + 0.4 && camPos.z > CAFE.z0 - 0.4 && camPos.z < CAFE.z1 + 0.4) {
+    // never look at the outside world from inside the cabin's walls
+    if (me.z >= CAFE.z1) camPos.z = CAFE.z1 + 0.6; else if (me.z <= CAFE.z0) camPos.z = CAFE.z0 - 0.6; else if (me.x <= CAFE.x0) camPos.x = CAFE.x0 - 0.6; else camPos.x = CAFE.x1 + 0.6;
+    camPos.y = Math.max(camPos.y, me.y + 3.2);
+  }
   const gy = H(camPos.x, camPos.z) + 1.0; if (camPos.y < gy) camPos.y = gy;
-  camera.position.lerp(camPos, 1 - Math.exp(-dt * 7));
+  if (cam.snap) { camera.position.copy(camPos); cam.snap = false; } else camera.position.lerp(camPos, 1 - Math.exp(-dt * 7));
   camera.lookAt(camTarget.x - Math.sin(yaw) * 3, camTarget.y + 0.4, camTarget.z - Math.cos(yaw) * 3);
 }
 function frame(now) {
@@ -2219,7 +2365,11 @@ function frame(now) {
     $('#boostTxt').textContent = me.boost < 99.5 || me.boosting ? ' · ⚡' + Math.round(me.boost) + '%' : '';
     $('#snowTxt').textContent = me.snowmanT > 0 ? ' · ⛄ 눈사람!' : me.snow > 0 ? ' · ❄ ' + Math.round(me.snow) + '%' : '';
     if (fireGain) { const fd = Math.hypot(me.x - FIRE.x, me.z - FIRE.z), near = inCafe(me.x, me.z) ? clamp(1 - fd / 12, 0, 1) : 0; fireGain.gain.value = near * 0.16; if (near > 0.3 && Math.random() < dt * 5 * near) tone([1500 + Math.random() * 1800], 0.025 * near, 0.03, 'square'); }
-    const indoor = inCafe(me.x, me.z); cafeHide.visible = !indoor; snow.visible = !indoor;
+    const deep = me.x > CAFE.x0 + 0.8 && me.x < CAFE.x1 - 0.8 && me.z > CAFE.z0 + 0.8 && me.z < CAFE.z1 - 0.8;
+    if (!me.indoor && deep) doorTransition(true);
+    else if (me.indoor && !inCafe(me.x, me.z)) doorTransition(false);
+    cafe.k += ((me.indoor ? 1 : 0) - cafe.k) * Math.min(1, dt * 3);
+    snow.visible = !me.indoor;
     if (dlg && dlg.npc && dlg.npc.id !== 'race' && me.state === 'ski' && dlg.choices.length && Math.hypot(me.x - dlg.npc.x, me.z - dlg.npc.z) > 9) closeDialog();
     const gc = me.guide && !me.run && me.state === 'ski' ? courseById[me.guide] : null;
     if (gc && me.z < -200) {
@@ -2255,7 +2405,7 @@ void playersT;
 
 (async function boot() {
   try { await Promise.race([Promise.all([document.fonts.load('60px Jua'), document.fonts.load('40px "Noto Sans KR"')]), new Promise((r) => setTimeout(r, 1500))]); } catch (e) {}
-  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildCafe(); buildSmoke(); buildOnsen(); buildNpcs(); buildMinimap(); buildNight();
+  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildCafe(); buildSmoke(); buildOnsen(); buildNpcs(); buildMinimap(); buildNight(); buildCafeGlow();
   const sn = store('ski.night'), hr = new Date().getHours();
   setNight(sn === '1' || (sn === null && (hr >= 18 || hr < 6)));
   rebuildMine();
