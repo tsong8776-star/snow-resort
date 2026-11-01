@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>아이콘 업로드 도우미</title>
+<style>
+:root{--bg:#f6f6f8;--card:#fff;--ink:#16181d;--muted:#666b75;--line:#e3e4e8;--accent:#2f5bd8;--done:#1f8a4c}
+@media (prefers-color-scheme:dark){:root{--bg:#121317;--card:#1c1e24;--ink:#eceef2;--muted:#9aa0ab;--line:#2c2f37;--accent:#7b9cff;--done:#4fc483}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+header{padding:20px 16px 8px;max-width:1100px;margin:0 auto}h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 12px}.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.bar button,.card button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer}
+.bar button.on{background:var(--ink);color:var(--bg)}.prog{margin-left:auto;color:var(--muted)}
+ol.steps{color:var(--muted);margin:8px 0 0;padding-left:20px}
+main{max-width:1100px;margin:0 auto;padding:12px 16px 40px;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.card.done{opacity:.55}.ico{background:#f1f1f3;border-radius:8px;display:grid;place-items:center;height:130px}.ico svg{width:96px;height:96px}
+.t{font-weight:600}.tags{color:var(--muted);font-size:13px}.row{display:flex;gap:6px;flex-wrap:wrap}
+.card button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+label{display:flex;gap:6px;align-items:center;color:var(--done);font-weight:600;cursor:pointer}
+.n{color:var(--muted);font-size:12px}
+.warn{background:#fff3cd;color:#5c4400;border:1px solid #f0d78c;border-radius:8px;padding:10px 12px;margin:0 0 10px}
+</style></head><body>
+<header>
+<h1>아이콘 업로드 도우미</h1>
+<p class="warn"><b>주의:</b> 여기 있는 아이콘은 Claude(AI)가 만든 기획용 초안이에요. Noun Project 규정("Your Work", "No AI")상 <b>그대로 업로드하면 안 돼요.</b> 직접 그린 아이콘의 제목·태그를 붙여넣을 때 쓰세요.</p>
+<p class="sub">업로드 흐름: Upload Icons → Icon Set → 세트 이름 입력 → SVG를 한 번에 최대 10개까지 끌어다 놓기 → 아이콘별로 <b>제목 복사</b>·<b>태그 복사</b> 붙여넣기 → Submit → <b>업로드 완료</b> 체크</p>
+<div class="bar" id="filters"></div>
+</header>
+<main id="grid"></main>
+<script>
+const ITEMS = /*DATA*/[];
+const KEY = "np-upload-done";
+let done = {}; try { done = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
+const saveDone = () => { try { localStorage.setItem(KEY, JSON.stringify(done)); } catch (e) {} };
+let filter = "전체";
+const sets = ["전체", ...new Set(ITEMS.map(i => i.set))];
+function copy(text, btn) {
+  const ok = () => { const o = btn.textContent; btn.textContent = "복사됨 ✓"; setTimeout(() => btn.textContent = o, 1200); };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(ok, () => fallback(text, ok)); else fallback(text, ok);
+}
+function fallback(text, ok) { const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand("copy"); ok(); } catch (e) {} t.remove(); }
+function download(it) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([it.svg], { type: "image/svg+xml" }));
+  a.download = it.file; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function render() {
+  const f = document.getElementById("filters"); f.innerHTML = "";
+  sets.forEach(s => { const b = document.createElement("button"); b.textContent = s; if (s === filter) b.className = "on"; b.onclick = () => { filter = s; render(); }; f.appendChild(b); });
+  const list = ITEMS.filter(i => filter === "전체" || i.set === filter);
+  const p = document.createElement("span"); p.className = "prog"; p.textContent = `완료 ${list.filter(i => done[i.set + i.file]).length} / ${list.length}`; f.appendChild(p);
+  const g = document.getElementById("grid"); g.innerHTML = "";
+  list.forEach(it => {
+    const id = it.set + it.file, c = document.createElement("div"); c.className = "card" + (done[id] ? " done" : "");
+    c.innerHTML = `<div class="ico">${it.svg}</div><div class="n">${it.set} · ${it.file}</div><div class="t"></div><div class="tags"></div>
+      <div class="row"><button class="primary" data-a="dl">SVG 초안 받기</button><button data-a="t">제목 복사</button><button data-a="g">태그 복사</button></div>
+      <label><input type="checkbox" ${done[id] ? "checked" : ""}> 업로드 완료</label>`;
+    c.querySelector(".t").textContent = it.title; c.querySelector(".tags").textContent = it.tags;
+    c.querySelector('[data-a="dl"]').onclick = () => download(it);
+    c.querySelector('[data-a="t"]').onclick = e => copy(it.title, e.target);
+    c.querySelector('[data-a="g"]').onclick = e => copy(it.tags, e.target);
+    c.querySelector("input").onchange = e => { done[id] = e.target.checked; saveDone(); render(); };
+    g.appendChild(c);
+  });
+}
+render();
+</script></body></html>
