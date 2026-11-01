@@ -262,6 +262,12 @@ body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touc
 #stampList { list-style: none; margin: 0; padding: 2px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; min-height: 0; }
 #stampList li { background: rgba(255,255,255,0.08); border-radius: 14px; padding: 10px 6px 8px; display: grid; justify-items: center; align-content: start; gap: 3px; text-align: center; }
 #stampList li.on { background: rgba(255,255,255,0.17); }
+#stampList li.cur { outline: 2px solid #ffc53d; }
+.stpick { border: 0; border-radius: 99px; padding: 4px 10px; margin-top: 3px; font-size: 11.5px; font-weight: 700; background: rgba(255,255,255,0.92); color: var(--ink); }
+.stpick.cur { background: #ffc53d; }
+.sttitle { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: rgba(255,197,61,0.16); border: 1px solid rgba(255,197,61,0.55); border-radius: 12px; padding: 6px 10px; font-size: 13px; }
+.sttitle span { font-weight: 700; opacity: 0.9; } .sttitle b { flex: 1; min-width: 0; }
+.sttitle button { border: 0; border-radius: 99px; padding: 4px 12px; font-size: 12px; font-weight: 700; background: rgba(255,255,255,0.9); color: var(--ink); }
 #stampList b { font-size: 12.5px; } #stampList small { font-size: 11px; opacity: 0.8; line-height: 1.35; }
 #stampList .pg { font-size: 10.5px; font-weight: 700; opacity: 0.9; background: rgba(255,255,255,0.14); border-radius: 99px; padding: 1px 8px; margin-top: 2px; }
 .seal { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font-size: 25px; border: 2px dashed rgba(255,255,255,0.4); filter: grayscale(1); opacity: 0.55; box-sizing: border-box; }
@@ -341,7 +347,7 @@ body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touc
   <div id="history" class="glass" hidden><div class="phead"><b>📜 이전 대화</b><button type="button" class="pclose" id="histClose" aria-label="닫기">✕</button></div><ol id="histList"></ol></div>
   <div id="people" class="glass" hidden><div class="phead"><b>👥 참가자 <span id="peopleCount"></span></b><button type="button" class="pclose" id="peopleClose" aria-label="닫기">✕</button></div><ul id="peopleList"></ul></div>
   <div id="notice" class="glass" hidden><div class="phead"><b>📢 공지사항</b><button type="button" class="pclose" id="noticeClose" aria-label="닫기">✕</button></div><div id="noticeList"></div></div>
-  <div id="stamps" class="glass" hidden><div class="phead"><b>🏅 도장 깨기 <span id="stampCount"></span></b><button type="button" class="pclose" id="stampClose" aria-label="닫기">✕</button></div><p class="stsub">스키장 곳곳에서 도전을 해내면 도장이 쾅! 찍혀요. 도장은 이 기기에 저장돼요.</p><div class="stbar"><div id="stampFill"></div></div><ol id="stampList"></ol></div>
+  <div id="stamps" class="glass" hidden><div class="phead"><b>🏅 도장 깨기 <span id="stampCount"></span></b><button type="button" class="pclose" id="stampClose" aria-label="닫기">✕</button></div><p class="stsub">스키장 곳곳에서 도전을 해내면 도장이 쾅! 찍혀요. 받은 도장은 🎖 칭호로 이름표 위에 달 수 있어요. 도장은 이 기기에 저장돼요.</p><div class="sttitle"><span>🎖 내 칭호</span><b id="myTitle">없음</b><button type="button" id="titleOff" hidden>떼기</button></div><div class="stbar"><div id="stampFill"></div></div><ol id="stampList"></ol></div>
   <div id="stampToast" hidden><span class="seal on" id="stToastIc"></span><span class="tx"><small>도장 획득!</small><b id="stToastName"></b><span id="stToastDesc"></span></span></div>
   <div id="more" class="glass" hidden>
     <div><h3>지금 스키장에</h3><ul id="players"></ul></div>
@@ -1426,8 +1432,18 @@ function spriteFromCanvas(w, h, draw, sw) {
   s.scale.set(sw, sw * h / w, 1); return s;
 }
 function rr(g, x, y, w, h, r) { g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, h, r); else g.rect(x, y, w, h); }
-function makeTag(text, color, isMe) {
-  return spriteFromCanvas(512, 96, (g, w) => {
+function makeTag(text, color, isMe, title) {
+  const th = title ? 66 : 0;
+  const sp = spriteFromCanvas(512, 96 + th, (g, w) => {
+    if (title) {
+      // title (칭호) ribbon: a gold pill above the name
+      g.font = '700 36px "Noto Sans KR", sans-serif';
+      const tw2 = Math.min(w - 24, g.measureText(title).width + 44), x2 = (w - tw2) / 2;
+      g.fillStyle = 'rgba(255,197,61,0.96)'; rr(g, x2, 6, tw2, 54, 27); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 3; g.stroke();
+      g.fillStyle = '#1b2a4a'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(title, w / 2, 35, w - 50);
+      g.translate(0, th);
+    }
     g.font = '700 46px "Noto Sans KR", sans-serif';
     const badge = isMe ? 58 : 0;
     const tw = Math.min(w - 16, g.measureText(text).width + 48 + badge), x = (w - tw) / 2;
@@ -1437,6 +1453,13 @@ function makeTag(text, color, isMe) {
     else { g.fillStyle = color; g.beginPath(); g.arc(x + 30, 48, 9, 0, 7); g.fill(); }
     g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2 + (isMe ? 26 : 10), 50);
   }, 2.2);
+  // keep the name where it always was; the ribbon sits on top of it
+  if (title) sp.center.set(0.5, 48 / (96 + th));
+  return sp;
+}
+function swapTag(holder, tag) {
+  if (holder.tag) { holder.root.remove(holder.tag); holder.tag.material.map.dispose(); holder.tag.material.dispose(); }
+  holder.tag = tag; tag.position.y = 2.8; holder.root.add(tag);
 }
 // NPC tag: name in a dark pill with a colored role ribbon above it
 function makeNpcTag(name, role, color) {
@@ -2316,8 +2339,9 @@ function drawMinimap() {
 
 /* ================= chat ================= */
 /* ================= notices ================= */
-const NOTICE_VER = '2026-11-01-d';
+const NOTICE_VER = '2026-11-01-e';
 const NOTICES = [
+  { date: '11월 1일', title: '🎖 칭호 달기', items: ['🏅 도장판에서 받은 도장의 [🎖 칭호로 달기]를 누르면 이름표 위에 금색 칭호가 붙어요. 예: 🕊 K점 돌파', '친구들 화면에도 보이고, 👥 참가자 목록에도 나와요.', '다른 도장으로 바꾸거나 [떼기]로 뗄 수 있어요. 다음에 들어와도 그대로예요.'] },
   { date: '11월 1일', title: '🏅 도장 깨기 · ⛄ 눈사람 만들기', items: ['오른쪽 위 🏅 버튼(또는 K)을 누르면 도장판이 열려요. 코스 완주, 빙어, 온천, 눈싸움… 35개 도장을 모아 보세요!', '눈밭에서 B(휴대폰은 ⛄ 눈사람 버튼)를 누르면 눈덩이를 굴려요. 앞으로 걸을수록 커져요.', '몸통 → 가슴 → 머리 순서로 B를 눌러 쌓으면 눈사람 완성! 다 같이 볼 수 있게 스키장에 남아요.', '슬로프·리프트 길·카페·온천에는 만들 수 없어요. 내 눈사람은 한 사람당 3개까지, E로 말 걸면 치울 수 있어요.'] },
   { date: '11월 1일', title: '🎿 스키점프 · ⚔️ 점프 대결', items: ['빙어 낚시터 옆 🦅 점프 코치 수리에게 말을 걸면 스키점프를 할 수 있어요.', '게이트에서 Space로 출발 → 도약대 끝에서 Space! → 날 때 W를 누르고 있으면 V자 자세 → 착지 직전 Space로 텔레마크 보너스.', '점프 대결을 열면 2분 30초 동안 가장 좋은 점수로 순위를 겨뤄요.', '휴대폰에서 캐릭터가 사라지던 문제를 고쳤어요.', '마실 때 컵을 얼굴 앞으로 가져가요. 부딪힌 물체에 맞는 안내가 떠요.'] },
   { date: '11월 1일', title: '♨ 온천 새단장 · ⛄ 눈사람 이동', items: ['냉탕이 없어지고 탕마다 온도가 10℃씩 달라졌어요: 노을탕 40℃ · 유자탕 50℃ · 큰 노천탕 60℃ · 나무탕 70℃', '유자가 둥둥, 꽃잎이 동동, 대나무 물줄기와 나무 바가지가 생겼어요.', '탕에 오래 있으면 얼굴이 빨개지고 머리에서 김이 나요. 뜨거운 탕일수록 빨리!', '인사하면 “안녕~ 👋” 말풍선이 떠요.', '눈사람이 돼도 천천히 깡총깡총 움직일 수 있어요.'] },
@@ -2389,6 +2413,17 @@ try { stampState.stat = JSON.parse(store('ski.stat') || '{}') || {}; } catch (e)
 if (typeof stampState.got !== 'object' || Array.isArray(stampState.got)) stampState.got = {};
 if (typeof stampState.stat !== 'object' || Array.isArray(stampState.stat)) stampState.stat = {};
 const stampById = Object.fromEntries(STAMPS.map((s) => [s.id, s]));
+// 칭호: one earned stamp shown above the name tag
+stampState.title = stampState.got[store('ski.title')] && stampById[store('ski.title')] ? store('ski.title') : '';
+function titleText(id) { const s = stampById[id]; return s ? s.ic + ' ' + s.name : ''; }
+function setTitle(id) {
+  stampState.title = id && stampState.got[id] && stampById[id] ? id : '';
+  store('ski.title', stampState.title);
+  if (myAv && playing) swapTag(myAv, makeTag(me.name, me.color, true, titleText(stampState.title)));
+  notice(stampState.title ? '🎖 칭호를 달았어요: ' + titleText(stampState.title) : '칭호를 뗐어요');
+  if (stampState.title && myAv) setBubble(myAv, '어때요? ' + stampById[stampState.title].ic, 2500);
+  renderStamps(); sendPresence(performance.now(), true);
+}
 function stampCount() { let n = 0; for (const s of STAMPS) if (stampState.got[s.id]) n++; return n; }
 function bitCount(v) { let n = 0; v = v | 0; while (v) { n += v & 1; v >>>= 1; } return n; }
 function statVal(s) { const v = Number(stampState.stat[s.stat]) || 0; return s.bits ? bitCount(v) : v; }
@@ -2402,6 +2437,7 @@ function stamp(id) {
   if (id.length === 2 && id[0] === 'c' && ['A', 'B', 'C', 'D', 'L'].every((c) => stampState.got['c' + c])) stamp('allc');
   if (id !== 'master' && stampCount() >= STAMP_MASTER) stamp('master');
   addChatLine('', '', '🏅 도장 획득! ' + s.ic + ' ' + s.name + ' (' + stampCount() + '/' + STAMPS.length + ')', true);
+  if (stampCount() === 1) addChatLine('', '', '🎖 🏅 도장판에서 받은 도장을 눌러 이름표 위에 칭호로 달 수 있어요!', true);
   sendPresence(performance.now(), true);
 }
 function bumpStat(key, add, bit) {
@@ -2425,6 +2461,8 @@ function renderStamps() {
   const n = stampCount();
   $('#stampCount').textContent = n + ' / ' + STAMPS.length;
   $('#stampFill').style.width = (n / STAMPS.length * 100).toFixed(1) + '%';
+  $('#myTitle').textContent = stampState.title ? titleText(stampState.title) : n ? '없음 · 아래 받은 도장에서 골라요' : '없음 · 도장을 받으면 달 수 있어요';
+  $('#titleOff').hidden = !stampState.title;
   const ol = $('#stampList'); ol.textContent = '';
   for (const s of STAMPS) {
     const got = stampState.got[s.id], li = document.createElement('li');
@@ -2438,6 +2476,13 @@ function renderStamps() {
     else if (s.goal) pg.textContent = Math.min(statVal(s), s.goal) + ' / ' + s.goal;
     else if (s.id === 'master') pg.textContent = Math.min(n, STAMP_MASTER) + ' / ' + STAMP_MASTER;
     if (pg.textContent) li.appendChild(pg);
+    if (got) {
+      const cur = stampState.title === s.id, bt = document.createElement('button');
+      bt.type = 'button'; bt.className = 'stpick' + (cur ? ' cur' : ''); bt.textContent = cur ? '✓ 달고 있어요' : '🎖 칭호로 달기';
+      bt.setAttribute('aria-pressed', String(cur));
+      bt.addEventListener('click', () => setTitle(cur ? '' : s.id));
+      li.appendChild(bt); if (cur) li.classList.add('cur');
+    }
     ol.appendChild(li);
   }
 }
@@ -2445,6 +2490,7 @@ function openStamps(on) { $('#stamps').hidden = !on; if (on) renderStamps(); }
 $('#stampBtn').addEventListener('click', () => openStamps($('#stamps').hidden));
 $('#stampClose').addEventListener('click', () => openStamps(false));
 $('#stampMore').addEventListener('click', () => openStamps(true));
+$('#titleOff').addEventListener('click', () => setTitle(''));
 updateStampBtn();
 
 /* ================= snowman building (눈사람 만들기) ================= */
@@ -2688,15 +2734,15 @@ function activityOf(o) {
 }
 function renderPeople() {
   const ul = $('#peopleList'); ul.textContent = '';
-  const rows = [{ me: true, name: me.name, color: me.color, sp: me.sp, x: me.x, z: me.z, st: STATE_CODE[me.state], sn: me.snow, rc: me.rc, co: me.run && me.run.c.id, bt: me.bath, it: me.item, sh: me.sbHits || 0, fc: me.fishCount || 0, sc: stampCount(), bd: !!me.build }];
-  for (const [id, a] of avatars) rows.push({ id, name: a.name, color: a.color, sp: a.sp, x: a.pos.x, z: a.pos.z, st: a.st, sn: a.sn, rc: a.rc, co: a.co, bt: a.bt, it: a.it, sh: a.sh || 0, fc: a.fc || 0, sc: a.sc || 0, bd: !!a.bd });
+  const rows = [{ me: true, name: me.name, color: me.color, sp: me.sp, x: me.x, z: me.z, st: STATE_CODE[me.state], sn: me.snow, rc: me.rc, co: me.run && me.run.c.id, bt: me.bath, it: me.item, sh: me.sbHits || 0, fc: me.fishCount || 0, sc: stampCount(), tt: stampState.title, bd: !!me.build }];
+  for (const [id, a] of avatars) rows.push({ id, name: a.name, color: a.color, sp: a.sp, x: a.pos.x, z: a.pos.z, st: a.st, sn: a.sn, rc: a.rc, co: a.co, bt: a.bt, it: a.it, sh: a.sh || 0, fc: a.fc || 0, sc: a.sc || 0, tt: a.tt, bd: !!a.bd });
   $('#peopleCount').textContent = rows.length + '명';
   for (const r of rows) {
     const li = document.createElement('li'); if (r.me) li.className = 'me';
     const em = document.createElement('span'); em.className = 'em'; em.textContent = SPECIES[r.sp] ? SPECIES[r.sp].emoji : '❄';
     const nm = document.createElement('span'); nm.className = 'nm';
     const b = document.createElement('b'); const dot = document.createElement('i'); dot.style.background = r.color; b.append(dot, document.createTextNode(r.name + (r.me ? ' (나)' : '')));
-    const sm = document.createElement('small'); sm.textContent = activityOf(r) + (r.sc ? ' · 🏅' + r.sc : '') + (r.sh ? ' · ❄' + r.sh : '') + (r.fc ? ' · 🐟' + r.fc : '');
+    const sm = document.createElement('small'); sm.textContent = (r.tt ? titleText(r.tt) + ' · ' : '') + activityOf(r) + (r.sc ? ' · 🏅' + r.sc : '') + (r.sh ? ' · ❄' + r.sh : '') + (r.fc ? ' · 🐟' + r.fc : '');
     nm.append(b, sm); li.append(em, nm);
     if (!r.me) { const go = document.createElement('button'); go.type = 'button'; go.textContent = '📍 같이 가기'; go.addEventListener('click', () => goToPeer(r.id)); li.appendChild(go); }
     else li.appendChild(document.createElement('span'));
@@ -2805,7 +2851,7 @@ function syncPeers(peers) {
     const isNew = !a;
     if (!a) {
       const av = makeAnimal(sp, color); av.tag = makeTag(name, color); av.tag.position.y = 2.8; av.root.add(av.tag);
-      a = { av, name, color, sp, pos: new V3().fromArray(pr.p), tpos: new V3().fromArray(pr.p), h: 0, th: 0, st: 0, ch: -1, se: 0, steer: 0, spd: 0, co: '', best: {} };
+      a = { tt: '', av, name, color, sp, pos: new V3().fromArray(pr.p), tpos: new V3().fromArray(pr.p), h: 0, th: 0, st: 0, ch: -1, se: 0, steer: 0, spd: 0, co: '', best: {} };
       if (keep) { a.chatI = keep.chatI; a.finI = keep.finI; a.waveI = keep.waveI; a.sbI = keep.sbI; a.hbI = keep.hbI; a.lgI = keep.lgI; a.buI = keep.buI; }
       avatars.set(p.peer, a);
       if (!keep) { notice(name + (firstSync ? '님이 스키장에 있어요' : '님이 들어왔어요')); if (!firstSync) addChatLine('', '', name + '님이 들어왔어요', true); }
@@ -2855,6 +2901,7 @@ function syncPeers(peers) {
     }
     a.sh = clamp(pr.sh | 0, 0, 99999);
     a.sc = clamp(pr.sc | 0, 0, STAMPS.length); a.bd = validBd(pr.bd);
+    { const tt = typeof pr.tt === 'string' && stampById[pr.tt] ? pr.tt : ''; if (tt !== a.tt) { a.tt = tt; swapTag(a.av, makeTag(a.name, a.color, false, titleText(tt))); } }
     a.bt = typeof pr.bt === 'number' ? clamp(pr.bt | 0, -1, POOLS.length - 1) : -1;
     const it = clamp(pr.it | 0, 0, 6); if (it !== a.it && it === 2) a.itT0 = performance.now(); a.it = it; a.ht = clamp(+pr.ht || 0, 0, 1);
     a.rc = validRace(pr.rc);
@@ -2884,7 +2931,7 @@ function sendPresence(now, force) {
     s: me.air ? 1 : STATE_CODE[me.state], st: r2(me.steer), v: r2(Math.hypot(me.vx, me.vz)),
     ch: me.state === 'queue' || me.state === 'lift' ? me.chair : -1, se: me.seat,
     co: me.run ? me.run.c.id : '', b: me.best, f: me.fin, m: me.chat, w: me.waveSeq || 0,
-    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, jp: jumpPhase(), ja: Math.round(jumpPitch() * 100), jd: me.jumpBest || 0, jb: me.jb, jbs: me.jbs, it: me.item || 0, ht: Math.round((me.heat || 0) * 10) / 10, fc: me.fishCount || 0, fb: me.fishBest || 0, fl: me.lastFish || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0, sc: stampCount(), bd: wipOf(me.build),
+    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, jp: jumpPhase(), ja: Math.round(jumpPitch() * 100), jd: me.jumpBest || 0, jb: me.jb, jbs: me.jbs, it: me.item || 0, ht: Math.round((me.heat || 0) * 10) / 10, fc: me.fishCount || 0, fb: me.fishBest || 0, fl: me.lastFish || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0, sc: stampCount(), tt: stampState.title, bd: wipOf(me.build),
   };
   const key = JSON.stringify(pr);
   if (key === lastSent) return;
@@ -3130,7 +3177,7 @@ setGearSeg();
 function rebuildMine() {
   if (myAv) { scene.remove(myAv.root); disposeGroup(myAv.root); }
   myAv = makeAnimal(me.sp, me.color); setGear(myAv, me.gear);
-  if (playing) { myAv.tag = makeTag(me.name, me.color, true); myAv.tag.position.y = 2.8; myAv.root.add(myAv.tag); }
+  if (playing) { myAv.tag = makeTag(me.name, me.color, true, titleText(stampState.title)); myAv.tag.position.y = 2.8; myAv.root.add(myAv.tag); }
 }
 function enter() {
   me.name = cleanName($('#nick').value) || '스키어' + Math.floor(10 + Math.random() * 90);
