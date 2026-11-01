@@ -247,6 +247,8 @@ body.simple #miniCard, body.simple #chatLog, body.simple #histBtn, body.simple #
 .setrow { display: flex; flex-wrap: wrap; gap: 6px; }
 .setrow button { border: 1px solid rgba(255,255,255,0.45); background: transparent; color: #fff; border-radius: 10px; padding: 6px 9px; font-size: 12.5px; font-weight: 700; }
 .setrow button[aria-pressed="true"] { background: rgba(255,255,255,0.9); color: var(--ink); }
+body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touch #notice { left: calc(8px + env(safe-area-inset-left, 0px)); right: calc(8px + env(safe-area-inset-right, 0px)); top: auto; transform: none; width: auto; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); max-height: 62vh; overflow-y: auto; z-index: 6; }
+@media (max-height: 520px) { body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touch #notice { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); max-height: 70vh; } }
 #rotateTip { left: 50%; top: 40%; transform: translateX(-50%); width: min(300px, 86vw); padding: 14px; text-align: center; pointer-events: auto; display: grid; gap: 8px; font-weight: 700; }
 #rotateTip button { border: 0; border-radius: 10px; padding: 8px; font-weight: 900; background: #fff; color: var(--ink); }
 @media (max-width: 560px) {
@@ -979,11 +981,10 @@ function buildCafe() {
 /* ================= hot springs ================= */
 const ONSEN = { x0: 16, x1: 80, z0: 80, z1: 142 };
 const POOLS = [
-  { name: '큰 노천탕', temp: '41℃', x: 45, z: 112, r: 8 },
-  { name: '노을탕', temp: '40℃', x: 27, z: 97, r: 4 },
-  { name: '유자탕', temp: '39℃', x: 64, z: 97, r: 4.2, tint: 0xf3d36b },
-  { name: '눈꽃 냉탕', temp: '18℃', x: 28, z: 130, r: 4.2, cold: true },
-  { name: '나무탕', temp: '42℃', x: 64, z: 129, r: 4.4, wood: true },
+  { name: '큰 노천탕', temp: '41℃', deg: 41, x: 45, z: 112, r: 8, tint: 0x4fc3d4 },
+  { name: '노을탕', temp: '39℃', deg: 39, x: 27, z: 97, r: 4, tint: 0xf4a37f, petals: true },
+  { name: '유자탕', temp: '40℃', deg: 40, x: 64, z: 97, r: 4.2, tint: 0xf3d36b, yuzu: true },
+  { name: '나무탕', temp: '43℃', deg: 43, x: 64, z: 129, r: 4.4, wood: true, tint: 0x8fd3be },
 ];
 const onsen = { steam: null, steamPos: null, steamPool: null };
 function inOnsen(x, z) { return x > ONSEN.x0 && x < ONSEN.x1 && z > ONSEN.z0 - 1 && z < ONSEN.z1; }
@@ -1054,6 +1055,16 @@ function buildSmoke() {
   fire.smoke.frustumCulled = false; scene.add(fire.smoke);
 }
 function buildOnsen() {
+  // shared ripple texture: soft light bands that slowly drift
+  onsen.ripple = canvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
+    g.strokeStyle = 'rgba(160,190,200,0.55)'; g.lineWidth = 3;
+    const r = mulberry32(8);
+    for (let i = 0; i < 26; i++) { const y = r() * h; g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= w; x += 16) g.lineTo(x, y + Math.sin(x * 0.05 + i) * 6); g.stroke(); }
+    g.strokeStyle = 'rgba(255,255,255,0.9)'; g.lineWidth = 2;
+    for (let i = 0; i < 18; i++) { const y = r() * h; g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= w; x += 16) g.lineTo(x, y + Math.cos(x * 0.06 + i) * 5); g.stroke(); }
+  }, [3, 3]);
+  onsen.floaters = [];
   const O = ONSEN, wood = lam(0x8a5a32), rocks = [lam(0x8a8f98), lam(0x6f747c), lam(0x9aa0a8)], rr2 = mulberry32(31);
   // stepping-stone path from the cafe back door to the big pool
   const pathM = lam(0x9aa0a8);
@@ -1072,7 +1083,7 @@ function buildOnsen() {
   const gs = textPlane(['♨ 눈꽃 온천'], 6.4, 1.3, '#3b2a1e', '#ffe2a8', { size: 140 }); gs.position.set(46, 3.4, O.z0 - 0.3); scene.add(gs);
   // pools
   POOLS.forEach((P) => {
-    const water = new THREE.MeshPhongMaterial({ color: P.cold ? 0xa9e4f5 : (P.tint || 0x7ccfe6), emissive: P.cold ? 0x183848 : 0x0b3a4a, shininess: 90, transparent: true, opacity: 0.9 });
+    const water = new THREE.MeshPhongMaterial({ color: P.tint || 0x7ccfe6, map: onsen.ripple, emissive: new THREE.Color(P.tint || 0x7ccfe6).multiplyScalar(0.18), shininess: 120, specular: 0xffffff, transparent: true, opacity: 0.93 });
     const wm = new THREE.Mesh(P.wood ? new THREE.PlaneGeometry(P.r * 2, P.r * 2) : new THREE.CircleGeometry(P.r, 40), water);
     wm.rotation.x = -Math.PI / 2; wm.position.set(P.x, 0.32, P.z); scene.add(wm);
     if (P.wood) {
@@ -1088,13 +1099,27 @@ function buildOnsen() {
     const post = mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.8, 6), wood, P.x + (P.wood ? P.r + 1.2 : (P.r + 1.4) * 0.7), 0.9, P.z - (P.wood ? 0 : (P.r + 1.4) * 0.7)); void post;
     const sg = textPlane([P.name, P.temp], 2.4, 1.2, P.cold ? '#2f7de1' : '#3b2a1e', '#ffffff');
     sg.position.set(post.position.x, 2.2, post.position.z); sg.rotation.y = Math.PI * 0.85; scene.add(sg);
+    const fr = mulberry32(Math.round(P.x * 7 + P.z));
+    if (P.yuzu) for (let k = 0; k < 9; k++) { const a = fr() * 6.28, d = Math.sqrt(fr()) * (P.r - 1); const y = mesh(new THREE.SphereGeometry(0.22, 12, 10), lam(0xf6c22a), P.x + Math.cos(a) * d, 0.36, P.z + Math.sin(a) * d); onsen.floaters.push({ m: y, base: 0.36, ph: fr() * 6, drift: a }); }
+    if (P.petals) for (let k = 0; k < 18; k++) { const a = fr() * 6.28, d = Math.sqrt(fr()) * (P.r - 0.8); const pt = new THREE.Mesh(new THREE.CircleGeometry(0.12, 5), new THREE.MeshLambertMaterial({ color: [0xff9fb0, 0xffc6a0, 0xff7f8e][k % 3], side: THREE.DoubleSide })); pt.rotation.x = -Math.PI / 2; pt.position.set(P.x + Math.cos(a) * d, 0.345, P.z + Math.sin(a) * d); scene.add(pt); onsen.floaters.push({ m: pt, base: 0.345, ph: fr() * 6, drift: a, flat: true }); }
+    for (let k = 0; k < 2; k++) {
+      const a = 2.3 + k * 0.5, bx = P.x + Math.cos(a) * (P.r + 0.9), bz = P.z + Math.sin(a) * (P.r + 0.9);
+      mesh(new THREE.CylinderGeometry(0.28, 0.24, 0.32, 14, 1, true), lam(0xc99a62), bx, 0.45, bz).material.side = THREE.DoubleSide;
+      mesh(new THREE.TorusGeometry(0.27, 0.025, 6, 16), lam(0x6b4a2b), bx, 0.55, bz).rotation.x = Math.PI / 2;
+    }
+    { const a = 2.0, tx = P.x + Math.cos(a) * (P.r + 0.6), tz = P.z + Math.sin(a) * (P.r + 0.6); mesh(new THREE.BoxGeometry(0.6, 0.12, 0.4), lam(0xffffff), tx, 0.62, tz); mesh(new THREE.BoxGeometry(0.62, 0.025, 0.42), lam(0xff9fb0), tx, 0.69, tz, scene, false); }
   });
+  { const P = POOLS[0], sx = P.x + P.r + 0.2, sz = P.z - 2;
+    mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.2, 8), lam(0x6f9a4a), sx + 0.6, 1.1, sz);
+    const sp = mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.6, 8), lam(0x7fae55), sx - 0.1, 1.9, sz); sp.rotation.z = Math.PI / 2 - 0.25;
+    const stream = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 1.55, 8), new THREE.MeshBasicMaterial({ color: 0xd8f3ff, transparent: true, opacity: 0.7 })); stream.position.set(sx - 0.9, 1.05, sz); scene.add(stream);
+  }
   // steam
-  const SN = 34 * POOLS.length; onsen.steamPos = new Float32Array(SN * 3); onsen.steamPool = new Uint8Array(SN);
+  const SN = 60 * POOLS.length; onsen.steamPos = new Float32Array(SN * 3); onsen.steamPool = new Uint8Array(SN);
   for (let i = 0; i < SN; i++) { const pi = i % POOLS.length; onsen.steamPool[i] = pi; resetSteam(i, Math.random() * 3.2); }
   const sgeo = new THREE.BufferGeometry(); sgeo.setAttribute('position', new THREE.BufferAttribute(onsen.steamPos, 3));
   const steamTex = canvasTex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 2, 32, 32, 31); gr.addColorStop(0, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
-  onsen.steam = new THREE.Points(sgeo, new THREE.PointsMaterial({ size: 2.2, map: steamTex, transparent: true, depthWrite: false, opacity: 0.55 }));
+  onsen.steam = new THREE.Points(sgeo, new THREE.PointsMaterial({ size: 2.8, map: steamTex, transparent: true, depthWrite: false, opacity: 0.55 }));
   onsen.steam.frustumCulled = false; scene.add(onsen.steam);
   // benches and stone lanterns
   for (const [x, z, ry] of [[20, 112, Math.PI / 2], [76, 112, Math.PI / 2], [46, 139, 0], [35, 86, 0]]) {
@@ -1159,6 +1184,8 @@ function updateWarmPlaces(dt, now) {
     }
     fire.smoke.geometry.attributes.position.needsUpdate = true;
   }
+  if (onsen.ripple) { onsen.ripple.offset.x = (now / 9000) % 1; onsen.ripple.offset.y = (now / 13000) % 1; }
+  if (onsen.floaters) for (const f of onsen.floaters) { f.m.position.y = f.base + Math.sin(now / 700 + f.ph) * 0.04; if (!f.flat) f.m.rotation.y += dt * 0.3; else f.m.rotation.z += dt * 0.2; }
   if (onsen.steam) {
     for (let i = 0; i < onsen.steamPool.length; i++) {
       const y = onsen.steamPos[i * 3 + 1] + dt * 0.55;
@@ -1334,10 +1361,13 @@ function makeAnimal(sp, color) {
   mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.9, 3), lam(0xffffff), 0, -0.5, -0.74, rod, false);
   const fishM = new THREE.Group(); fishM.position.set(0, -0.95, -0.74); rod.add(fishM); fishM.visible = false;
   { const sm = makeSmelt(0.34); sm.rotation.x = Math.PI / 2; fishM.add(sm); } const ft = null; void ft;
+  const heatMat = new THREE.MeshBasicMaterial({ color: 0xff3b3b, transparent: true, opacity: 0, depthWrite: false });
+  const heatShell = new THREE.Mesh(new THREE.SphereGeometry(0.44, 16, 12), heatMat); heatShell.position.y = 0.32; heatShell.scale.set(1.02, 0.97, 0.98); headG.add(heatShell);
+  const puffs = []; for (let k = 0; k < 4; k++) { const sp2 = new THREE.Sprite(new THREE.SpriteMaterial({ map: flakeTex, color: 0xffffff, transparent: true, opacity: 0, depthWrite: false })); sp2.scale.setScalar(0.35); sp2.visible = false; root.add(sp2); puffs.push(sp2); }
   const marsh = sph(0.07, new THREE.MeshLambertMaterial({ color: 0xfff3dc }), 0, -0.26, -1.08, 1, 1.2, 1, stickG);
   mesh(new THREE.BoxGeometry(0.4, 0.16, 0.06), lam(0xffffff), 0, 0.8, 0.56, rider);
   scene.add(root);
-  return { root, tilt, rider, headG, armL, armR, skis, poles, board, rod, fishM, mug, cupMat, drinkMat, stickG, marsh, snowLv, snowman, sp, color, tag: null, bubble: null, bubbleY: 3.55, waveT: 0, ph: Math.random() * 4 };
+  return { root, tilt, rider, headG, heatMat, puffs, armL, armR, skis, poles, board, rod, fishM, mug, cupMat, drinkMat, stickG, marsh, snowLv, snowman, sp, color, tag: null, bubble: null, bubbleY: 3.55, waveT: 0, ph: Math.random() * 4 };
 }
 function setGear(av, g) { av.skis.visible = av.poles.visible = g === 0; av.board.visible = g === 1; av.gear = g; }
 function disposeGroup(o) {
@@ -1557,9 +1587,16 @@ function stepSki(dt) {
   if (me.state === 'crash') { me.crashT -= dt; me.y = H(me.x, me.z); if (me.crashT <= 0) me.state = 'ski'; return; }
   if (me.raceHold) { me.vx = me.vz = 0; me.y = H(me.x, me.z); me.air = false; return; }
   if (me.snowmanT > 0) {
-    me.vx *= Math.exp(-4 * dt); me.vz *= Math.exp(-4 * dt);
+    const st2 = clamp(((keys.KeyD || keys.ArrowRight) ? 1 : 0) - ((keys.KeyA || keys.ArrowLeft) ? 1 : 0) + stick.x, -1, 1);
+    const f2 = clamp(((keys.KeyW || keys.ArrowUp) ? 1 : 0) - ((keys.KeyS || keys.ArrowDown) ? 0.6 : 0) - stick.y, -0.6, 1);
+    me.heading -= st2 * 1.6 * dt;
+    const k2 = Math.min(1, dt * 5), tx = -Math.sin(me.heading) * f2 * 1.7, tz = -Math.cos(me.heading) * f2 * 1.7;
+    me.vx += (tx - me.vx) * k2; me.vz += (tz - me.vz) * k2;
+    const ox2 = me.x, oz2 = me.z;
     me.x = clamp(me.x + me.vx * dt, BOUNDS.minX, BOUNDS.maxX); me.z = clamp(me.z + me.vz * dt, BOUNDS.minZ, BOUNDS.maxZ);
-    me.y = H(me.x, me.z); me.air = false; me.steer = 0; return;
+    collideWalls(me, ox2, oz2); if (nearObstacle(me.x, me.z)) pushOutAll();
+    const hop = Math.hypot(me.vx, me.vz) > 0.2 ? Math.abs(Math.sin(performance.now() / 160)) * 0.18 : 0;
+    me.y = H(me.x, me.z) + hop; me.air = false; me.steer = 0; return;
   }
   if (!me.air && inWalkZone(me.x, me.z)) { walkStep(dt); return; }
   me.bath = -1;
@@ -1657,6 +1694,15 @@ function walkStep(dt) {
 function poseAvatar(av, o) {
   // o: {x,y,z,heading,steer,speed,air,state,yaw?}
   av.root.position.set(o.x, o.y - (o.bath ? 1.0 : 0), o.z);
+  { const ht = o.heat || 0, tn = performance.now() / 1000;
+    av.heatMat.opacity = Math.min(0.5, ht * 0.55);
+    av.puffs.forEach((pf, k) => {
+      const ph = (tn * 0.8 + k / av.puffs.length) % 1, on = ht > 0.65;
+      pf.visible = on; if (!on) return;
+      pf.position.set(Math.sin(k * 2.1 + tn) * 0.15, 2.45 + ph * 1.3, Math.cos(k * 1.7) * 0.1);
+      pf.scale.setScalar(0.3 + ph * 0.6); pf.material.opacity = (1 - ph) * 0.75 * Math.min(1, (ht - 0.65) * 3);
+    });
+  }
   av.root.rotation.y = o.heading;
   if (av.wobT > 0) { av.wobT -= 1 / 60; av.tilt.rotation.z = Math.sin(performance.now() / 45) * 0.5 * av.wobT; }
   else if (o.walk) { const b = Math.min(1, o.speed / 3); av.tilt.rotation.z = Math.sin(performance.now() / 120) * 0.09 * b; }
@@ -1987,7 +2033,7 @@ function centerMsg(big, sub) {
 function notice(text) {
   if (!playing) return;
   const el = document.createElement('div'); el.textContent = text;
-  const f = $('#feed'); f.prepend(el); while (f.children.length > 4) f.lastChild.remove();
+  const f = $('#feed'); f.prepend(el); while (f.children.length > (isTouch ? 2 : 4)) f.lastChild.remove();
   setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 450); }, 3600);
 }
 function placeName(st, x, z, co) {
@@ -2047,7 +2093,7 @@ function renderFishRank() {
     const w = document.createElement('span'); w.className = 'who'; w.textContent = e.name + (e.me ? ' (나)' : '');
     li.append(r, t, w); ol.appendChild(li);
   });
-  if (!list.length) { const li = document.createElement('li'); li.textContent = '아직 기록이 없어요. 빙어 낚시터에서 첫 기록을 세워 보세요!'; ol.appendChild(li); }
+  if (!list.length) { const li = document.createElement('li'); li.style.display = 'block'; li.style.opacity = '0.85'; li.textContent = '아직 기록이 없어요. 빙어 낚시터에서 첫 기록을 세워 보세요!'; ol.appendChild(li); }
   drawFishBoard(list);
 }
 function drawFishBoard(list) {
@@ -2111,8 +2157,9 @@ function drawMinimap() {
 
 /* ================= chat ================= */
 /* ================= notices ================= */
-const NOTICE_VER = '2026-10-31-h';
+const NOTICE_VER = '2026-11-01-a';
 const NOTICES = [
+  { date: '11월 1일', title: '♨ 온천 새단장 · ⛄ 눈사람 이동', items: ['냉탕이 없어지고 탕마다 온도가 달라졌어요: 노을탕 39℃ · 유자탕 40℃ · 큰 노천탕 41℃ · 나무탕 43℃', '유자가 둥둥, 꽃잎이 동동, 대나무 물줄기와 나무 바가지가 생겼어요.', '탕에 오래 있으면 얼굴이 빨개지고 머리에서 김이 나요. 뜨거운 탕일수록 빨리!', '인사하면 “안녕~ 👋” 말풍선이 떠요.', '눈사람이 돼도 천천히 깡총깡총 움직일 수 있어요.'] },
   { date: '10월 31일', title: '💥 눈덩이 게이지 · 몰아 던지기', items: ['오른쪽 아래 ❄ 게이지에 눈덩이가 최대 30개까지 모여요.', 'V 키(또는 게이지/💥 한방 버튼)를 누르면 모아 둔 눈덩이를 부채꼴로 한 번에 던져요.', 'F를 누르고 있으면 지금처럼 한 발씩 연사해요.', '레이스 출발 대기 중에는 움직이거나 앉을 수 없어요.'] },
   { date: '10월 31일', title: '❄ 눈싸움 연사 모드', items: ['F를 누르고 있으면(휴대폰은 ❄ 버튼 누르고 있기) 눈덩이가 연속으로 날아가요.', '눈덩이 주머니는 30발이에요. 안 던지면 금방 다시 차요.', '이제 한 번 맞을 때 8%씩 쌓여서 13번쯤 맞아야 눈사람이 돼요.'] },
   { date: '10월 31일', title: '🚩 코스 이탈 패널티', items: ['기록을 잴 때(레이스 포함) 약 20m마다 체크포인트가 있어요. 코스 안으로 지나가지 않으면 +3초!', '코스 밖에 있는 동안 빨간 경고가 뜨고, 밖에 있던 시간만큼 기록이 늘어나요.', '코스 밖에 4초 넘게 있으면 실격이에요. 골인 아치도 코스 안으로 통과해야 인정돼요.'] },
@@ -2207,10 +2254,11 @@ $('#histBtn').addEventListener('click', () => { const h = $('#history'); h.hidde
 $('#histClose').addEventListener('click', () => { $('#history').hidden = true; });
 function addChatLine(name, color, text, sys) {
   pushHistory(name, color, text, sys);
+  if (sys && isTouch) return; // phones: system lines live in 📜 history only
   const log = $('#chatLog'), el = document.createElement('div');
   if (sys) { el.className = 'sys'; el.textContent = text; }
   else { const b = document.createElement('b'); b.style.color = color; b.textContent = name; el.append(b, document.createTextNode(text)); }
-  log.appendChild(el); while (log.children.length > 7) log.firstChild.remove();
+  log.appendChild(el); while (log.children.length > (isTouch ? 3 : 7)) log.firstChild.remove();
   setTimeout(() => { el.style.opacity = '0.35'; }, 20000);
 }
 function openChat() {
@@ -2318,14 +2366,14 @@ function syncPeers(peers) {
     }
     a.sh = clamp(pr.sh | 0, 0, 99999);
     a.bt = typeof pr.bt === 'number' ? clamp(pr.bt | 0, -1, POOLS.length - 1) : -1;
-    const it = clamp(pr.it | 0, 0, 6); if (it !== a.it && it === 2) a.itT0 = performance.now(); a.it = it;
+    const it = clamp(pr.it | 0, 0, 6); if (it !== a.it && it === 2) a.itT0 = performance.now(); a.it = it; a.ht = clamp(+pr.ht || 0, 0, 1);
     a.rc = validRace(pr.rc);
     if (a.rc && !race.seen.has(a.rc.id)) {
       race.seen.add(a.rc.id);
       if ((a.rc.t0 === 0 || a.rc.t0 > netNow() + 3000) && !(me.rc && me.rc.id === a.rc.id)) { notice('🏁 ' + a.rc.h + '님이 ' + a.rc.co + ' 코스 레이스를 열었어요!'); addChatLine('', '', '🏁 ' + a.rc.h + '님이 ' + a.rc.co + ' 코스 레이스를 열었어요. 🏁 레이스 버튼으로 참가하세요!', true); }
     }
     a.rf = pr.rf && typeof pr.rf === 'object' && typeof pr.rf.id === 'string' && typeof pr.rf.ms === 'number' ? { id: pr.rf.id, ms: pr.rf.ms } : null;
-    if (typeof pr.w === 'number') { if (!isNew && a.waveI !== pr.w) a.av.waveT = 2; a.waveI = pr.w; }
+    if (typeof pr.w === 'number') { if (!isNew && a.waveI !== pr.w) { a.av.waveT = 2; setBubble(a.av, '안녕~ 👋', 2500); } a.waveI = pr.w; }
     const fn = pr.f;
     if (fn && typeof fn === 'object' && typeof fn.i === 'number') {
       if (!isNew && a.finI !== fn.i && courseById[fn.co] && typeof fn.ms === 'number') notice(a.name + '님 ' + fn.co + ' 코스 완주! ' + fmtTime(fn.ms));
@@ -2346,7 +2394,7 @@ function sendPresence(now, force) {
     s: me.air ? 1 : STATE_CODE[me.state], st: r2(me.steer), v: r2(Math.hypot(me.vx, me.vz)),
     ch: me.state === 'queue' || me.state === 'lift' ? me.chair : -1, se: me.seat,
     co: me.run ? me.run.c.id : '', b: me.best, f: me.fin, m: me.chat, w: me.waveSeq || 0,
-    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, it: me.item || 0, fc: me.fishCount || 0, fb: me.fishBest || 0, fl: me.lastFish || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0,
+    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, it: me.item || 0, ht: Math.round((me.heat || 0) * 10) / 10, fc: me.fishCount || 0, fb: me.fishBest || 0, fl: me.lastFish || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0,
   };
   const key = JSON.stringify(pr);
   if (key === lastSent) return;
@@ -2426,7 +2474,7 @@ function updatePeers(dt, t) {
       if (a.pos.distanceTo(a.tpos) > 25) a.pos.copy(a.tpos); else a.pos.lerp(a.tpos, k);
       let d = a.th - a.h; d = Math.atan2(Math.sin(d), Math.cos(d)); a.h += d * k;
     }
-    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : 'ski', walk: inWalkZone(a.pos.x, a.pos.z), bath: a.bt >= 0, fish: a.fl, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
+    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : 'ski', walk: inWalkZone(a.pos.x, a.pos.z), heat: a.ht || 0, bath: a.bt >= 0, fish: a.fl, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
   }
 }
 
@@ -2490,6 +2538,20 @@ $('#actTalk').addEventListener('click', () => { if (!useAction()) notice('NPC나
 $('#actSit').addEventListener('click', toggleSit);
 $('#actWave').addEventListener('click', wave);
 $('#actMore').addEventListener('click', () => { const m = $('#more'); m.hidden = !m.hidden; $('#actMore').setAttribute('aria-pressed', String(!m.hidden)); renderPlayers(); renderRecords(); });
+const PANELS = ['#more', '#people', '#history', '#notice'];
+let lastPanel = null;
+function syncPanels(changed) {
+  if (changed && !changed.hidden && PANELS.includes('#' + changed.id)) {
+    for (const id of PANELS) { const el = $(id); if (el !== changed && !el.hidden) el.hidden = true; }
+    if (changed.id !== 'more') $('#actMore').setAttribute('aria-pressed', 'false');
+  }
+  const any = PANELS.some((id) => !$(id).hidden) || !$('#dialog').hidden || !$('#chatForm').hidden;
+  document.body.classList.toggle('dlg-open', any);
+}
+{
+  const mo = new MutationObserver((recs) => { for (const r of recs) syncPanels(r.target); });
+  for (const id of [...PANELS, '#dialog', '#chatForm']) mo.observe($(id), { attributes: true, attributeFilter: ['hidden'] });
+}
 // settings (more panel) — proxies for the top-bar buttons that phones hide
 $('#setNotice').addEventListener('click', () => $('#noticeBtn').click());
 $('#setNight').addEventListener('click', () => $('#nightBtn').click());
@@ -2521,7 +2583,7 @@ function toggleSit() {
 }
 function wave() {
   if (!playing || !myAv) return;
-  me.waveSeq = (me.waveSeq || 0) + 1; myAv.waveT = 2; sendPresence(performance.now(), true);
+  me.waveSeq = (me.waveSeq || 0) + 1; myAv.waveT = 2; setBubble(myAv, '안녕~ 👋', 2500); sendPresence(performance.now(), true);
 }
 function copyLink(btn) {
   const url = $('#link').value, label = btn.textContent;
@@ -3105,7 +3167,7 @@ function frame(now) {
     updateRun(dt);
     updateRace();
     if (night.light) night.light.position.set(me.x, me.y + 3.2, me.z);
-    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: inWalkZone(me.x, me.z), bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting, fish: me.lastFish });
+    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: inWalkZone(me.x, me.z), heat: me.heat || 0, bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting, fish: me.lastFish });
     // prompt + guide
     const ptxt = promptText();
     const pr = $('#prompt');
@@ -3134,6 +3196,11 @@ function frame(now) {
     }
     if (me.snowmanT > 0) { me.snowmanT -= dt; if (me.snowmanT <= 0) { me.snow = 0; me.snowIdle = 0; emitSpray(me.x, me.y + 1, me.z, 0, 0, 60); sfx.splat(); notice('펑! 눈사람에서 풀려났어요'); centerMsg('펑!', '다시 움직일 수 있어요'); } }
     me.slowT = Math.max(0, me.slowT - dt);
+    if (me.bath >= 0 && POOLS[me.bath]) {
+      const P = POOLS[me.bath], tRed = Math.max(6, (46 - (P.deg || 40)) * 3);
+      me.heat = Math.min(1, (me.heat || 0) + dt / tRed);
+      if (me.heat >= 0.7 && !me.heatNoted) { me.heatNoted = true; if (myAv) setBubble(myAv, '앗 뜨거워~ 🥵', 3000); notice('♨ 몸이 빨갛게 달아올랐어요! 잠깐 나와서 식혀요'); }
+    } else { me.heat = Math.max(0, (me.heat || 0) - dt / 10); if (me.heat < 0.3) me.heatNoted = false; }
     const wantBoost = (keys.ShiftLeft || keys.ShiftRight || keys._boost) && me.state === 'ski' && !inWalkZone(me.x, me.z) && me.snowmanT <= 0 && !me.raceHold;
     if (wantBoost && (me.boosting ? me.boost > 0 : me.boost > 15)) { me.boosting = true; me.boost = Math.max(0, me.boost - 28 * dt); }
     else { me.boosting = false; me.boost = Math.min(100, me.boost + 14 * dt); }
