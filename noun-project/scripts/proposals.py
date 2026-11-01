@@ -166,6 +166,7 @@ with open(sys.argv[2], "w", newline="", encoding="utf-8-sig") as f:
     w.writerow(["no", "id", "current_title", "proposed_title", "tags", "proposed_set", "note", "url"])
     for n, ic in enumerate(icons, 1):
         title, tags, s, note = P[n]
+        tags = ",".join(tags.split(",")[:5])  # Noun Project allows 1-5 tags per icon
         key = title.lower()
         if key in seen:
             note = (note + " / " if note else "") + f"제목 중복(#{seen[key]})"
