@@ -2593,6 +2593,8 @@ function updatePeers(dt, t) {
       let d = a.th - a.h; d = Math.atan2(Math.sin(d), Math.cos(d)); a.h += d * k;
     }
     poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : a.st === 6 ? 'jump' : 'ski', jp: a.jp, ja: (a.ja || 0) / 100, walk: inWalkZone(a.pos.x, a.pos.z), heat: a.ht || 0, bath: a.bt >= 0, fish: a.fl, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
+    // someone standing where the camera is: hide them instead of drawing their insides (a big scarf ring)
+    { const dx = camera.position.x - a.pos.x, dy = camera.position.y - (a.pos.y + 1.1), dz = camera.position.z - a.pos.z; a.av.root.visible = dx * dx + dy * dy + dz * dz > 2.6; }
   }
 }
 
@@ -2955,12 +2957,12 @@ function spawnLog(o, v, owner) {
 function throwLog() {
   if (!playing || logCool > 0 || !me.indoor) return;
   if (me.state === 'sit' && me.stump < 0) me.state = 'ski';
-  logCool = 0.8;
+  logCool = 0.28;
   const o = new V3(me.x, me.y + 1.5, me.z), dx = FIRE.x - me.x, dz = FIRE.z - me.z, d = Math.hypot(dx, dz);
   if (d > 11) { notice('모닥불에 조금 더 가까이 가서 던져요'); return; }
   const err = 0.25 + d * 0.07, ang = Math.random() * Math.PI * 2, rr = Math.random() * err;
   const tx = FIRE.x + Math.cos(ang) * rr, tz = FIRE.z + Math.sin(ang) * rr, ty = 0.5;
-  const t = Math.max(0.45, d / 8);
+  const t = Math.max(0.3, d / 13);
   const v = new V3((tx - o.x) / t, (ty - o.y + 4.9 * t * t) / t, (tz - o.z) / t);
   me.lgSeq = (me.lgSeq || 0) + 1;
   me.lg = { i: me.lgSeq, o: [r2(o.x), r2(o.y), r2(o.z)], v: [r2(v.x), r2(v.y), r2(v.z)] };
@@ -2970,6 +2972,7 @@ function throwLog() {
 }
 function updateLogs(dt) {
   logCool = Math.max(0, logCool - dt);
+  if (me.indoor && (keys.KeyF || keys._logHold) && logCool <= 0) throwLog();
   fire.heat = Math.max(0, fire.heat - dt * 0.012);
   for (let i = logsFly.length - 1; i >= 0; i--) {
     const L = logsFly[i], p = L.m.position;
@@ -2985,11 +2988,11 @@ function updateLogs(dt) {
           for (let k = 0; k < 25 && fire.emberPos; k++) { const j = (Math.random() * fire.emberV.length) | 0; fire.emberPos[j * 3 + 1] = 0.6 + Math.random() * 0.5; }
           emitSpray(FIRE.x, 0.8, FIRE.z, 0, 0, 8);
           if (me.indoor) { tone([180, 120], 0.12, 0.25, 'sawtooth'); for (let k = 0; k < 5; k++) tone([1600 + Math.random() * 1600], 0.03, 0.04, 'square', k * 0.05); }
-          if (L.owner === 'me') notice('🔥 장작을 넣었어요 (조준 성공) · 모닥불이 커졌어요!');
+          if (L.owner === 'me') { if (performance.now() - (fire.noteAt || 0) > 1500) { fire.noteAt = performance.now(); notice('🔥 장작을 넣었어요 · 모닥불이 커졌어요!'); } }
           else if (me.indoor) notice('🔥 ' + (who ? who.name : '누군가') + '님이 장작을 던졌어요 (조준 성공)');
           scene.remove(L.m); logsFly.splice(i, 1); continue;
         }
-        if (L.owner === 'me') notice('앗, 빗나갔어요! 다시 던져 봐요');
+        if (L.owner === 'me' && performance.now() - (fire.missAt || 0) > 1500) { fire.missAt = performance.now(); notice('앗, 빗나갔어요! 다시 던져 봐요'); }
         L.life = 2.5;
       }
     }
@@ -3034,8 +3037,8 @@ function updateBalls(dt) {
 $('#actThrow').addEventListener('click', () => { if (me.indoor) throwLog(); else throwBall(); });
 $('#sbGauge').addEventListener('click', burstThrow);
 $('#burstBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); burstThrow(); });
-$('#throwBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); if (me.indoor) { throwLog(); return; } keys._throwHold = true; try { $('#throwBtn').setPointerCapture(e.pointerId); } catch (_) {} });
-for (const ev of ['pointerup', 'pointercancel']) $('#throwBtn').addEventListener(ev, () => { keys._throwHold = false; });
+$('#throwBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); if (me.indoor) { keys._logHold = true; throwLog(); try { $('#throwBtn').setPointerCapture(e.pointerId); } catch (_) {} return; } keys._throwHold = true; try { $('#throwBtn').setPointerCapture(e.pointerId); } catch (_) {} });
+for (const ev of ['pointerup', 'pointercancel']) $('#throwBtn').addEventListener(ev, () => { keys._throwHold = false; keys._logHold = false; });
 const bb = $('#boostBtn');
 bb.addEventListener('pointerdown', (e) => { e.preventDefault(); keys._boost = true; try { bb.setPointerCapture(e.pointerId); } catch (_) {} });
 for (const ev of ['pointerup', 'pointercancel']) bb.addEventListener(ev, () => { keys._boost = false; });
@@ -3480,7 +3483,7 @@ function updateStatus(sp) {
     if ((me.run.pen || 0) >= 100) sub = '패널티 +' + (me.run.pen / 1000).toFixed(1) + '초 · ' + sub;
   } else {
     chip = me.state === 'sit' ? '쉬는 중' : me.state === 'crash' ? '꽈당' : me.bath >= 0 ? '온천' : sp > 0.8 ? '이동' : '멈춤';
-    if (me.indoor) { let tot = fire.logs || 0; for (const [, a] of avatars) tot = Math.max(tot, a.lt || 0); sub = '🔥 지금 모닥불에 넣은 장작 ' + tot + '개 · ' + (isTouch ? '🪵 버튼' : 'F') + '로 장작 넣기'; }
+    if (me.indoor) { let tot = fire.logs || 0; for (const [, a] of avatars) tot = Math.max(tot, a.lt || 0); sub = '🔥 지금 모닥불에 넣은 장작 ' + tot + '개 · ' + (isTouch ? '🪵 버튼' : 'F') + ' 꾹 누르면 장작 연속 넣기'; }
     title = me.bath >= 0 ? '♨ ' + POOLS[me.bath].name + ' ' + POOLS[me.bath].temp : me.stump >= 0 ? '🔥 모닥불 앞' : placeName(STATE_CODE[me.state], me.x, me.z, '');
     const g = me.guide && courseById[me.guide];
     if (g) title += ' → ' + g.id + ' ' + g.name + ' 코스';
@@ -3508,7 +3511,7 @@ function buildFpView() {
   const M = (c) => new THREE.MeshLambertMaterial({ color: c });
   fpv.handMat = M(0xff4f6d); fpv.cupMat = M(0xffffff); fpv.drinkMat = M(0x6b3a1e); fpv.marshMat = M(0xfff2dc);
   // mug held in a mitten
-  const mug = new THREE.Group(); g.add(mug); fpv.mug = mug;
+  const mug = new THREE.Group(); mug.visible = false; g.add(mug); fpv.mug = mug;
   mesh(new THREE.CylinderGeometry(0.075, 0.064, 0.17, 20), fpv.cupMat, 0, 0, 0, mug, false);
   mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.012, 20), fpv.drinkMat, 0, 0.075, 0, mug, false);
   mesh(new THREE.TorusGeometry(0.045, 0.014, 6, 14), fpv.cupMat, 0.085, 0, 0, mug, false);
@@ -3517,7 +3520,7 @@ function buildFpView() {
   const stM = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false });
   for (let k = 0; k < 4; k++) { const st = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), stM.clone()); mug.add(st); fpv.steam.push(st); }
   // marshmallow on a long stick, held from the bottom right
-  const stick = new THREE.Group(); g.add(stick); fpv.stick = stick;
+  const stick = new THREE.Group(); stick.visible = false; g.add(stick); fpv.stick = stick;
   const rod = mesh(new THREE.CylinderGeometry(0.007, 0.01, 1.4, 6), M(0x8a5a32), 0, 0, -0.7, stick, false); rod.rotation.x = Math.PI / 2;
   fpv.marsh = new THREE.Group(); fpv.marsh.position.z = -1.33; stick.add(fpv.marsh);
   const mm = mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.08, 12), fpv.marshMat, 0, 0, 0, fpv.marsh, false); mm.rotation.x = Math.PI / 2;
@@ -3526,7 +3529,7 @@ function buildFpView() {
 }
 function updateFpView() {
   if (!fpv.g) return;
-  const it = me.item || 0, on = cam.fp && playing && me.snow < 100 && it >= 1 && it <= 4;
+  const it = me.item || 0, on = !!(cam.fp && playing && me.snow < 100 && it >= 1 && it <= 4);
   fpv.g.visible = on; if (!on) return;
   const t = performance.now() / 1000;
   fpv.handMat.color.set(me.color || '#ff4f6d');
