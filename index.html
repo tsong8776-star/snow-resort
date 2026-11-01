@@ -981,10 +981,10 @@ function buildCafe() {
 /* ================= hot springs ================= */
 const ONSEN = { x0: 16, x1: 80, z0: 80, z1: 142 };
 const POOLS = [
-  { name: '큰 노천탕', temp: '41℃', deg: 41, x: 45, z: 112, r: 8, tint: 0x4fc3d4 },
-  { name: '노을탕', temp: '39℃', deg: 39, x: 27, z: 97, r: 4, tint: 0xf4a37f, petals: true },
-  { name: '유자탕', temp: '40℃', deg: 40, x: 64, z: 97, r: 4.2, tint: 0xf3d36b, yuzu: true },
-  { name: '나무탕', temp: '43℃', deg: 43, x: 64, z: 129, r: 4.4, wood: true, tint: 0x8fd3be },
+  { name: '큰 노천탕', temp: '60℃', deg: 60, x: 45, z: 112, r: 8, tint: 0x4fc3d4 },
+  { name: '노을탕', temp: '40℃', deg: 40, x: 27, z: 97, r: 4, tint: 0xf4a37f, petals: true },
+  { name: '유자탕', temp: '50℃', deg: 50, x: 64, z: 97, r: 4.2, tint: 0xf3d36b, yuzu: true },
+  { name: '나무탕', temp: '70℃', deg: 70, x: 64, z: 129, r: 4.4, wood: true, tint: 0x8fd3be },
 ];
 const onsen = { steam: null, steamPos: null, steamPool: null };
 function inOnsen(x, z) { return x > ONSEN.x0 && x < ONSEN.x1 && z > ONSEN.z0 - 1 && z < ONSEN.z1; }
@@ -2157,9 +2157,9 @@ function drawMinimap() {
 
 /* ================= chat ================= */
 /* ================= notices ================= */
-const NOTICE_VER = '2026-11-01-a';
+const NOTICE_VER = '2026-11-01-b';
 const NOTICES = [
-  { date: '11월 1일', title: '♨ 온천 새단장 · ⛄ 눈사람 이동', items: ['냉탕이 없어지고 탕마다 온도가 달라졌어요: 노을탕 39℃ · 유자탕 40℃ · 큰 노천탕 41℃ · 나무탕 43℃', '유자가 둥둥, 꽃잎이 동동, 대나무 물줄기와 나무 바가지가 생겼어요.', '탕에 오래 있으면 얼굴이 빨개지고 머리에서 김이 나요. 뜨거운 탕일수록 빨리!', '인사하면 “안녕~ 👋” 말풍선이 떠요.', '눈사람이 돼도 천천히 깡총깡총 움직일 수 있어요.'] },
+  { date: '11월 1일', title: '♨ 온천 새단장 · ⛄ 눈사람 이동', items: ['냉탕이 없어지고 탕마다 온도가 10℃씩 달라졌어요: 노을탕 40℃ · 유자탕 50℃ · 큰 노천탕 60℃ · 나무탕 70℃', '유자가 둥둥, 꽃잎이 동동, 대나무 물줄기와 나무 바가지가 생겼어요.', '탕에 오래 있으면 얼굴이 빨개지고 머리에서 김이 나요. 뜨거운 탕일수록 빨리!', '인사하면 “안녕~ 👋” 말풍선이 떠요.', '눈사람이 돼도 천천히 깡총깡총 움직일 수 있어요.'] },
   { date: '10월 31일', title: '💥 눈덩이 게이지 · 몰아 던지기', items: ['오른쪽 아래 ❄ 게이지에 눈덩이가 최대 30개까지 모여요.', 'V 키(또는 게이지/💥 한방 버튼)를 누르면 모아 둔 눈덩이를 부채꼴로 한 번에 던져요.', 'F를 누르고 있으면 지금처럼 한 발씩 연사해요.', '레이스 출발 대기 중에는 움직이거나 앉을 수 없어요.'] },
   { date: '10월 31일', title: '❄ 눈싸움 연사 모드', items: ['F를 누르고 있으면(휴대폰은 ❄ 버튼 누르고 있기) 눈덩이가 연속으로 날아가요.', '눈덩이 주머니는 30발이에요. 안 던지면 금방 다시 차요.', '이제 한 번 맞을 때 8%씩 쌓여서 13번쯤 맞아야 눈사람이 돼요.'] },
   { date: '10월 31일', title: '🚩 코스 이탈 패널티', items: ['기록을 잴 때(레이스 포함) 약 20m마다 체크포인트가 있어요. 코스 안으로 지나가지 않으면 +3초!', '코스 밖에 있는 동안 빨간 경고가 뜨고, 밖에 있던 시간만큼 기록이 늘어나요.', '코스 밖에 4초 넘게 있으면 실격이에요. 골인 아치도 코스 안으로 통과해야 인정돼요.'] },
@@ -3197,7 +3197,7 @@ function frame(now) {
     if (me.snowmanT > 0) { me.snowmanT -= dt; if (me.snowmanT <= 0) { me.snow = 0; me.snowIdle = 0; emitSpray(me.x, me.y + 1, me.z, 0, 0, 60); sfx.splat(); notice('펑! 눈사람에서 풀려났어요'); centerMsg('펑!', '다시 움직일 수 있어요'); } }
     me.slowT = Math.max(0, me.slowT - dt);
     if (me.bath >= 0 && POOLS[me.bath]) {
-      const P = POOLS[me.bath], tRed = Math.max(6, (46 - (P.deg || 40)) * 3);
+      const P = POOLS[me.bath], tRed = Math.max(4, 20 - ((P.deg || 40) - 40) * 0.5);
       me.heat = Math.min(1, (me.heat || 0) + dt / tRed);
       if (me.heat >= 0.7 && !me.heatNoted) { me.heatNoted = true; if (myAv) setBubble(myAv, '앗 뜨거워~ 🥵', 3000); notice('♨ 몸이 빨갛게 달아올랐어요! 잠깐 나와서 식혀요'); }
     } else { me.heat = Math.max(0, (me.heat || 0) - dt / 10); if (me.heat < 0.3) me.heatNoted = false; }
