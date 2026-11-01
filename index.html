@@ -154,6 +154,10 @@ h1 em { font-style: normal; color: var(--berry); }
 #noticeList article { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 10px 12px; }
 #noticeList h4 { margin: 0 0 4px; font-size: 14.5px; } #noticeList time { font-size: 11px; opacity: 0.7; }
 #noticeList ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.7; }
+#jumpRank { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+#jumpRank li { display: grid; grid-template-columns: 26px auto 1fr; gap: 6px; align-items: center; font-size: 13px; }
+#jumpRank .t { font-family: var(--font-display); font-size: 16px; }
+#jumpRank .who { opacity: 0.85; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #fishRank { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
 #fishRank li { display: grid; grid-template-columns: 26px auto 1fr; gap: 6px; align-items: center; font-size: 13px; }
 #fishRank .t { font-family: var(--font-display); font-size: 16px; }
@@ -309,6 +313,7 @@ body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touc
     <div><h3>지금 스키장에</h3><ul id="players"></ul></div>
     <div><h3>코스 최고 기록</h3><ul id="records"></ul></div>
     <div><h3>🐟 빙어 랭킹 (길이)</h3><ol id="fishRank"></ol></div>
+    <div><h3>🎿 스키점프 최장 비거리</h3><ol id="jumpRank" class="rankList"></ol></div>
     <div><h3>⚙️ 설정</h3>
       <div class="setrow" id="setRow">
         <button type="button" id="setNotice">📢 공지</button>
@@ -573,7 +578,7 @@ function lam(c) { let m = matCache.get(c); if (!m) { m = new THREE.MeshLambertMa
 
 /* ================= world ================= */
 const obstacles = new Map(); // tree trunks and posts: grid of [x, z, r]
-function addObstacle(x, z, r) { const k = Math.floor(x / 8) + ',' + Math.floor(z / 8); if (!obstacles.has(k)) obstacles.set(k, []); obstacles.get(k).push([x, z, r]); }
+function addObstacle(x, z, r, kind) { const k = Math.floor(x / 8) + ',' + Math.floor(z / 8); if (!obstacles.has(k)) obstacles.set(k, []); obstacles.get(k).push([x, z, r, kind || 'thing']); }
 function mesh(geo, mat, x, y, z, parent, shadow) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (shadow !== false) { m.castShadow = true; m.receiveShadow = true; } (parent || scene).add(m); return m; }
 
 function buildTerrain() {
@@ -643,7 +648,7 @@ function buildTrees() {
     p.set(x, y + 2.9 * s, z); m.compose(p, q, sc); c1.setMatrixAt(i, m);
     p.set(x, y + 4.6 * s, z); m.compose(p, q, sc); c2.setMatrixAt(i, m);
     p.set(x, y + 5.9 * s, z); m.compose(p, q, sc); cap.setMatrixAt(i, m);
-    addObstacle(x, z, 0.75 * s);
+    addObstacle(x, z, 0.75 * s, 'tree');
   });
   for (const im of [trunk, c1, c2, cap]) { im.castShadow = true; im.receiveShadow = true; scene.add(im); }
 }
@@ -664,7 +669,7 @@ function arch(c, idx, title, sub) {
   const [x, z] = c.s[idx], [dx, dz] = c.dir[idx], half = c.width / 2 - 1;
   const nx = dz, nz = -dx, y = H(x, z);
   const post = lam(0x5a6475);
-  for (const s of [-1, 1]) { const px = x + nx * half * s, pz = z + nz * half * s; mesh(new THREE.CylinderGeometry(0.18, 0.18, 4.6, 8), post, px, H(px, pz) + 2.3, pz); addObstacle(px, pz, 0.4); }
+  for (const s of [-1, 1]) { const px = x + nx * half * s, pz = z + nz * half * s; mesh(new THREE.CylinderGeometry(0.18, 0.18, 4.6, 8), post, px, H(px, pz) + 2.3, pz); addObstacle(px, pz, 0.4, 'post'); }
   const b = textPlane([title, sub], half * 2, 1.6, c.color, '#ffffff');
   b.position.set(x, y + 4.0, z); b.rotation.y = Math.atan2(-dx, -dz); scene.add(b);
 }
@@ -771,7 +776,7 @@ function buildLift() {
     const top = cableY(z), base = H(0, z);
     mesh(new THREE.CylinderGeometry(0.35, 0.45, top - base + 0.6, 8), metal, 0, (top + base) / 2, z);
     mesh(new THREE.BoxGeometry(LIFT.gap * 2 + 1.2, 0.3, 0.4), metal, 0, top + 0.3, z);
-    addObstacle(0, z, 0.7);
+    addObstacle(0, z, 0.7, 'tower');
   }
   for (const x of [-LIFT.gap, LIFT.gap]) {
     const pts = [];
@@ -784,7 +789,7 @@ function buildLift() {
     mesh(new THREE.TorusGeometry(LIFT.gap, 0.14, 6, 24), metal, 0, ty, z).rotation.x = Math.PI / 2;
     const roof = mesh(new THREE.BoxGeometry(9, 0.5, 9), lam(0xe5484d), 0, ty + 1.3, z);
     roof.receiveShadow = true;
-    for (const [px, pz] of [[-4, -3.8], [4, -3.8], [-4, 3.8], [4, 3.8]]) { mesh(new THREE.CylinderGeometry(0.18, 0.18, ty + 1.3 - gy, 6), metal, px, (ty + 1.3 + gy) / 2, z + pz); addObstacle(px, z + pz, 0.4); }
+    for (const [px, pz] of [[-4, -3.8], [4, -3.8], [-4, 3.8], [4, 3.8]]) { mesh(new THREE.CylinderGeometry(0.18, 0.18, ty + 1.3 - gy, 6), metal, px, (ty + 1.3 + gy) / 2, z + pz); addObstacle(px, z + pz, 0.4, 'post'); }
     const sgn = textPlane([label], 7, 1.1, '#1b2a4a', '#ffffff', { size: 130 });
     sgn.position.set(0, ty + 2.3, z + (z === LIFT.zBot ? 4.6 : -4.6)); sgn.rotation.y = z === LIFT.zBot ? 0 : Math.PI; scene.add(sgn);
   }
@@ -796,7 +801,7 @@ function buildLift() {
 function buildBase() {
   const wood = lam(0x9a6a3c), roofM = lam(0x7a2f3b), snowM = lam(0xffffff), glass = new THREE.MeshBasicMaterial({ color: 0xffd98a });
   // entrance sign
-  for (const x of [-14, 14]) { mesh(new THREE.CylinderGeometry(0.3, 0.3, 6, 8), wood, x, 3, 84); addObstacle(x, 84, 0.5); }
+  for (const x of [-14, 14]) { mesh(new THREE.CylinderGeometry(0.3, 0.3, 6, 8), wood, x, 3, 84); addObstacle(x, 84, 0.5, 'post'); }
   const es = textPlane(['❄ 눈꽃 스키장 ❄'], 26, 2.4, '#ffffff', '#1b2a4a', { size: 150 });
   es.position.set(0, 6.4, 84); es.rotation.y = Math.PI; scene.add(es);
   // snowmen
@@ -806,14 +811,14 @@ function buildBase() {
     mesh(new THREE.SphereGeometry(0.45 * s, 16, 12), snowM, x, 2.95 * s, z);
     const nose = mesh(new THREE.ConeGeometry(0.08 * s, 0.4 * s, 8), lam(0xff8a2a), x, 2.95 * s, z - 0.55 * s); nose.rotation.x = -Math.PI / 2;
     const hat = mesh(new THREE.CylinderGeometry(0.3 * s, 0.3 * s, 0.45 * s, 12), lam(0x1b2a4a), x, 3.45 * s, z);
-    addObstacle(x, z, 0.9 * s);
+    addObstacle(x, z, 0.9 * s, 'snowman');
     void hat;
   }
   // top hut
   const ty = H(-14, -268);
   mesh(new THREE.BoxGeometry(8, 4, 6), wood, -16, ty + 2, -268);
   const tr = mesh(new THREE.BoxGeometry(9, 0.6, 7), snowM, -16, ty + 4.3, -268); void tr;
-  addObstacle(-16, -268, 4.5);
+  addObstacle(-16, -268, 4.5, 'building');
 }
 
 /* ================= mountain cafe ================= */
@@ -922,7 +927,7 @@ function buildCafe() {
   for (const [r, hh, c, o] of [[0.75, 1.5, 0xe8340c, 0.75], [0.52, 1.9, 0xff7a12, 0.8], [0.3, 1.3, 0xffc23a, 0.9]]) {
     const f = new THREE.Mesh(new THREE.ConeGeometry(r, hh, 9, 1, true), fm(c, o)); f.position.set(FIRE.x, 0.35 + hh / 2, FIRE.z); scene.add(f); fire.flames.push({ m: f, hh, ph: Math.random() * 6, main: true });
   }
-  addObstacle(FIRE.x, FIRE.z, 1.25);
+  addObstacle(FIRE.x, FIRE.z, 1.25, 'fire');
   fire.light = new THREE.PointLight(0xff9a3c, 2.2, 15, 1.7); fire.light.position.set(FIRE.x, 1.8, FIRE.z); scene.add(fire.light);
   const EN = 40; fire.emberPos = new Float32Array(EN * 3); fire.emberV = new Float32Array(EN);
   for (let i = 0; i < EN; i++) { fire.emberPos[i * 3] = FIRE.x; fire.emberPos[i * 3 + 1] = Math.random() * 4; fire.emberPos[i * 3 + 2] = FIRE.z; fire.emberV[i] = 0.8 + Math.random() * 1.2; }
@@ -954,7 +959,7 @@ function buildCafe() {
   pile(C.x0 + 1.0, 70.4, 3, 0); pile(36.2, C.z0 - 1.3, 3, 0);
   // two small tables with mugs
   for (const [x, z] of [[35.2, 57.6], [49.4, 69.3]]) {
-    mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.08, 16), wood, x, 0.85, z); mesh(new THREE.CylinderGeometry(0.08, 0.12, 0.8, 8), dark, x, 0.42, z); addObstacle(x, z, 0.6);
+    mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.08, 16), wood, x, 0.85, z); mesh(new THREE.CylinderGeometry(0.08, 0.12, 0.8, 8), dark, x, 0.42, z); addObstacle(x, z, 0.6, 'table');
     mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.16, 10), lam(0xffffff), x + 0.2, 0.97, z); mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.16, 10), lam(0x2f3e5c), x - 0.25, 0.97, z + 0.15);
     for (const s2 of [-1, 1]) { mesh(new THREE.BoxGeometry(0.5, 0.08, 0.5), wood, x + s2 * 1.1, 0.5, z); mesh(new THREE.BoxGeometry(0.5, 0.6, 0.08), wood, x + s2 * 1.35, 0.8, z).rotation.y = Math.PI / 2; }
   }
@@ -1018,7 +1023,7 @@ function buildPond() {
   [[-52, 103, 0xff7a1a], [-18, 104, 0x2f7de1], [-55, 132, 0x2fb36d], [-16, 134, 0xffc53d]].forEach(([x, z, c]) => {
     const t = mesh(new THREE.ConeGeometry(2.1, 2.8, 6), lam(c), x, 1.4, z); void t;
     const door = mesh(new THREE.PlaneGeometry(0.9, 1.3), lam(0x1b2a4a), x, 0.65, z - 1.6, scene, false); door.rotation.x = -0.25;
-    addObstacle(x, z, 1.8);
+    addObstacle(x, z, 1.8, 'tent');
   });
   for (const [x, z] of [[-30, 113], [-43, 122]]) { mesh(new THREE.CylinderGeometry(0.3, 0.25, 0.45, 12), lam(0xd6303a), x, 0.32, z); }
   const sign = textPlane(['🎣 빙어 낚시터', '구멍 옆 의자에서 E'], 5.2, 2, '#1b2a4a', '#ffffff');
@@ -1078,7 +1083,7 @@ function buildOnsen() {
   };
   fenceRun(O.x0, O.z0, 41, O.z0); fenceRun(51, O.z0, O.x1, O.z0);
   fenceRun(O.x0, O.z0, O.x0, 104); fenceRun(O.x0, 112, O.x0, O.z1); fenceRun(O.x1, O.z0, O.x1, O.z1); fenceRun(O.x0, O.z1, O.x1, O.z1);
-  for (const x of [41, 51]) { mesh(new THREE.CylinderGeometry(0.28, 0.3, 4.2, 8), lam(0x6b4a2b), x, 2.1, O.z0); addObstacle(x, O.z0, 0.5); }
+  for (const x of [41, 51]) { mesh(new THREE.CylinderGeometry(0.28, 0.3, 4.2, 8), lam(0x6b4a2b), x, 2.1, O.z0); addObstacle(x, O.z0, 0.5, 'post'); }
   mesh(new THREE.BoxGeometry(11.6, 0.4, 0.5), lam(0x6b4a2b), 46, 4.1, O.z0);
   const gs = textPlane(['♨ 눈꽃 온천'], 6.4, 1.3, '#3b2a1e', '#ffe2a8', { size: 140 }); gs.position.set(46, 3.4, O.z0 - 0.3); scene.add(gs);
   // pools
@@ -1129,7 +1134,7 @@ function buildOnsen() {
   }
   // wooden pavilion over the big pool
   const pw = lam(0x5a3a28);
-  for (const [x, z] of [[35, 108], [55, 108], [35, 122], [55, 122]]) { mesh(new THREE.CylinderGeometry(0.22, 0.26, 5, 8), pw, x, 2.5, z); addObstacle(x, z, 0.4); }
+  for (const [x, z] of [[35, 108], [55, 108], [35, 122], [55, 122]]) { mesh(new THREE.CylinderGeometry(0.22, 0.26, 5, 8), pw, x, 2.5, z); addObstacle(x, z, 0.4, 'post'); }
   for (const [x0, z0, x1, z1] of [[35, 108, 55, 108], [35, 122, 55, 122]]) mesh(new THREE.BoxGeometry(20.6, 0.35, 0.35), pw, (x0 + x1) / 2, 4.9, z0);
   for (const x of [35, 55]) mesh(new THREE.BoxGeometry(0.35, 0.35, 14.6), pw, x, 4.9, 115);
   const proof = new THREE.Mesh(new THREE.ConeGeometry(14.5, 3.6, 4, 1), lam(0x3f2a1e)); proof.rotation.y = Math.PI / 4; proof.scale.set(1, 1, 0.72); proof.position.set(45, 6.9, 115); proof.castShadow = true; scene.add(proof);
@@ -1149,7 +1154,7 @@ function buildOnsen() {
     mesh(new THREE.BoxGeometry(0.8, 0.3, 0.8), lst, x, 0.15, z); mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.9, 6), lst, x, 0.75, z);
     mesh(new THREE.BoxGeometry(0.6, 0.5, 0.6), lanternLight, x, 1.45, z, scene, false);
     const cap = mesh(new THREE.ConeGeometry(0.62, 0.4, 4), lst, x, 1.9, z); cap.rotation.y = Math.PI / 4;
-    addObstacle(x, z, 0.5); LANTERN_GLOW.push([x, 1.45, z]);
+    addObstacle(x, z, 0.5, 'lamp'); LANTERN_GLOW.push([x, 1.45, z]);
   }
 }
 function resetSteam(i, y) {
@@ -1451,11 +1456,12 @@ function makeNpc(kind) {
 }
 function buildNpcs() {
   npcs.coco = Object.assign(makeNpc('coco'), { id: 'coco', name: '코코', face: '🦭', x: -7, z: LIFT.zBot - 2 });
+  npcs.coach = Object.assign(makeNpc('bu'), { id: 'coach', name: '점프 코치 수리', face: '🦅', x: -74, z: 88 });
   npcs.bu = Object.assign(makeNpc('bu'), { id: 'bu', name: '부엉', face: '🦉', x: -8, z: LIFT.zTop + 5 });
   for (const n of Object.values(npcs)) {
     n.root.position.set(n.x, H(n.x, n.z), n.z);
     n.root.rotation.y = n.id === 'coco' ? Math.PI * 0.8 : -Math.PI * 0.2;
-    addObstacle(n.x, n.z, 0.8);
+    addObstacle(n.x, n.z, 0.8, 'npc:' + n.name);
   }
   const bear = makeAnimal(1, '#ff8a2a'); setGear(bear, 0); bear.skis.visible = bear.poles.visible = false;
   bear.root.position.set(36, 0, 72.3);
@@ -1577,6 +1583,10 @@ function unstuck(manual) {
   }
   if (manual) goHome();
 }
+function bumpText(kind) {
+  if (kind && kind.startsWith('npc:')) return kind.slice(4) + '에게 부딪혔어요';
+  return ({ tree: '🌲 나무에 부딪혔어요', snowman: '⛄ 눈사람 장식에 부딪혔어요', tower: '🚡 리프트 기둥에 부딪혔어요', post: '기둥에 부딪혔어요', building: '🏠 건물에 부딪혔어요', fire: '🔥 모닥불에 부딪혔어요', table: '탁자에 부딪혔어요', tent: '⛺ 텐트에 부딪혔어요', lamp: '🏮 등불에 부딪혔어요' })[kind] || '장애물에 부딪혔어요';
+}
 function crash(msg) {
   me.state = 'crash'; me.crashT = 1.6; me.vx = me.vz = 0; me.air = false;
   sfx.thud(); centerMsg('꽈당!', msg || '');
@@ -1627,7 +1637,7 @@ function stepSki(dt) {
   bumpPeers();
   const ob = nearObstacle(me.x, me.z);
   if (ob) {
-    if (sp > 7) { me.x = ox; me.z = oz; crash('나무에 부딪혔어요'); return; }
+    if (sp > 7) { me.x = ox; me.z = oz; crash(bumpText(ob[3])); return; }
     pushOutAll(); me.vx *= 0.5; me.vz *= 0.5;
   }
   const h = H(me.x, me.z);
@@ -1720,7 +1730,10 @@ function poseAvatar(av, o) {
   if (av.mug.visible) { av.cupMat.color.setHex(o.item === 3 ? 0x2f3e5c : 0xffffff); av.drinkMat.color.setHex(o.item === 3 ? 0x2a1608 : 0x6b3a1e); }
   if (o.item === 2) av.marsh.material.color.setRGB(1, 0.95 - 0.35 * (o.roast || 0), 0.86 - 0.6 * (o.roast || 0));
   if (o.item === 4) av.marsh.material.color.setRGB(0.85, 0.55, 0.25);
-  const crouch = o.state === 'lift' || o.state === 'queue' || o.state === 'sit' ? 0 : o.boost ? 0.26 : Math.min(0.14, o.speed * 0.006);
+  for (const o3 of [av.tilt.rotation, av.rider.position, av.armR.rotation, av.armL.rotation]) for (const k of ['x', 'y', 'z']) if (!isFinite(o3[k])) o3[k] = 0;
+  if (!isFinite(av.rider.scale.y)) av.rider.scale.y = 1;
+  av.tilt.rotation.x += ((o.jp === 'f' ? -0.75 : 0) - av.tilt.rotation.x) * 0.15;
+  const crouch = o.jp === 'c' ? 0.28 : o.state === 'lift' || o.state === 'queue' || o.state === 'sit' ? 0 : o.boost ? 0.26 : Math.min(0.14, o.speed * 0.006);
   av.rider.scale.y = 1 - crouch;
   const ry = o.state === 'lift' ? -0.08 : o.state === 'sit' ? -0.38 : 0;
   av.rider.position.y += (ry - av.rider.position.y) * 0.2;
@@ -1731,9 +1744,9 @@ function poseAvatar(av, o) {
   else av.armR.rotation.z += (upR - av.armR.rotation.z) * 0.2;
   // sip every few seconds; take bites of a toasted marshmallow
   const tnow = performance.now() / 1000;
-  let ax = o.item ? -0.9 : 0, hx = 0;
-  if (o.item === 1 || o.item === 3) { const ph = (tnow + av.ph) % 4; if (ph < 1.4) { const k = Math.sin(ph / 1.4 * Math.PI); ax = -0.9 - 1.6 * k; av.armR.rotation.z = 0.25 - 0.75 * k; hx = -0.22 * k; } }
-  if (o.item === 4) { const k = 0.6 + 0.4 * Math.sin(tnow * 3); ax = -2.0 - 0.4 * k; av.armR.rotation.z = -0.35; hx = Math.sin(tnow * 14) * 0.06 - 0.1; }
+  let ax = o.item ? 0.9 : 0, hx = 0;
+  if (o.item === 1 || o.item === 3) { const ph = (tnow + av.ph) % 4; if (ph < 1.4) { const k = Math.sin(ph / 1.4 * Math.PI); ax = 0.9 + 1.6 * k; av.armR.rotation.z = 0.25 - 0.75 * k; hx = -0.22 * k; } }
+  if (o.item === 4) { const k = 0.6 + 0.4 * Math.sin(tnow * 3); ax = 2.0 + 0.4 * k; av.armR.rotation.z = -0.35; hx = Math.sin(tnow * 14) * 0.06 - 0.1; }
   av.armR.rotation.x += (ax - av.armR.rotation.x) * 0.25;
   av.headG.rotation.x += (hx - av.headG.rotation.x) * 0.3;
   if (o.state === 'lift') { av.skis.rotation.x = 0.25; av.board.rotation.x = 0.25; } else { av.skis.rotation.x = 0; av.board.rotation.x = 0; }
@@ -1998,7 +2011,7 @@ function promptText() {
   if (nearHole() >= 0) return '🎣 빙어 낚시하기';
   if (me.raceHold && me.rc && !me.rc.t0) return me.rc.hid === myId() ? '🏁 모두 모였으면 출발!' : '';
   const n = nearNpc();
-  if (n) return n.name + (n.id === 'coco' ? '에게 말 걸기 · 리프트 타기' : n.id === 'bear' ? '에게 핫초코·커피 주문하기' : '에게 길 물어보기');
+  if (n) return n.name + (n.id === 'coco' ? '에게 말 걸기 · 리프트 타기' : n.id === 'bear' ? '에게 핫초코·커피 주문하기' : n.id === 'coach' ? '에게 스키점프 하기' : '에게 길 물어보기');
   if (me.state === 'sit' && me.stump >= 0) return me.item === 2 || me.item === 4 ? '' : '마시멜로 굽기 · 움직이면 일어나요';
   if (nearStump() >= 0) return '통나무 의자에 앉기';
   return '';
@@ -2010,7 +2023,7 @@ function nearNpc() {
 }
 function interact() {
   const n = nearNpc(); if (!n) return;
-  if (n.id === 'coco') talkCoco(); else if (n.id === 'bear') talkBear(); else talkBu();
+  if (n.id === 'coco') talkCoco(); else if (n.id === 'bear') talkBear(); else if (n.id === 'coach') talkCoach(); else talkBu();
 }
 
 /* ---------- guide arrow ---------- */
@@ -2047,7 +2060,7 @@ function placeName(st, x, z, co) {
   if (z > 0) return '베이스';
   return '슬로프';
 }
-const STATE_CODE = { ski: 0, crash: 2, queue: 3, lift: 4, sit: 5 };
+const STATE_CODE = { ski: 0, crash: 2, queue: 3, lift: 4, sit: 5, jump: 6 };
 function renderPlayers() {
   const ul = $('#players'); ul.textContent = '';
   const rows = [{ name: me.name, color: me.color, sp: me.sp, sh: me.sbHits || 0, fc: me.fishCount || 0, place: placeName(STATE_CODE[me.state], me.x, me.z, me.run && me.run.c.id), me: true }];
@@ -2083,7 +2096,16 @@ function fishRanking() {
   add(me.name, me.fishBest || 0, true);
   return [...best.values()].sort((x, y) => y.size - x.size).slice(0, 10);
 }
+function renderJumpRank() {
+  const best = new Map(); const add = (n, d, isMe) => { if (!n || !(d > 0)) return; const c = best.get(n); if (!c || d > c.d) best.set(n, { n, d, me: isMe || (c && c.me) }); };
+  for (const [, a] of avatars) add(a.name, a.jd || 0, false); add(me.name, me.jumpBest || 0, true);
+  const list = [...best.values()].sort((x, y) => y.d - x.d).slice(0, 10), ol = $('#jumpRank'); ol.textContent = '';
+  const medals = ['🥇', '🥈', '🥉'];
+  list.forEach((e, i) => { const li = document.createElement('li'); const r = document.createElement('span'); r.textContent = medals[i] || (i + 1) + '위'; const t = document.createElement('span'); t.className = 't'; t.textContent = e.d.toFixed(1) + 'm'; const w = document.createElement('span'); w.className = 'who'; w.textContent = e.n + (e.me ? ' (나)' : ''); li.append(r, t, w); ol.appendChild(li); });
+  if (!list.length) { const li = document.createElement('li'); li.style.display = 'block'; li.style.opacity = '0.85'; li.textContent = '아직 기록이 없어요. 점프 코치 수리에게 말을 걸어 보세요!'; ol.appendChild(li); }
+}
 function renderFishRank() {
+  renderJumpRank();
   const list = fishRanking(), ol = $('#fishRank'); ol.textContent = '';
   const medals = ['🥇', '🥈', '🥉'];
   list.forEach((e, i) => {
@@ -2157,8 +2179,9 @@ function drawMinimap() {
 
 /* ================= chat ================= */
 /* ================= notices ================= */
-const NOTICE_VER = '2026-11-01-b';
+const NOTICE_VER = '2026-11-01-c';
 const NOTICES = [
+  { date: '11월 1일', title: '🎿 스키점프 · ⚔️ 점프 대결', items: ['빙어 낚시터 옆 🦅 점프 코치 수리에게 말을 걸면 스키점프를 할 수 있어요.', '게이트에서 Space로 출발 → 도약대 끝에서 Space! → 날 때 W를 누르고 있으면 V자 자세 → 착지 직전 Space로 텔레마크 보너스.', '점프 대결을 열면 2분 30초 동안 가장 좋은 점수로 순위를 겨뤄요.', '휴대폰에서 캐릭터가 사라지던 문제를 고쳤어요.', '마실 때 컵을 얼굴 앞으로 가져가요. 부딪힌 물체에 맞는 안내가 떠요.'] },
   { date: '11월 1일', title: '♨ 온천 새단장 · ⛄ 눈사람 이동', items: ['냉탕이 없어지고 탕마다 온도가 10℃씩 달라졌어요: 노을탕 40℃ · 유자탕 50℃ · 큰 노천탕 60℃ · 나무탕 70℃', '유자가 둥둥, 꽃잎이 동동, 대나무 물줄기와 나무 바가지가 생겼어요.', '탕에 오래 있으면 얼굴이 빨개지고 머리에서 김이 나요. 뜨거운 탕일수록 빨리!', '인사하면 “안녕~ 👋” 말풍선이 떠요.', '눈사람이 돼도 천천히 깡총깡총 움직일 수 있어요.'] },
   { date: '10월 31일', title: '💥 눈덩이 게이지 · 몰아 던지기', items: ['오른쪽 아래 ❄ 게이지에 눈덩이가 최대 30개까지 모여요.', 'V 키(또는 게이지/💥 한방 버튼)를 누르면 모아 둔 눈덩이를 부채꼴로 한 번에 던져요.', 'F를 누르고 있으면 지금처럼 한 발씩 연사해요.', '레이스 출발 대기 중에는 움직이거나 앉을 수 없어요.'] },
   { date: '10월 31일', title: '❄ 눈싸움 연사 모드', items: ['F를 누르고 있으면(휴대폰은 ❄ 버튼 누르고 있기) 눈덩이가 연속으로 날아가요.', '눈덩이 주머니는 30발이에요. 안 던지면 금방 다시 차요.', '이제 한 번 맞을 때 8%씩 쌓여서 13번쯤 맞아야 눈사람이 돼요.'] },
@@ -2323,7 +2346,7 @@ function syncPeers(peers) {
     }
     a.tpos.fromArray(pr.p);
     a.th = typeof pr.h === 'number' && isFinite(pr.h) ? pr.h : a.th;
-    a.st = clamp(pr.s | 0, 0, 5); a.ch = typeof pr.ch === 'number' ? clamp(pr.ch | 0, -1, LIFT.count - 1) : -1; a.se = clamp(pr.se | 0, 0, 3);
+    a.st = clamp(pr.s | 0, 0, 6); a.jp = pr.jp === 'c' || pr.jp === 'f' ? pr.jp : ''; a.jd = clamp(+pr.jd || 0, 0, 200); a.jb = validJB(pr.jb); a.jbs = pr.jbs && typeof pr.jbs === 'object' && typeof pr.jbs.id === 'string' ? { id: pr.jbs.id, sc: clamp(+pr.jbs.sc || 0, 0, 400), d: clamp(+pr.jbs.d || 0, 0, 200) } : null; a.ch = typeof pr.ch === 'number' ? clamp(pr.ch | 0, -1, LIFT.count - 1) : -1; a.se = clamp(pr.se | 0, 0, 3);
     a.steer = clamp(+pr.st || 0, -1, 1); a.spd = clamp(+pr.v || 0, 0, 40); a.air = pr.s === 1;
     setGear(a.av, pr.g === 1 ? 1 : 0);
     a.co = typeof pr.co === 'string' && courseById[pr.co] ? pr.co : '';
@@ -2394,7 +2417,7 @@ function sendPresence(now, force) {
     s: me.air ? 1 : STATE_CODE[me.state], st: r2(me.steer), v: r2(Math.hypot(me.vx, me.vz)),
     ch: me.state === 'queue' || me.state === 'lift' ? me.chair : -1, se: me.seat,
     co: me.run ? me.run.c.id : '', b: me.best, f: me.fin, m: me.chat, w: me.waveSeq || 0,
-    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, it: me.item || 0, ht: Math.round((me.heat || 0) * 10) / 10, fc: me.fishCount || 0, fb: me.fishBest || 0, fl: me.lastFish || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0,
+    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, jp: me.state === 'jump' ? (me.jump && me.jump.phase === 'flight' ? 'f' : 'c') : '', jd: me.jumpBest || 0, jb: me.jb, jbs: me.jbs, it: me.item || 0, ht: Math.round((me.heat || 0) * 10) / 10, fc: me.fishCount || 0, fb: me.fishBest || 0, fl: me.lastFish || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0,
   };
   const key = JSON.stringify(pr);
   if (key === lastSent) return;
@@ -2474,7 +2497,7 @@ function updatePeers(dt, t) {
       if (a.pos.distanceTo(a.tpos) > 25) a.pos.copy(a.tpos); else a.pos.lerp(a.tpos, k);
       let d = a.th - a.h; d = Math.atan2(Math.sin(d), Math.cos(d)); a.h += d * k;
     }
-    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : 'ski', walk: inWalkZone(a.pos.x, a.pos.z), heat: a.ht || 0, bath: a.bt >= 0, fish: a.fl, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
+    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : a.st === 6 ? 'jump' : 'ski', jp: a.jp, walk: inWalkZone(a.pos.x, a.pos.z), heat: a.ht || 0, bath: a.bt >= 0, fish: a.fl, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
   }
 }
 
@@ -2506,6 +2529,7 @@ function toggleGear() {
 function updateGearChip() { $('#gearChip').textContent = me.gear ? '🏂 스노보드' : '⛷ 스키'; }
 function goHome() {
   if (me.state === 'lift' || me.state === 'queue') { notice('리프트에서는 이동할 수 없어요'); return; }
+  me.jump = null;
   if (me.run) cancelRun();
   if (me.rc) leaveRace();
   me.state = 'ski'; me.x = (Math.random() - 0.5) * 24; me.z = 50; me.y = 0; me.vx = me.vz = 0; me.heading = 0; me.air = false;
@@ -2522,8 +2546,10 @@ cvs.addEventListener('wheel', (e) => { cam.dist = clamp(cam.dist + Math.sign(e.d
 const stickEl = $('#stick'), knob = $('#knob'); let stickId = null;
 function moveStick(e) {
   const r = stickEl.getBoundingClientRect();
+  if (!(r.width > 4 && r.height > 4)) { stick.x = stick.y = 0; return; } // hidden stick: no division by zero
   let dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2), dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
   const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; }
+  if (!isFinite(dx) || !isFinite(dy)) { dx = dy = 0; }
   stick.x = dx; stick.y = dy; knob.style.transform = 'translate(' + dx * 36 + 'px,' + dy * 36 + 'px)';
 }
 stickEl.addEventListener('pointerdown', (e) => { stickId = e.pointerId; try { stickEl.setPointerCapture(e.pointerId); } catch (_) {} moveStick(e); });
@@ -2967,12 +2993,19 @@ function updateRaceInvite() {
   const btn = $('#raceInvite');
   if (me.rc || me.state === 'lift' || me.state === 'queue' || !playing) { btn.hidden = true; return; }
   const r = openRaces()[0];
-  if (!r) { btn.hidden = true; btn.dataset.id = ''; return; }
+  if (!r) {
+    const jb = !me.jb && me.state !== 'jump' ? openJBs()[0] : null;
+    if (!jb) { btn.hidden = true; btn.dataset.id = ''; return; }
+    btn.textContent = '⚔️ ' + jb.h + '님의 점프 대결 참가하기 · ' + Math.max(0, Math.ceil((jb.c0 + JB_TIME - netNow()) / 1000)) + '초 남음';
+    btn.dataset.id = 'jb:' + jb.id; btn.hidden = false; return;
+  }
   const left = r.t0 ? Math.max(0, Math.ceil((r.t0 - netNow()) / 1000)) + '초 뒤 출발' : '대기 중';
   btn.textContent = '🏁 ' + r.h + '님의 ' + r.co + ' ' + courseById[r.co].name + ' 레이스 참가하기 · ' + left;
   btn.dataset.id = r.id; btn.hidden = false;
 }
 $('#raceInvite').addEventListener('click', () => {
+  const did = $('#raceInvite').dataset.id || '';
+  if (did.startsWith('jb:')) { const b = openJBs().find((x) => 'jb:' + x.id === did); if (b) joinJB(b); else notice('이미 끝난 대결이에요'); return; }
   const r = openRaces().find((x) => x.id === $('#raceInvite').dataset.id);
   if (!r) { notice('이미 출발한 레이스예요. 다음 판에 함께해요!'); return; }
   if (me.state === 'lift' || me.state === 'queue') { notice('리프트에서는 레이스에 참가할 수 없어요'); return; }
@@ -3074,6 +3107,172 @@ function showRaceResults(ps) {
 }
 $('#actRace').addEventListener('click', raceMenu);
 
+/* ================= ski jump ================= */
+const JUMP = { lipX: -60, z: 168, lipY: 80, K: 100, HS: 120, inrun: [], hill: [] };
+(function () {
+  // in-run (local x right, y up, lip at 0,0): straight 35° then a curve flattening to -11° at the lip
+  const P0 = [-58, 37.5], P1 = [-10, 3.9], C = [-6.13, 1.19], L = [0, 0], pts = [];
+  for (let i = 0; i <= 40; i++) { const t = i / 40; pts.push([P0[0] + (P1[0] - P0[0]) * t, P0[1] + (P1[1] - P0[1]) * t]); }
+  for (let i = 1; i <= 20; i++) { const t = i / 20, u = 1 - t; pts.push([u * u * P1[0] + 2 * u * t * C[0] + t * t * L[0], u * u * P1[1] + 2 * u * t * C[1] + t * t * L[1]]); }
+  let sAcc = 0; JUMP.inrun = pts.map((p, i) => { if (i) sAcc += Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]); return { x: p[0], y: p[1], s: sAcc }; });
+  JUMP.inrunLen = sAcc;
+  // landing hill: slope eases in to 37°, then eases out into the flat outrun
+  let y = -3; const sm = (t) => t * t * (3 - 2 * t);
+  for (let d = 0; d <= 230; d++) { JUMP.hill.push(y); for (let k = 0; k < 4; k++) { const s2 = d + k * 0.25, a = 37 * Math.PI / 180 * sm(Math.min(1, s2 / 25)) * (1 - sm(clamp((s2 - 85) / 40, 0, 1))); y -= Math.tan(a) * 0.25; } }
+})();
+function hillAt(d) { const i = clamp(Math.floor(d), 0, 229), t = clamp(d - i, 0, 1); return JUMP.hill[i] * (1 - t) + JUMP.hill[i + 1] * t; }
+function inrunAt(s) { const a = JUMP.inrun; let i = 1; while (i < a.length - 1 && a[i].s < s) i++; const p = a[i - 1], q = a[i], t = clamp((s - p.s) / ((q.s - p.s) || 1), 0, 1); return { x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t }; }
+function buildJump() {
+  JUMP.lipY = H(JUMP.lipX + 230, JUMP.z) + 0.5 - JUMP.hill[230];
+  const g = new THREE.Group(); g.position.set(JUMP.lipX, JUMP.lipY, JUMP.z); scene.add(g); JUMP.group = g;
+  const snowM = lam(0xf7fbff), steel = lam(0x6b7486), red = lam(0xe5484d), blue = lam(0x2f7de1);
+  // landing hill body: profile extruded across 30 m
+  const sh = new THREE.Shape(); sh.moveTo(0, -JUMP.lipY - 2); sh.lineTo(0, JUMP.hill[0]);
+  for (let d = 2; d <= 230; d += 2) sh.lineTo(d, JUMP.hill[d]);
+  sh.lineTo(230, -JUMP.lipY - 2); sh.closePath();
+  const hillGeo = new THREE.ExtrudeGeometry(sh, { depth: 30, bevelEnabled: false, steps: 1 }); hillGeo.translate(0, 0, -15);
+  const hill = new THREE.Mesh(hillGeo, snowM); hill.receiveShadow = true; g.add(hill);
+  // orange safety fences along both sides of the landing hill, so it stands out from the snow
+  for (const zz of [-15.2, 15.2]) for (let d = 0; d < 170; d += 4) {
+    const y0 = JUMP.hill[d], y1 = JUMP.hill[d + 4], len = Math.hypot(4, y1 - y0);
+    const fn = mesh(new THREE.BoxGeometry(len, 1.1, 0.12), lam(0xff7a1a), d + 2, (y0 + y1) / 2 + 0.55, zz, g, false); fn.rotation.z = Math.atan2(y1 - y0, 4);
+  }
+  // in-run deck on a steel tower
+  for (let i = 1; i < JUMP.inrun.length; i++) {
+    const p = JUMP.inrun[i - 1], q = JUMP.inrun[i], len = Math.hypot(q.x - p.x, q.y - p.y);
+    const seg = mesh(new THREE.BoxGeometry(len + 0.05, 0.4, 3.2), lam(0xdfe9f5), (p.x + q.x) / 2, (p.y + q.y) / 2 - 0.2, 0, g); seg.rotation.z = Math.atan2(q.y - p.y, q.x - p.x);
+    if (i % 6 === 0) for (const zz of [-1.4, 1.4]) { const hgt = (p.y + JUMP.lipY) + 0.5; mesh(new THREE.BoxGeometry(0.45, hgt, 0.45), steel, p.x, p.y - hgt / 2 - 0.3, zz, g); }
+    if (i % 3 === 0) for (const zz of [-1.7, 1.7]) mesh(new THREE.BoxGeometry(len, 0.6, 0.08), lam(0xff7a1a), (p.x + q.x) / 2, (p.y + q.y) / 2 + 0.2, zz, g).rotation.z = Math.atan2(q.y - p.y, q.x - p.x);
+  }
+  const top = JUMP.inrun[0];
+  mesh(new THREE.BoxGeometry(5, 3.2, 5), lam(0x1b2a4a), top.x - 2.5, top.y + 1.4, 0, g);
+  mesh(new THREE.BoxGeometry(5.6, 0.3, 5.6), snowM, top.x - 2.5, top.y + 3.1, 0, g);
+  // K point and HS lines, distance marks every 10 m
+  for (const [d, m] of [[JUMP.K, red], [JUMP.HS, blue]]) { const ln = mesh(new THREE.BoxGeometry(0.6, 0.06, 30.4), m, d, hillAt(d) + 0.04, 0, g, false); void ln; }
+  for (let d = 40; d <= 140; d += 10) {
+    const sg = textPlane([d + 'm'], 2.4, 1, d === JUMP.K ? '#e5484d' : d === JUMP.HS ? '#2f7de1' : '#1b2a4a', '#ffffff', { size: 150 });
+    sg.position.set(d, hillAt(d) + 1.3, 16.5); g.add(sg);
+  }
+  const big = textPlane(['🎿 눈꽃 점프대', 'K' + JUMP.K + ' · HS' + JUMP.HS], 18, 4, '#1b2a4a', '#ffc53d'); big.position.set(150, JUMP.hill[150] + 9, -17); g.add(big);
+  for (const sx of [142, 158]) mesh(new THREE.CylinderGeometry(0.25, 0.25, 9, 8), steel, sx, JUMP.hill[150] + 4.5, -17, g);
+  LANTERN_GLOW.push([JUMP.lipX + top.x - 2.5, JUMP.lipY + top.y + 3.4, JUMP.z]);
+}
+function jumpWorld(x, y) { return [JUMP.lipX + x, JUMP.lipY + y]; }
+function startJump() {
+  if (me.state === 'lift' || me.state === 'queue') { notice('리프트에서는 할 수 없어요'); return; }
+  if (me.run) cancelRun(); if (me.rc) leaveRace();
+  closeDialog();
+  const f = $('#fade'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+  me.state = 'jump'; me.indoor = false; me.bath = -1; me.stump = -1; me.item = 0;
+  me.jump = { phase: 'gate', s: 0, v: 0, x: JUMP.inrun[0].x, y: JUMP.inrun[0].y, vx: 0, vy: 0, up: 0, timing: '', teleAt: -9, t: 0 };
+  placeJumper(); cam.snap = true; cam.yawOff = 0;
+  centerMsg('🎿 출발 게이트', (isTouch ? '[점프] 버튼' : 'Space') + '으로 출발!');
+}
+function placeJumper() { const j = me.jump, [wx, wy] = jumpWorld(j.x, j.y); me.x = wx; me.y = wy; me.z = JUMP.z; me.heading = -Math.PI / 2; me.vx = me.vz = 0; me.air = j.phase === 'flight'; }
+function stepJump(dt) {
+  const j = me.jump; if (!j) { me.state = 'ski'; return; }
+  const press = keys.Space || keys._jump, edge = press && !j.held; j.held = press; j.t += dt;
+  const crouch = keys.ShiftLeft || keys.ShiftRight || keys._boost;
+  if (j.phase === 'gate') { if (edge) { j.phase = 'inrun'; sfx.beep(true); } placeJumper(); return; }
+  if (j.phase === 'inrun') {
+    const eff = crouch ? 0.96 : 0.92;
+    const p0 = JUMP.inrun[0];
+    const cur = inrunAt(j.s);
+    j.v = Math.sqrt(Math.max(0, 2 * 9.8 * (p0.y - cur.y) * eff));
+    j.s += Math.max(j.v, 2) * dt;
+    const left = JUMP.inrunLen - j.s;
+    if (edge && !j.timing && left < 9) {
+      j.timing = left < 1.6 ? 'perfect' : left < 4 ? 'good' : 'ok'; j.up = j.timing === 'perfect' ? 3 : j.timing === 'good' ? 2 : 1;
+      centerMsg(j.timing === 'perfect' ? '완벽!' : j.timing === 'good' ? '좋아요!' : '괜찮아요', '도약 타이밍'); sfx.pop();
+    }
+    if (left <= 0) {
+      const a = -11 * Math.PI / 180, v = j.v;
+      j.phase = 'flight'; j.x = 0; j.y = 0; j.vx = v * Math.cos(a); j.vy = v * Math.sin(a) + j.up;
+      if (!j.timing) centerMsg('앗, 타이밍을 놓쳤어요', '도약대 끝에서 ' + (isTouch ? '[점프]' : 'Space'));
+    } else { const p = inrunAt(j.s); j.x = p.x; j.y = p.y; }
+    if (Math.random() < dt * 20) emitSpray(me.x, me.y, me.z, -j.v * 0.2, 0, 1);
+    placeJumper(); return;
+  }
+  if (j.phase === 'flight') {
+    const vstyle = keys.KeyW || keys.ArrowUp || stick.y < -0.3;
+    if (edge) j.teleAt = j.t;
+    for (let k = 0, n = Math.ceil(dt / 0.01); k < n; k++) {
+      const h = dt / n, sp = Math.hypot(j.vx, j.vy), nx = -j.vy / sp, ny = j.vx / sp, cl = vstyle ? 0.0029 : 0.0017, cd = vstyle ? 0.0011 : 0.0016;
+      j.vx += (-cd * sp * j.vx + cl * sp * sp * nx) * h; j.vy += (-9.8 - cd * sp * j.vy + cl * sp * sp * ny) * h;
+      j.x += j.vx * h; j.y += j.vy * h;
+      if (j.y <= hillAt(j.x)) { landJump(); break; }
+    }
+    if (j.phase === 'flight') placeJumper();
+    return;
+  }
+  if (j.phase === 'landed') {
+    j.vx = Math.max(0, j.vx - dt * 9); j.x = Math.min(228, j.x + j.vx * dt); j.y = hillAt(j.x); placeJumper();
+    if (j.t > j.endAt) {
+      const f = $('#fade'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+      me.state = 'ski'; me.jump = null; me.x = -72 + Math.random() * 4; me.z = 84; me.y = H(me.x, me.z); me.heading = Math.PI; me.vx = me.vz = 0; cam.snap = true;
+    }
+  }
+}
+function landJump() {
+  const j = me.jump, d = Math.round(j.x * 2) / 2, tele = j.t - j.teleAt < 0.6;
+  j.phase = 'landed'; j.y = hillAt(j.x); j.endAt = j.t + 3.2; j.vx = Math.max(8, j.vx * 0.7);
+  const fall = d > JUMP.HS + 8 && !tele;
+  const timingPts = j.timing === 'perfect' ? 18 : j.timing === 'good' ? 14 : j.timing === 'ok' ? 10 : 6;
+  const score = Math.max(0, Math.round((60 + (d - JUMP.K) * 2 + timingPts + (tele ? 12 : 4) - (fall ? 30 : 0)) * 10) / 10);
+  emitSpray(me.x, me.y, me.z, 0, 0, 40); sfx.thud();
+  if (d > (me.jumpBest || 0)) { me.jumpBest = d; store('ski.jump', String(d)); }
+  if (me.jb && netNow() < me.jb.c0 + JB_TIME) { if (!me.jbs || me.jbs.id !== me.jb.id || score > me.jbs.sc) me.jbs = { id: me.jb.id, sc: score, d }; }
+  centerMsg(d.toFixed(1) + 'm', (fall ? '꽈당! ' : tele ? '텔레마크 착지! ' : '착지 · ') + score.toFixed(1) + '점' + (d >= JUMP.K ? ' · K점 돌파!' : ''));
+  if (myAv) setBubble(myAv, fall ? '아야야…' : d >= JUMP.K ? '날았다~! 🕊' : '휴~ 착지!', 2500);
+  notice('🎿 비거리 ' + d.toFixed(1) + 'm · ' + score.toFixed(1) + '점');
+  sendPresence(performance.now(), true); renderFishRank();
+}
+me.jumpBest = Math.min(200, Number(store('ski.jump')) || 0);
+
+/* ---------- jump battle ---------- */
+const JB_TIME = 150000, jbState = { seen: new Set(), shown: null };
+function validJB(r) {
+  if (!r || typeof r !== 'object' || typeof r.id !== 'string' || !/^[a-z0-9]{4,12}$/.test(r.id) || typeof r.c0 !== 'number') return null;
+  if (Math.abs(r.c0 - netNow()) > 600000) return null;
+  return { id: r.id, c0: r.c0, h: cleanName(r.h) || '누군가' };
+}
+function openJBs() { const t = netNow(), out = []; for (const [, a] of avatars) if (a.jb && t < a.jb.c0 + JB_TIME - 5000 && !out.some((x) => x.id === a.jb.id)) out.push(a.jb); return out; }
+function talkCoach() {
+  setBubble(npcs.coach, '날아 보자!', 2500);
+  const choices = [{ label: '🎿 혼자 점프하기', fn: startJump }];
+  if (me.jb && netNow() < me.jb.c0 + JB_TIME) choices.unshift({ label: '⚔️ 대결 계속하기 (점프)', fn: startJump });
+  else {
+    for (const b of openJBs()) choices.push({ label: '⚔️ ' + b.h + '님의 점프 대결 참가', fn: () => joinJB(b) });
+    choices.push({ label: '⚔️ 점프 대결 열기', fn: hostJB });
+  }
+  choices.push({ label: '닫기', fn: closeDialog });
+  say(npcs.coach, '스키점프 코치 수리예요 🦅 출발 게이트에서 출발하고, 도약대 끝에서 ' + (isTouch ? '[점프]' : 'Space') + '! 날 때는 ' + (isTouch ? '스틱을 위로' : 'W') + '를 누르고 있으면 V자 자세로 더 멀리 가요. 착지 직전에 한 번 더 누르면 텔레마크 보너스!', choices);
+}
+function hostJB() {
+  const id = Math.random().toString(36).slice(2, 10).replace(/[^a-z0-9]/g, 'x').padEnd(6, 'x');
+  me.jb = { id, c0: netNow(), h: me.name }; me.jbs = null; jbState.seen.add(id); jbState.shown = null;
+  addChatLine('', '', '⚔️ 점프 대결을 열었어요! 2분 30초 동안 가장 좋은 점수로 겨뤄요', true);
+  startJump();
+}
+function joinJB(b) { me.jb = { id: b.id, c0: b.c0, h: b.h }; me.jbs = null; jbState.shown = null; notice('⚔️ ' + b.h + '님의 점프 대결에 참가했어요!'); startJump(); }
+function updateJB() {
+  for (const [, a] of avatars) if (a.jb && !jbState.seen.has(a.jb.id)) { jbState.seen.add(a.jb.id); if (!(me.jb && me.jb.id === a.jb.id)) { notice('⚔️ ' + a.jb.h + '님이 점프 대결을 열었어요!'); addChatLine('', '', '⚔️ ' + a.jb.h + '님이 점프 대결을 열었어요. 점프 코치 수리에게 말 걸어 참가하세요!', true); } }
+  if (!me.jb) return;
+  if (netNow() >= me.jb.c0 + JB_TIME && jbState.shown !== me.jb.id) {
+    jbState.shown = me.jb.id;
+    const ps = [{ name: me.name, s: me.jbs && me.jbs.id === me.jb.id ? me.jbs : null, me: true }];
+    for (const [, a] of avatars) if (a.jb && a.jb.id === me.jb.id) ps.push({ name: a.name, s: a.jbs && a.jbs.id === me.jb.id ? a.jbs : null });
+    const ok = ps.filter((x) => x.s).sort((a2, b2) => b2.s.sc - a2.s.sc), medals = ['🥇', '🥈', '🥉'];
+    const lines = ok.map((x, i) => (medals[i] || (i + 1) + '등') + ' ' + x.name + ' ' + x.s.sc.toFixed(1) + '점(' + x.s.d.toFixed(1) + 'm)');
+    const none = ps.filter((x) => !x.s).map((x) => x.name);
+    if (none.length) lines.push('기록 없음: ' + none.join(', '));
+    say(npcs.coach, '⚔️ 점프 대결 결과! ' + lines.join(' · '), [{ label: '닫기', fn: closeDialog }]);
+    addChatLine('', '', '⚔️ 점프 대결 결과: ' + lines.join(' · '), true);
+    me.jb = null; me.jbs = null;
+  }
+}
+setInterval(() => { if (playing) updateJB(); }, 500);
+
 /* ---------- status card ---------- */
 function doorTransition(entering) {
   me.indoor = entering;
@@ -3084,6 +3283,14 @@ function doorTransition(entering) {
   else if (me.z <= CAFE.z0 + 0.2) { me.z = Math.min(me.z, CAFE.z0 - 1.4); me.heading = 0; notice('❄ 카페 밖으로 나왔어요'); }
 }
 function updateStatus(sp) {
+  if (me.state === 'jump' && me.jump) {
+    const j = me.jump;
+    $('#stChip').textContent = '점프'; $('#stTitle').textContent = '🎿 눈꽃 점프대 · K' + JUMP.K;
+    $('#stRight').textContent = j.phase === 'flight' ? j.x.toFixed(0) + 'm' : Math.round(j.v * 3.6) + 'km/h';
+    $('#stFill').style.width = (j.phase === 'inrun' ? j.s / JUMP.inrunLen * 100 : j.phase === 'gate' ? 0 : 100).toFixed(1) + '%';
+    $('#stSub').textContent = (me.jb ? '⚔️ 대결 ' + Math.max(0, Math.ceil((me.jb.c0 + JB_TIME - netNow()) / 1000)) + '초 남음 · ' : '') + (j.phase === 'gate' ? 'Space로 출발' : j.phase === 'inrun' ? 'Shift 웅크리기 · 끝에서 Space!' : j.phase === 'flight' ? 'W를 누르고 있으면 V자 · 착지 직전 Space' : '착지!');
+    return;
+  }
   let chip, title, right = '', fill = 0, sub;
   const others = net.count > 1 ? '지금 ' + net.count + '명이 함께 타고 있어요' : '지금은 혼자 타고 있어요 · 친구에게 링크를 보내 보세요';
   if (me.state === 'lift') {
@@ -3126,6 +3333,12 @@ function updateCamera(dt) {
     camera.lookAt(0, 35, -120); return;
   }
   camTarget.set(me.x, me.y + 1.4, me.z);
+  if (me.state === 'jump' && me.jump) {
+    const side = me.jump.phase === 'flight' || me.jump.phase === 'landed';
+    camPos.set(me.x - (side ? 6 : 9), me.y + (side ? 4 : 5), me.z + (side ? 17 : 0.01));
+    if (cam.snap) { camera.position.copy(camPos); cam.snap = false; } else camera.position.lerp(camPos, 1 - Math.exp(-dt * (side ? 5 : 8)));
+    camera.lookAt(me.x + (side ? 4 : 10), me.y + (side ? 0 : -3), me.z); return;
+  }
   if (!cam.drag) cam.yawOff *= Math.exp(-dt * 0.8);
   const yaw = me.heading + cam.yawOff;
   const indoor = !!me.indoor;
@@ -3162,12 +3375,17 @@ function frame(now) {
       const moving = keys.KeyW || keys.KeyS || keys.KeyA || keys.KeyD || keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight || keys.Space || Math.hypot(stick.x, stick.y) > 0.3;
       if (moving) { me.state = 'ski'; me.stump = -1; } else me.y = me.seatY != null ? me.seatY : H(me.x, me.z);
     }
+    // safety net: never let a broken number (NaN) hide the character
+    if (document.body.classList.contains('dlg-open')) { stick.x = stick.y = 0; }
+    for (const k of ['x', 'z', 'y', 'vx', 'vz', 'vy', 'heading', 'steer']) if (!isFinite(me[k])) me[k] = k === 'y' ? H(me.x || 0, me.z || 0) : (k === 'x' ? 0 : k === 'z' ? 50 : 0);
+    if (myAv) for (const o3 of [myAv.tilt.rotation, myAv.rider.position, myAv.rider.scale, myAv.armR.rotation, myAv.armL.rotation, myAv.headG.rotation]) for (const k of ['x', 'y', 'z']) if (!isFinite(o3[k])) o3[k] = o3 === myAv.rider.scale ? 1 : 0;
     if (me.state === 'ski' || me.state === 'crash') stepSki(dt);
+    else if (me.state === 'jump') stepJump(dt);
     updateLift(dt);
     updateRun(dt);
     updateRace();
     if (night.light) night.light.position.set(me.x, me.y + 3.2, me.z);
-    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: inWalkZone(me.x, me.z), heat: me.heat || 0, bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting, fish: me.lastFish });
+    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: inWalkZone(me.x, me.z), heat: me.heat || 0, bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting, fish: me.lastFish, jp: me.state === 'jump' ? (me.jump && me.jump.phase === 'flight' ? 'f' : 'c') : '' });
     // prompt + guide
     const ptxt = promptText();
     const pr = $('#prompt');
@@ -3248,7 +3466,7 @@ void playersT;
 
 (async function boot() {
   try { await Promise.race([Promise.all([document.fonts.load('60px Jua'), document.fonts.load('40px "Noto Sans KR"')]), new Promise((r) => setTimeout(r, 1500))]); } catch (e) {}
-  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildCafe(); buildSmoke(); buildOnsen(); buildPond(); buildNpcs(); buildMinimap(); buildNight(); buildCafeGlow();
+  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildCafe(); buildSmoke(); buildOnsen(); buildPond(); buildJump(); buildNpcs(); buildMinimap(); buildNight(); buildCafeGlow();
   const sn = store('ski.night'), hr = new Date().getHours();
   setNight(sn === '1' || (sn === null && (hr >= 18 || hr < 6)));
   rebuildMine();
