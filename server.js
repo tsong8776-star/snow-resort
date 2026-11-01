@@ -1,7 +1,8 @@
 // 눈꽃 스키장 게임 서버
 // - 브라우저에 index.html(게임 화면)을 보내 줍니다.
 // - /ws 로 접속한 플레이어끼리 위치·사격 정보를 실시간으로 주고받게 해 줍니다.
-// - 다 같이 만든 눈사람을 기억해 두었다가 늦게 온 사람에게도 보여 줍니다(서버가 다시 켜지면 사라져요).
+// - 다 같이 만든 눈사람을 기억해 두었다가 늦게 온 사람에게도 보여 줍니다.
+//   눈사람은 20분 뒤에 녹아 없어지고, 서버가 다시 켜져도 사라져요.
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -28,6 +29,8 @@ const fishBoard = []; // 빙어 길이 순위 (사람마다 최고 기록 하나
 const jumpBoard = []; // 스키점프 비거리 순위 (사람마다 최고 기록 하나)
 const snowmen = []; // 플레이어가 만든 눈사람 (전체 최대 40개, 한 사람당 최대 3개)
 const SNOWMAN_MAX = 40, SNOWMAN_PER_PLAYER = 3;
+const SNOWMAN_LIFE = Number(process.env.SNOWMAN_LIFE_MS) || 20 * 60 * 1000; // 눈사람이 녹기까지 걸리는 시간
+const SNOWMAN_MAX_R = 2.2; // 눈덩이 반지름 최대 (m)
 const pubSnowman = (s) => ({ id: s.id, x: s.x, z: s.z, h: s.h, r: s.r, n: s.n, c: s.c, d: s.d, at: s.at });
 let smCounter = 0;
 const clean = (v, n) => String(v || '').replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g, '').trim().slice(0, n);
@@ -89,7 +92,7 @@ wss.on('connection', (ws) => {
       if (now - (me.smAt || 0) < 8000) return;
       const x = Number(m.x), z = Number(m.z), h = Number(m.h), r = Array.isArray(m.r) ? m.r.slice(0, 3).map(Number) : [];
       if (![x, z, h].every(Number.isFinite) || Math.abs(x) > 400 || Math.abs(z) > 400) return;
-      if (r.length !== 3 || !r.every((v) => Number.isFinite(v) && v >= 0.2 && v <= 1.3)) return;
+      if (r.length !== 3 || !r.every((v) => Number.isFinite(v) && v >= 0.2 && v <= SNOWMAN_MAX_R)) return;
       const key = clean(m.k, 40);
       if (!key) return;
       me.smAt = now;
@@ -134,6 +137,12 @@ wss.on('connection', (ws) => {
     broadcast({ t: 'leave', id });
   });
 });
+
+// 녹을 때가 된 눈사람 치우기
+setInterval(() => {
+  const now = Date.now();
+  for (let i = snowmen.length - 1; i >= 0; i--) if (now - snowmen[i].at >= SNOWMAN_LIFE) { broadcast({ t: 'smdel', id: snowmen[i].id }); snowmen.splice(i, 1); }
+}, Math.min(15000, SNOWMAN_LIFE / 4));
 
 // 끊긴 연결 정리
 setInterval(() => {

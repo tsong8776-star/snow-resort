@@ -2342,8 +2342,9 @@ function drawMinimap() {
 
 /* ================= chat ================= */
 /* ================= notices ================= */
-const NOTICE_VER = '2026-11-01-f';
+const NOTICE_VER = '2026-11-01-g';
 const NOTICES = [
+  { date: '11월 1일', title: '⛄ 눈사람이 더 크고 귀여워졌어요', items: ['눈덩이를 더 크게 굴릴 수 있어요. 끝까지 키우면 키 8m 가까운 왕 눈사람!', '반짝이는 눈, 발그레한 볼, 벙어리장갑, 털모자·귀마개·리본을 달고 살랑살랑 흔들려요.', '눈사람은 만든 지 20분이 지나면 스르르 녹아서 사라져요. 말을 걸면 남은 시간을 알려 줘요.', '🏔 왕 눈사람 도장은 이제 키 6m가 기준이에요.'] },
   { date: '11월 1일', title: '🌤 날씨가 바뀌어요 · 🎆 불꽃놀이', items: ['4분마다 날씨가 바뀌어요: ☀ 맑음 · 🌨 눈 · 🌬 눈보라 · 🌇 노을. 모두 같은 날씨를 봐요.', '눈보라 때는 앞이 잘 안 보이고 눈이 옆으로 날려요. 레이스가 더 어려워져요!', '6분마다 약 40초 동안 산 쪽 하늘에서 불꽃놀이가 터져요. 모두 같은 순간에 같은 불꽃을 봐요. 🌙 밤 모드로 보면 더 예뻐요.', '다음 불꽃놀이까지 남은 시간은 ⋯ 더 보기에서 볼 수 있어요. 새 도장: 🌬 눈보라 질주 · 🎆 불꽃 구경'] },
   { date: '11월 1일', title: '🎖 칭호 달기', items: ['🏅 도장판에서 받은 도장의 [🎖 칭호로 달기]를 누르면 이름표 위에 금색 칭호가 붙어요. 예: 🕊 K점 돌파', '친구들 화면에도 보이고, 👥 참가자 목록에도 나와요.', '다른 도장으로 바꾸거나 [떼기]로 뗄 수 있어요. 다음에 들어와도 그대로예요.'] },
   { date: '11월 1일', title: '🏅 도장 깨기 · ⛄ 눈사람 만들기', items: ['오른쪽 위 🏅 버튼(또는 K)을 누르면 도장판이 열려요. 코스 완주, 빙어, 온천, 눈싸움… 37개 도장을 모아 보세요!', '눈밭에서 B(휴대폰은 ⛄ 눈사람 버튼)를 누르면 눈덩이를 굴려요. 앞으로 걸을수록 커져요.', '몸통 → 가슴 → 머리 순서로 B를 눌러 쌓으면 눈사람 완성! 다 같이 볼 수 있게 스키장에 남아요.', '슬로프·리프트 길·카페·온천에는 만들 수 없어요. 내 눈사람은 한 사람당 3개까지, E로 말 걸면 치울 수 있어요.'] },
@@ -2408,7 +2409,7 @@ const STAMPS = [
   { id: 'wave', ic: '👋', name: '안녕~', desc: '친구에게 인사하기 (G)' },
   { id: 'visit', ic: '📍', name: '같이 가기', desc: '👥 탭에서 친구 옆으로 이동' },
   { id: 'sm', ic: '⛄', name: '눈사람 만들기', desc: '눈덩이를 굴려 눈사람 완성 (B)' },
-  { id: 'smbig', ic: '🏔', name: '왕 눈사람', desc: '키 3.5m 넘는 눈사람 만들기' },
+  { id: 'smbig', ic: '🏔', name: '왕 눈사람', desc: '키 6m 넘는 눈사람 만들기' },
   { id: 'sm3', ic: '☃', name: '눈사람 가족', desc: '눈사람 3개 만들기', stat: 'sm', goal: 3 },
   { id: 'master', ic: '🏅', name: '도장 마스터', desc: '도장 30개 모으기' },
 ];
@@ -2504,50 +2505,67 @@ const SM = { built: new Map(), mine: new Set(), seq: 0, key: store('ski.key') ||
 if (!/^[a-z0-9]{16,40}$/.test(SM.key)) { SM.key = ''; for (let i = 0; i < 24; i++) SM.key += Math.floor(Math.random() * 36).toString(36); store('ski.key', SM.key); }
 try { for (const id of JSON.parse(store('ski.mysm') || '[]')) if (typeof id === 'string') SM.mine.add(id); } catch (e) {}
 const smBallGeo = new THREE.SphereGeometry(1, 22, 16), smRollGeo = new THREE.IcosahedronGeometry(1, 1), smSnowM = lam(0xfdfeff);
-const SM_START = 0.25, SM_GROW = 0.065;
+const SM_START = 0.25, SM_GROW = 0.09, SM_MAXR = 2.2, SM_LIFE = 20 * 60 * 1000, SM_MELT = 60000; // snowmen melt away 20 minutes after they are built
 // centers of the three balls, stacked a little into each other like real packed snow
 function smLayout(r) {
   const y0 = r[0] * 0.85, y1 = y0 + r[0] * 0.78 + r[1] * 0.78, y2 = y1 + r[1] * 0.8 + r[2] * 0.8;
   return [y0, y1, y2, y2 + r[2]];
 }
 function smHeight(r) { return smLayout(r)[3]; }
-function smCap(parts) { return parts.length === 0 ? 1.15 : parts.length === 1 ? Math.min(0.95, parts[0] * 0.9) : Math.min(0.75, parts[1] * 0.9); }
+function smCap(parts) { return parts.length === 0 ? 2.0 : parts.length === 1 ? Math.min(1.6, parts[0] * 0.9) : Math.min(1.25, parts[1] * 0.92); }
 function makeSnowmanModel(r, deco, color) {
-  const g = new THREE.Group(), y = smLayout(r), blk = lam(0x1d1d26), col = lam(cleanColor(color));
-  for (let i = 0; i < 3; i++) { const m = new THREE.Mesh(smBallGeo, smSnowM); m.scale.set(r[i], r[i] * 0.94, r[i]); m.position.y = y[i]; m.castShadow = true; m.receiveShadow = true; g.add(m); }
-  const r1 = r[1], r2 = r[2], hy = y[2];
-  // face (front is -z, like the animals)
-  for (const sx of [-1, 1]) sph(r2 * 0.11, blk, sx * r2 * 0.36, hy + r2 * 0.22, -r2 * 0.88, 1, 1, 0.6, g);
-  cone(r2 * 0.13, r2 * 0.75, lam(0xff8a2a), 0, hy, -r2 * 1.25, -Math.PI / 2, g);
-  for (let k = 0; k < 5; k++) { const a = (k / 4 - 0.5) * 1.3; sph(r2 * 0.055, blk, Math.sin(a) * r2 * 0.42, hy - r2 * 0.3 - Math.cos(a) * r2 * 0.08, -r2 * 0.86, 1, 1, 0.6, g); }
-  // coal buttons on the chest
-  for (const dy of [0.45, 0, -0.45]) { const yy = dy * r1; sph(r1 * 0.09, blk, 0, y[1] + yy, -Math.sqrt(Math.max(0, r1 * r1 - yy * yy)) * 0.97, 1, 1, 0.6, g); }
-  // twig arms
-  const twig = lam(0x6b4a2b);
+  // cute look: big shiny eyes, rosy cheeks, a little smile, mittens and a hat; "body" wobbles gently
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body); g.userData.body = body;
+  const y = smLayout(r), blk = lam(0x2a2433), col = lam(cleanColor(color)), white = lam(0xffffff), pink = lam(0xff9fb6), twig = lam(0x6b4a2b);
+  for (let i = 0; i < 3; i++) { const m = new THREE.Mesh(smBallGeo, smSnowM); m.scale.set(r[i], r[i] * 0.94, r[i]); m.position.y = y[i]; m.castShadow = true; m.receiveShadow = true; body.add(m); }
+  const r0 = r[0], r1 = r[1], r2 = r[2], hy = y[2];
+  // little round feet peeking out in front
+  for (const sx of [-1, 1]) sph(r0 * 0.3, smSnowM, sx * r0 * 0.42, r0 * 0.1, -r0 * 0.72, 1, 0.55, 1.25, body);
+  // face
   for (const sx of [-1, 1]) {
-    const L = r1 * 1.5, arm = mesh(new THREE.CylinderGeometry(0.035, 0.05, L, 5), twig, sx * (r1 * 0.9 + L * 0.38), y[1] + r1 * 0.25, 0, g); arm.rotation.z = -sx * 1.0;
-    const f = mesh(new THREE.CylinderGeometry(0.02, 0.025, L * 0.3, 4), twig, sx * (r1 * 0.9 + L * 0.7), y[1] + r1 * 0.25 + L * 0.42, 0, g); f.rotation.z = -sx * 0.3;
+    sph(r2 * 0.17, blk, sx * r2 * 0.34, hy + r2 * 0.12, -r2 * 0.86, 1, 1.18, 0.5, body);
+    sph(r2 * 0.06, white, sx * r2 * 0.34 + r2 * 0.055, hy + r2 * 0.21, -r2 * 0.95, 1, 1, 0.6, body);
+    sph(r2 * 0.028, white, sx * r2 * 0.34 - r2 * 0.05, hy + r2 * 0.04, -r2 * 0.95, 1, 1, 0.6, body);
+    sph(r2 * 0.16, pink, sx * r2 * 0.6, hy - r2 * 0.13, -r2 * 0.72, 1, 0.62, 0.35, body);
   }
-  // scarf in the builder's color
+  const smile = new THREE.Mesh(new THREE.TorusGeometry(r2 * 0.15, r2 * 0.035, 6, 14, Math.PI), blk);
+  smile.position.set(0, hy - r2 * 0.2, -r2 * 0.95); smile.rotation.z = Math.PI; body.add(smile);
+  cone(r2 * 0.1, r2 * 0.34, lam(0xff8a2a), 0, hy - r2 * 0.02, -r2 * 1.1, -Math.PI / 2, body);
+  // colored buttons on the tummy
+  for (const dy of [0.42, 0, -0.42]) { const yy = dy * r1; sph(r1 * 0.1, col, 0, y[1] + yy, -Math.sqrt(Math.max(0, r1 * r1 - yy * yy)) * 0.97, 1, 1, 0.55, body); }
+  // twig arms waving up a little, with mittens
+  for (const sx of [-1, 1]) {
+    const L = r1 * 1.25, ax = sx * (r1 * 0.88 + L * 0.36), ay = y[1] + r1 * 0.2 + L * 0.2;
+    const arm = mesh(new THREE.CylinderGeometry(r1 * 0.035, r1 * 0.05, L, 5), twig, ax, ay, 0, body); arm.rotation.z = -sx * 0.95;
+    sph(r1 * 0.17, col, sx * (r1 * 0.88 + L * 0.75), ay + L * 0.36, 0, 1, 1.1, 0.8, body);
+  }
+  // scarf with a striped tail
   const neck = y[1] + r1 * 0.78, sr = Math.min(r1, r2) * 0.92;
-  const scarf = new THREE.Mesh(new THREE.TorusGeometry(sr, r2 * 0.17, 8, 22), col); scarf.rotation.x = Math.PI / 2; scarf.position.y = neck; scarf.castShadow = true; g.add(scarf);
-  const tail = mesh(new THREE.BoxGeometry(r2 * 0.4, r2 * 0.9, r2 * 0.14), col, sr * 0.55, neck - r2 * 0.45, -sr * 0.82, g); tail.rotation.z = 0.15;
+  const scarf = new THREE.Mesh(new THREE.TorusGeometry(sr, r2 * 0.18, 8, 22), col); scarf.rotation.x = Math.PI / 2; scarf.position.y = neck; scarf.castShadow = true; body.add(scarf);
+  const tail = mesh(new THREE.BoxGeometry(r2 * 0.38, r2 * 0.95, r2 * 0.13), col, sr * 0.55, neck - r2 * 0.48, -sr * 0.84, body); tail.rotation.z = 0.15;
+  for (let k = 0; k < 2; k++) { const st = mesh(new THREE.BoxGeometry(r2 * 0.39, r2 * 0.08, r2 * 0.14), white, sr * 0.55 + Math.sin(0.15) * (k - 0.5) * r2 * 0.3, neck - r2 * (0.62 + k * 0.28), -sr * 0.84, body, false); st.rotation.z = 0.15; }
   // hat
-  const top = hy + r2 * 0.82;
+  const top = hy + r2 * 0.8;
   if (deco === 0) {
-    mesh(new THREE.CylinderGeometry(r2 * 0.95, r2 * 0.95, r2 * 0.08, 18), blk, 0, top, 0, g);
-    mesh(new THREE.CylinderGeometry(r2 * 0.58, r2 * 0.58, r2 * 0.85, 18), blk, 0, top + r2 * 0.45, 0, g);
-    mesh(new THREE.CylinderGeometry(r2 * 0.6, r2 * 0.6, r2 * 0.16, 18), col, 0, top + r2 * 0.14, 0, g);
+    // knit beanie with a pompom
+    const cap = mesh(new THREE.SphereGeometry(r2 * 0.86, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), col, 0, hy + r2 * 0.22, 0, body); cap.scale.y = 1.05;
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(r2 * 0.84, r2 * 0.12, 8, 22), white); rim.rotation.x = Math.PI / 2; rim.position.y = hy + r2 * 0.28; body.add(rim);
+    sph(r2 * 0.26, white, 0, hy + r2 * 1.16, 0, 1, 1, 1, body);
   } else if (deco === 1) {
-    const b = mesh(new THREE.CylinderGeometry(r2 * 0.55, r2 * 0.72, r2 * 0.7, 16), col, 0, top + r2 * 0.25, 0, g); b.rotation.z = 0.22;
+    // fluffy earmuffs
+    const band = new THREE.Mesh(new THREE.TorusGeometry(r2 * 0.98, r2 * 0.07, 6, 18, Math.PI), col); band.position.y = hy + r2 * 0.05; body.add(band);
+    for (const sx of [-1, 1]) sph(r2 * 0.28, col, sx * r2 * 0.98, hy + r2 * 0.05, 0, 0.6, 1, 1, body);
   } else if (deco === 2) {
-    const cap = mesh(new THREE.SphereGeometry(r2 * 0.78, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), col, 0, top - r2 * 0.18, 0, g); void cap;
-    sph(r2 * 0.24, lam(0xffffff), 0, top + r2 * 0.66, 0, 1, 1, 1, g);
+    // little tilted top hat with a ribbon
+    const hg = new THREE.Group(); hg.position.set(r2 * 0.12, top - r2 * 0.05, 0); hg.rotation.z = -0.22; body.add(hg);
+    mesh(new THREE.CylinderGeometry(r2 * 0.72, r2 * 0.72, r2 * 0.07, 18), blk, 0, 0, 0, hg);
+    mesh(new THREE.CylinderGeometry(r2 * 0.46, r2 * 0.5, r2 * 0.7, 18), blk, 0, r2 * 0.38, 0, hg);
+    mesh(new THREE.CylinderGeometry(r2 * 0.51, r2 * 0.51, r2 * 0.14, 18), col, 0, r2 * 0.12, 0, hg);
   } else {
-    const hg = new THREE.Group(); hg.position.set(0, top - r2 * 0.12, 0); hg.rotation.z = -0.3; g.add(hg);
-    cone(r2 * 0.72, r2 * 1.4, col, 0, r2 * 0.68, 0, 0, hg);
-    const fur = new THREE.Mesh(new THREE.TorusGeometry(r2 * 0.72, r2 * 0.15, 8, 20), lam(0xffffff)); fur.rotation.x = Math.PI / 2; hg.add(fur);
-    sph(r2 * 0.22, lam(0xffffff), 0, r2 * 1.42, 0, 1, 1, 1, hg);
+    // big ribbon bow on the side of the head
+    const bg = new THREE.Group(); bg.position.set(r2 * 0.45, top - r2 * 0.05, -r2 * 0.1); bg.rotation.z = -0.5; body.add(bg);
+    for (const sx of [-1, 1]) { const lobe = cone(r2 * 0.26, r2 * 0.5, col, sx * r2 * 0.26, 0, 0, 0, bg); lobe.rotation.z = sx * Math.PI / 2; lobe.scale.set(1, 1, 0.55); }
+    sph(r2 * 0.12, col, 0, 0, 0, 1, 1, 0.8, bg);
   }
   return g;
 }
@@ -2555,7 +2573,7 @@ function validSnowman(s) {
   if (!s || typeof s !== 'object' || typeof s.id !== 'string' || s.id.length > 40) return null;
   const x = +s.x, z = +s.z, h = +s.h, r = Array.isArray(s.r) ? s.r.slice(0, 3).map(Number) : [];
   if (![x, z, h].every(isFinite) || Math.abs(x) > 400 || Math.abs(z) > 400) return null;
-  if (r.length !== 3 || !r.every((v) => isFinite(v) && v >= 0.2 && v <= 1.3)) return null;
+  if (r.length !== 3 || !r.every((v) => isFinite(v) && v >= 0.2 && v <= SM_MAXR)) return null;
   return { id: s.id, x, z, h, r, n: cleanName(s.n) || '스키어', c: cleanColor(s.c), d: clamp(s.d | 0, 0, 3), at: +s.at || Date.now() };
 }
 function addSnowman(raw, mine, announce) {
@@ -2564,13 +2582,26 @@ function addSnowman(raw, mine, announce) {
   if (mine) { SM.mine.add(s.id); saveMine(); }
   const root = new THREE.Group();
   root.position.set(s.x, H(s.x, s.z) - s.r[0] * 0.12, s.z); root.rotation.y = s.h;
-  root.add(makeSnowmanModel(s.r, s.d, s.c));
-  const tag = makeTag('⛄ ' + s.n, s.c); tag.scale.multiplyScalar(0.72); tag.position.y = smHeight(s.r) + 1.0; root.add(tag);
+  const model = makeSnowmanModel(s.r, s.d, s.c); root.add(model); s.body = model.userData.body; s.ph = Math.random() * 6.28; s.y0 = root.position.y;
+  const tag = makeTag('⛄ ' + s.n, s.c); tag.scale.multiplyScalar(0.72); tag.position.y = smHeight(s.r) + 1.0; root.add(tag); s.tag = tag;
   scene.add(root);
   s.root = root; s.ob = [s.x, s.z, s.r[0] * 0.92, 'snowman'];
   const k = Math.floor(s.x / 8) + ',' + Math.floor(s.z / 8); if (!obstacles.has(k)) obstacles.set(k, []); obstacles.get(k).push(s.ob); s.obKey = k;
   SM.built.set(s.id, s);
   if (announce && !SM.mine.has(s.id)) { notice('⛄ ' + s.n + '님이 눈사람을 만들었어요!'); addChatLine('', '', '⛄ ' + s.n + '님이 눈사람을 만들었어요!', true); }
+}
+// gentle wobble; in the last minute the snowman melts down and then disappears
+function updateSnowmen() {
+  const t = performance.now() / 1000, now = netNow();
+  for (const [id, s] of SM.built) {
+    const left = s.at + SM_LIFE - now;
+    if (left <= 0) { removeSnowman(id); continue; }
+    const m = clamp(left / SM_MELT, 0, 1);
+    s.body.rotation.z = Math.sin(t * 1.3 + s.ph) * 0.025 * m;
+    const k = 0.35 + 0.65 * m;
+    s.body.scale.set(k * (1 + (1 - m) * 0.25), k * (1 + Math.sin(t * 2.4 + s.ph) * 0.012), k * (1 + (1 - m) * 0.25));
+    if (m < 1) { s.tag.position.y = smHeight(s.r) * k + 1.0; if (!s.meltNoted && SM.mine.has(id)) { s.meltNoted = true; notice('💧 내 눈사람이 녹기 시작했어요'); } }
+  }
 }
 function removeSnowman(id) {
   const s = SM.built.get(id); if (!s) return;
@@ -2625,7 +2656,7 @@ function stepBuild(dt) {
   const f = clamp(((keys.KeyW || keys.ArrowUp) ? 1 : 0) - ((keys.KeyS || keys.ArrowDown) ? 0.6 : 0) - stick.y, -0.6, 1);
   me.steer = 0; me.brake = false;
   me.heading -= steer * 2.2 * dt;
-  const fx = -Math.sin(me.heading), fz = -Math.cos(me.heading), spd = 2.8 - b.ball * 0.8, k = Math.min(1, dt * 6);
+  const fx = -Math.sin(me.heading), fz = -Math.cos(me.heading), spd = Math.max(1.6, 2.8 - b.ball * 0.55), k = Math.min(1, dt * 6);
   me.vx += (fx * f * spd - me.vx) * k; me.vz += (fz * f * spd - me.vz) * k;
   const ox = me.x, oz = me.z;
   me.x = clamp(me.x + me.vx * dt, BOUNDS.minX, BOUNDS.maxX); me.z = clamp(me.z + me.vz * dt, BOUNDS.minZ, BOUNDS.maxZ);
@@ -2673,10 +2704,10 @@ function finishSnowman() {
   if (smOnline() && net.room.snowman) net.room.snowman(Object.assign({ k: SM.key }, data));
   else addSnowman(Object.assign({ id: 'L' + (++SM.seq) }, data), true, false);
   sfx.finish(); emitSpray(data.x, H(data.x, data.z) + 1.5, data.z, 0, 0, 40);
-  centerMsg('⛄ 눈사람 완성!', '키 ' + height.toFixed(1) + 'm' + (height >= 3.5 ? ' · 왕 눈사람!' : ''));
+  centerMsg('⛄ 눈사람 완성!', '키 ' + height.toFixed(1) + 'm' + (height >= 6 ? ' · 왕 눈사람!' : ''));
   if (myAv) setBubble(myAv, '눈사람 완성! ⛄', 3000);
   addChatLine('', '', '⛄ 키 ' + height.toFixed(1) + 'm 눈사람을 만들었어요!' + (smOnline() ? ' 모두에게 보여요' : ''), true);
-  stamp('sm'); if (height >= 3.5) stamp('smbig'); bumpStat('sm', 1);
+  stamp('sm'); if (height >= 6) stamp('smbig'); bumpStat('sm', 1);
 }
 function nearSnowman() {
   if (me.state !== 'ski' || me.build) return null;
@@ -2684,17 +2715,18 @@ function nearSnowman() {
   for (const [, s] of SM.built) { const d = Math.hypot(me.x - s.x, me.z - s.z) - s.r[0]; if (d < 1.8 && d < bd) { bd = d; best = s; } }
   return best;
 }
+function meltText(s) { const min = Math.ceil((s.at + SM_LIFE - netNow()) / 60000); return min <= 1 ? '곧 녹아요 💧' : '약 ' + min + '분 뒤에 녹아요'; }
 function talkSnowman(s) {
   const who = { id: 'sm', name: s.n + '님의 눈사람', face: '⛄', x: s.x, z: s.z }, mine = SM.mine.has(s.id), ht = smHeight(s.r).toFixed(1);
   if (mine) {
-    say(who, '내가 만든 키 ' + ht + 'm 눈사람이에요. 한 사람당 3개까지 세워 둘 수 있어요(4번째를 만들면 제일 오래된 눈사람이 녹아요).', [
+    say(who, '내가 만든 키 ' + ht + 'm 눈사람이에요. ' + meltText(s) + ' 한 사람당 3개까지 세워 둘 수 있어요(4번째를 만들면 제일 오래된 눈사람이 녹아요).', [
       { label: '🧹 치우기', fn: () => { if (smOnline() && !s.id.startsWith('L')) net.room.smdel(s.id, SM.key); else removeSnowman(s.id); closeDialog(); notice('🧹 눈사람을 치웠어요'); } },
       { label: '그대로 두기', fn: closeDialog },
     ]);
     return;
   }
   const lines = ['차가워도 마음은 따뜻해요 ☃', '오늘 눈이 참 보송보송하죠?', '저 당근 코, 멋지지 않아요?', s.n + '님이 열심히 굴려서 만들었대요!', '녹지 않게 햇빛을 가려 주세요~'];
-  say(who, '키 ' + ht + 'm · ' + lines[Math.floor(Math.random() * lines.length)], [], 3500);
+  say(who, '키 ' + ht + 'm · ' + lines[Math.floor(Math.random() * lines.length)] + ' (' + meltText(s) + ')', [], 4000);
   if (myAv) setBubble(myAv, '귀엽다~ ⛄', 2500);
 }
 // the snowman in progress (placed balls + the ball being rolled); used for me and for friends
@@ -2719,7 +2751,7 @@ function wipOf(b) { return b ? { x: b.x, z: b.z, p: b.parts, b: b.ball } : null;
 function validBd(v) {
   if (!v || typeof v !== 'object' || !Array.isArray(v.p) || v.p.length > 2) return null;
   const b = +v.b, x = +v.x, z = +v.z, p = v.p.map(Number);
-  if (!isFinite(b) || b < 0.2 || b > 1.3 || !isFinite(x) || !isFinite(z) || Math.abs(x) > 400 || Math.abs(z) > 400 || !p.every((q) => isFinite(q) && q >= 0.2 && q <= 1.3)) return null;
+  if (!isFinite(b) || b < 0.2 || b > SM_MAXR || !isFinite(x) || !isFinite(z) || Math.abs(x) > 400 || Math.abs(z) > 400 || !p.every((q) => isFinite(q) && q >= 0.2 && q <= SM_MAXR)) return null;
   return { x, z, p, b };
 }
 
@@ -4184,7 +4216,7 @@ function updateCamera(dt) {
   const yaw = me.heading + cam.yawOff;
   const indoor = !!me.indoor;
   // rolling a snowball: lift the camera so the ball in front shows over the head
-  const d = me.state === 'lift' ? 6.5 : indoor ? 5.2 : cam.dist + (me.build ? 1 : 0), up = me.state === 'lift' ? 2.6 : indoor ? 3.9 : 2.9 + cam.dist * 0.12 + (me.build ? 1.2 : 0);
+  const d = me.state === 'lift' ? 6.5 : indoor ? 5.2 : cam.dist + (me.build ? 1 + me.build.ball * 1.6 : 0), up = me.state === 'lift' ? 2.6 : indoor ? 3.9 : 2.9 + cam.dist * 0.12 + (me.build ? 1.2 + me.build.ball * 0.9 : 0);
   camPos.set(me.x + Math.sin(yaw) * d, me.y + up, me.z + Math.cos(yaw) * d);
   if (indoor) { camPos.x = clamp(camPos.x, CAFE.x0 + 0.5, CAFE.x1 - 0.5); camPos.z = clamp(camPos.z, CAFE.z0 + 0.5, CAFE.z1 - 0.5); camPos.y = Math.min(camPos.y, CAFE.h - 0.6); }
   if (myAv && myAv.tag) myAv.tag.visible = !indoor;
@@ -4309,6 +4341,7 @@ function frame(now) {
   updateBalls(dt);
   updateWeather();
   updateFireworks(dt);
+  updateSnowmen();
   updateWarmPlaces(dt, now);
   if (night.stars) { night.stars.position.copy(camera.position); night.moon.position.set(camera.position.x - 180, camera.position.y + 240, camera.position.z - 380); }
   updateFx(dt);
