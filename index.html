@@ -1375,7 +1375,11 @@ function makeAnimal(sp, color) {
   const marsh = sph(0.07, new THREE.MeshLambertMaterial({ color: 0xfff3dc }), 0, -0.26, -1.08, 1, 1.2, 1, stickG);
   mesh(new THREE.BoxGeometry(0.4, 0.16, 0.06), lam(0xffffff), 0, 0.8, 0.56, rider);
   scene.add(root);
-  return { root, tilt, rider, headG, heatMat, puffs, armL, armR, skis, poles, board, rod, fishM, mug, cupMat, drinkMat, stickG, marsh, snowLv, snowman, sp, color, tag: null, bubble: null, bubbleY: 3.55, waveT: 0, ph: Math.random() * 4 };
+  // boost: wind streaks flying off behind the skier
+  const boostFx = new THREE.Group(); boostFx.visible = false; tilt.add(boostFx);
+  const windM = new THREE.MeshBasicMaterial({ color: 0x7fd0ff, transparent: true, opacity: 0.85, depthWrite: false });
+  for (let k = 0; k < 6; k++) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 1.3), windM); st.position.set((k % 3 - 1) * 0.42, 0.35 + Math.floor(k / 3) * 0.75 + (k % 2) * 0.2, 1.2); boostFx.add(st); }
+  return { root, tilt, rider, headG, heatMat, puffs, armL, armR, skis, poles, board, boostFx, rod, fishM, mug, cupMat, drinkMat, stickG, marsh, snowLv, snowman, sp, color, tag: null, bubble: null, bubbleY: 3.55, waveT: 0, ph: Math.random() * 4 };
 }
 function setGear(av, g) { av.skis.visible = av.poles.visible = g === 0; av.board.visible = g === 1; av.gear = g; }
 function disposeGroup(o) {
@@ -1471,6 +1475,20 @@ function makeNpc(kind) {
   }
   scene.add(root);
   return { root, bubble: null, bubbleY: 3.1 };
+}
+function buildJumpBoard() {
+  const bx = -80, bz = 90, by = H(bx, bz);
+  const bc = document.createElement('canvas'); bc.width = 512; bc.height = 640;
+  jumpBoard.ctx = bc.getContext('2d'); jumpBoard.tex = new THREE.CanvasTexture(bc); jumpBoard.tex.encoding = THREE.sRGBEncoding;
+  const bm = new THREE.MeshBasicMaterial({ map: jumpBoard.tex });
+  const board = new THREE.Group(); board.position.set(bx, by + 3.0, bz); board.rotation.y = -0.35; scene.add(board);
+  const bf = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 4), bm); bf.position.z = 0.01; board.add(bf);
+  const bb = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 4), bm); bb.rotation.y = Math.PI; bb.position.z = -0.13; board.add(bb);
+  mesh(new THREE.BoxGeometry(3.5, 4.3, 0.1), lam(0xe5484d), 0, 0, -0.06, board);
+  mesh(new THREE.BoxGeometry(3.7, 0.18, 0.5), lam(0xf7fbff), 0, 2.2, -0.06, board);
+  for (const sx of [-1.4, 1.4]) mesh(new THREE.CylinderGeometry(0.1, 0.1, 3.2, 6), lam(0x6b7486), sx, -2.4, -0.06, board);
+  addObstacle(bx, bz, 1.6, 'board');
+  drawJumpBoard(jumpRanking());
 }
 function buildNpcs() {
   npcs.coco = Object.assign(makeNpc('coco'), { id: 'coco', name: '코코', face: '🦭', x: -7, z: LIFT.zBot - 2, tagName: '코코', role: '리프트 안내원', tagColor: '#ffc53d' });
@@ -1753,7 +1771,8 @@ function poseAvatar(av, o) {
   if (!isFinite(av.rider.scale.y)) av.rider.scale.y = 1;
   const jp = isSnowman ? '' : o.jp || '';
   av.tilt.rotation.x += ((jp ? o.ja || 0 : 0) - av.tilt.rotation.x) * (jp ? 0.3 : 0.15);
-  av.rider.rotation.x += ((jp === 'c' ? -0.62 : jp === 'f' ? -1.1 : jp === 'g' ? -0.3 : jp === 'l' ? -0.22 : 0) - av.rider.rotation.x) * 0.2;
+  const bp = !jp && !!o.boost && !o.walk && !isSnowman && o.state === 'ski';
+  av.rider.rotation.x += ((bp ? (av.gear === 1 ? -0.2 : -0.5) : jp === 'c' ? -0.62 : jp === 'f' ? -1.1 : jp === 'g' ? -0.3 : jp === 'l' ? -0.22 : 0) - av.rider.rotation.x) * 0.2;
   if (jp) { av.poles.visible = av.board.visible = false; av.skis.visible = true; av.rider.rotation.y = 0; }
   // V-style skis in flight: tips spread apart
   av.vk = (av.vk || 0) + ((jp === 'f' ? 1 : 0) - (av.vk || 0)) * 0.15;
@@ -1766,16 +1785,25 @@ function poseAvatar(av, o) {
   const ry = o.state === 'lift' ? -0.08 : o.state === 'sit' ? -0.38 : 0;
   av.rider.position.y += (ry - av.rider.position.y) * 0.2;
   const up = o.air ? 1.3 : o.state === 'sit' ? 0.9 : 0.45, upR = o.item ? 0.25 : up;
-  if (!jp) av.armL.rotation.z += (-up - av.armL.rotation.z) * 0.2;
+  if (!jp && !bp) av.armL.rotation.z += (-up - av.armL.rotation.z) * 0.2;
   if (av.throwT > 0) { av.throwT -= 1 / 60; av.armR.rotation.z = 0.45 + 2.5 * Math.max(0, av.throwT / 0.35); }
   else if (av.waveT > 0) { av.waveT -= 1 / 60; av.armR.rotation.z = 2.5 + Math.sin(performance.now() / 90) * 0.45; }
-  else if (!jp) av.armR.rotation.z += (upR - av.armR.rotation.z) * 0.2;
+  else if (!jp && !bp) av.armR.rotation.z += (upR - av.armR.rotation.z) * 0.2;
   // sip every few seconds; take bites of a toasted marshmallow
   const tnow = performance.now() / 1000;
   let ax = o.item ? 0.9 : 0, hx = 0;
   if (o.item === 1 || o.item === 3) { const ph = (tnow + av.ph) % 4; if (ph < 1.4) { const k = Math.sin(ph / 1.4 * Math.PI); ax = 0.9 + 1.6 * k; av.armR.rotation.z = 0.25 - 0.75 * k; hx = -0.22 * k; } }
   if (o.item === 4) { const k = 0.6 + 0.4 * Math.sin(tnow * 3); ax = 2.0 + 0.4 * k; av.armR.rotation.z = -0.35; hx = Math.sin(tnow * 14) * 0.06 - 0.1; }
-  if (jp) {
+  // boost: streaks stream backwards, poles tucked under the arms
+  av.boostFx.visible = bp;
+  if (bp) av.boostFx.children.forEach((st, k) => { const ph = (performance.now() / 260 + k * 0.37) % 1; st.position.z = 0.9 + ph * 1.6; st.scale.z = 0.6 + ph; });
+  av.poles.rotation.x += ((bp ? 1.1 : 0) - av.poles.rotation.x) * 0.2;
+  if (bp && !(o.item && o.item !== 0)) {
+    ax = av.gear === 1 ? -0.4 : -1.05; hx = 0.4;
+    const az = av.gear === 1 ? 0.9 : 0.28;
+    av.armL.rotation.z += (-az - av.armL.rotation.z) * 0.25; av.armR.rotation.z += (az - av.armR.rotation.z) * 0.25;
+    av.armL.rotation.x += (ax - av.armL.rotation.x) * 0.25;
+  } else if (jp) {
     // in-run tuck: arms back along the body; flight: arms close at the sides, face up; landing: arms out for balance
     ax = jp === 'c' ? -1.0 : jp === 'f' ? -0.45 : jp === 'g' ? 0.35 : 0; hx = jp === 'c' ? 0.5 : jp === 'f' ? 0.8 : jp === 'g' ? 0.15 : 0;
     const az = jp === 'c' ? 0.22 : jp === 'f' ? 0.2 : jp === 'l' ? 1.15 : 0.45;
@@ -2131,10 +2159,40 @@ function fishRanking() {
   add(me.name, me.fishBest || 0, true);
   return [...best.values()].sort((x, y) => y.size - x.size).slice(0, 10);
 }
-function renderJumpRank() {
-  const best = new Map(); const add = (n, d, isMe) => { if (!n || !(d > 0)) return; const c = best.get(n); if (!c || d > c.d) best.set(n, { n, d, me: isMe || (c && c.me) }); };
+const jumpBoard = { server: [], sig: '', tex: null, ctx: null, last: '' };
+function jumpRanking() {
+  const best = new Map(); const add = (n, d, isMe) => { if (!n || !(d > 0)) return; const c = best.get(n); if (!c || d > c.d) best.set(n, { n, d, me: isMe || (c && c.me) }); else if (isMe) c.me = true; };
+  for (const e of jumpBoard.server) add(cleanName(e.n), clamp(+e.d || 0, 0, 200), false);
   for (const [, a] of avatars) add(a.name, a.jd || 0, false); add(me.name, me.jumpBest || 0, true);
-  const list = [...best.values()].sort((x, y) => y.d - x.d).slice(0, 10), ol = $('#jumpRank'); ol.textContent = '';
+  return [...best.values()].sort((x, y) => y.d - x.d).slice(0, 10);
+}
+function drawJumpBoard(list) {
+  if (!jumpBoard.ctx) return;
+  const sig = JSON.stringify(list.map((e) => [e.n, e.d])) + jumpBoard.last;
+  if (sig === jumpBoard.sig) return; jumpBoard.sig = sig;
+  const g = jumpBoard.ctx, w = 512, h = 640;
+  g.fillStyle = '#1b2a4a'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#e5484d'; g.fillRect(0, 0, w, 96);
+  g.fillStyle = '#ffffff'; g.font = '52px Jua, sans-serif'; g.textAlign = 'center'; g.fillText('🎿 점프 기록판', w / 2, 66);
+  g.font = '34px Jua, sans-serif';
+  const medals = ['🥇', '🥈', '🥉'];
+  if (!list.length) { g.fillStyle = '#ffffff'; g.fillText('첫 기록에 도전하세요!', w / 2, 220); }
+  list.forEach((e, i) => {
+    const y = 146 + i * 44;
+    g.textAlign = 'left'; g.fillStyle = e.me ? '#7fe3ff' : i < 3 ? '#ffe2a8' : '#ffffff';
+    g.fillText((medals[i] || (i + 1) + '.') + ' ' + e.n.slice(0, 8), 36, y);
+    g.textAlign = 'right'; g.fillText(e.d.toFixed(1) + 'm', w - 36, y);
+  });
+  if (jumpBoard.last) {
+    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(16, h - 92, w - 32, 76);
+    g.fillStyle = '#ffc53d'; g.font = '26px Jua, sans-serif'; g.textAlign = 'center';
+    g.fillText('⚔️ 최근 대결', w / 2, h - 60); g.fillStyle = '#ffffff'; g.fillText(jumpBoard.last.slice(0, 24), w / 2, h - 28);
+  }
+  jumpBoard.tex.needsUpdate = true;
+}
+function renderJumpRank() {
+  const list = jumpRanking(), ol = $('#jumpRank'); ol.textContent = '';
+  drawJumpBoard(list);
   const medals = ['🥇', '🥈', '🥉'];
   list.forEach((e, i) => { const li = document.createElement('li'); const r = document.createElement('span'); r.textContent = medals[i] || (i + 1) + '위'; const t = document.createElement('span'); t.className = 't'; t.textContent = e.d.toFixed(1) + 'm'; const w = document.createElement('span'); w.className = 'who'; w.textContent = e.n + (e.me ? ' (나)' : ''); li.append(r, t, w); ol.appendChild(li); });
   if (!list.length) { const li = document.createElement('li'); li.style.display = 'block'; li.style.opacity = '0.85'; li.textContent = '아직 기록이 없어요. 점프 코치 수리에게 말을 걸어 보세요!'; ol.appendChild(li); }
@@ -2381,7 +2439,7 @@ function syncPeers(peers) {
     }
     a.tpos.fromArray(pr.p);
     a.th = typeof pr.h === 'number' && isFinite(pr.h) ? pr.h : a.th;
-    a.st = clamp(pr.s | 0, 0, 6); a.jp = pr.jp === 'c' || pr.jp === 'f' ? pr.jp : ''; a.jd = clamp(+pr.jd || 0, 0, 200); a.jb = validJB(pr.jb); a.jbs = pr.jbs && typeof pr.jbs === 'object' && typeof pr.jbs.id === 'string' ? { id: pr.jbs.id, sc: clamp(+pr.jbs.sc || 0, 0, 400), d: clamp(+pr.jbs.d || 0, 0, 200) } : null; a.ch = typeof pr.ch === 'number' ? clamp(pr.ch | 0, -1, LIFT.count - 1) : -1; a.se = clamp(pr.se | 0, 0, 3);
+    a.st = clamp(pr.s | 0, 0, 6); a.jp = typeof pr.jp === 'string' && /^[cfgl]$/.test(pr.jp) ? pr.jp : ''; a.ja = clamp(+pr.ja || 0, -120, 120); a.jd = clamp(+pr.jd || 0, 0, 200); a.jb = validJB(pr.jb); a.jbs = pr.jbs && typeof pr.jbs === 'object' && typeof pr.jbs.id === 'string' ? { id: pr.jbs.id, sc: clamp(+pr.jbs.sc || 0, 0, 400), d: clamp(+pr.jbs.d || 0, 0, 200) } : null; a.ch = typeof pr.ch === 'number' ? clamp(pr.ch | 0, -1, LIFT.count - 1) : -1; a.se = clamp(pr.se | 0, 0, 3);
     a.steer = clamp(+pr.st || 0, -1, 1); a.spd = clamp(+pr.v || 0, 0, 40); a.air = pr.s === 1;
     setGear(a.av, pr.g === 1 ? 1 : 0);
     a.co = typeof pr.co === 'string' && courseById[pr.co] ? pr.co : '';
@@ -2483,8 +2541,10 @@ function makeWsRoom() {
         return;
       }
       if (m.t === 'board') { if (Array.isArray(m.board)) { fishBoard.server = m.board.slice(0, 30); renderFishRank(); } return; }
+      if (m.t === 'jboard') { if (Array.isArray(m.board)) { jumpBoard.server = m.board.slice(0, 30); renderFishRank(); } return; }
       if (m.t === 'hello') {
         if (Array.isArray(m.board)) fishBoard.server = m.board.slice(0, 30);
+        if (Array.isArray(m.jboard)) jumpBoard.server = m.jboard.slice(0, 30);
         if (Array.isArray(m.history) && !chatHist.length) {
           for (const hmsg of m.history.slice(-50)) { const t = cleanText(hmsg.t, 60); if (t) chatHist.push({ name: cleanName(hmsg.n) || '스키어', color: cleanColor(hmsg.c), text: t, at: +hmsg.at || Date.now() }); }
           if (m.history.length) chatHist.push({ name: '', color: '', text: '— 여기까지 이전 대화예요 —', sys: true, at: Date.now() });
@@ -2500,7 +2560,7 @@ function makeWsRoom() {
     ws.onclose = () => { open = false; others.clear(); fire(); setNet('reconnecting'); setTimeout(dial, Math.min(10000, 1000 * Math.pow(2, retry++))); };
   }
   dial();
-  return { connected: () => open, fish: (n, sz) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'fish', n, s: sz })); }, presence: async (patch) => { mine = Object.assign({}, mine, patch); flush(); }, onPeers: (h) => { handlers.push(h); setTimeout(fire, 0); return () => {}; } };
+  return { connected: () => open, fish: (n, sz) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'fish', n, s: sz })); }, jump: (n, d) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'jump', n, d })); }, presence: async (patch) => { mine = Object.assign({}, mine, patch); flush(); }, onPeers: (h) => { handlers.push(h); setTimeout(fire, 0); return () => {}; } };
 }
 async function connect() {
   setNet('checking');
@@ -3032,7 +3092,7 @@ function updateRaceInvite() {
   if (!r) {
     const jb = !me.jb && me.state !== 'jump' ? openJBs()[0] : null;
     if (!jb) { btn.hidden = true; btn.dataset.id = ''; return; }
-    btn.textContent = '⚔️ ' + jb.h + '님의 점프 대결 참가하기 · ' + Math.max(0, Math.ceil((jb.c0 + JB_TIME - netNow()) / 1000)) + '초 남음';
+    btn.textContent = '⚔️ ' + jb.h + '님의 점프 대결 참가하기 · ' + (jb.t0 ? Math.max(0, Math.ceil((jb.t0 - netNow()) / 1000)) + '초 뒤 출발' : '대기 중');
     btn.dataset.id = 'jb:' + jb.id; btn.hidden = false; return;
   }
   const left = r.t0 ? Math.max(0, Math.ceil((r.t0 - netNow()) / 1000)) + '초 뒤 출발' : '대기 중';
@@ -3211,7 +3271,7 @@ function startJump() {
   closeDialog();
   const f = $('#fade'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
   me.state = 'jump'; me.indoor = false; me.bath = -1; me.stump = -1; me.item = 0;
-  me.jump = { phase: 'gate', s: 0, v: 0, x: JUMP.inrun[0].x, y: JUMP.inrun[0].y, vx: 0, vy: 0, up: 0, timing: '', teleAt: -9, t: 0 };
+  me.jump = { phase: 'gate', s: 0, v: 0, x: JUMP.inrun[0].x, y: JUMP.inrun[0].y, vx: 0, vy: 0, up: 0, timing: '', teleAt: -9, t: 0, hold: !!(me.jb && (!me.jb.t0 || netNow() < me.jb.t0)) };
   placeJumper(); cam.snap = true; cam.yawOff = 0;
   centerMsg('🎿 출발 게이트', (isTouch ? '[점프] 버튼' : 'Space') + '으로 출발!');
 }
@@ -3222,12 +3282,46 @@ function jumpPitch() {
   const a = inrunAt(Math.max(0, j.s - 0.6)), b = inrunAt(j.s + 0.6); return Math.atan2(b.y - a.y, (b.x - a.x) || 1);
 }
 function jumpPhase() { const j = me.jump; return me.state !== 'jump' || !j ? '' : j.phase === 'flight' ? 'f' : j.phase === 'landed' ? 'l' : j.phase === 'gate' ? 'g' : 'c'; }
-function placeJumper() { const j = me.jump, [wx, wy] = jumpWorld(j.x, j.y); me.x = wx; me.y = wy; me.z = JUMP.z; me.heading = -Math.PI / 2; me.vx = me.vz = 0; me.air = j.phase === 'flight'; }
+// lobby + countdown for a jump battle (like the race start)
+function jbWaiting() { return !!(me.jb && me.jump && me.jump.phase === 'gate' && me.jump.hold); }
+function startJBNow() {
+  if (!me.jb || me.jb.t0) return;
+  me.jb.t0 = netNow() + 3500;
+  addChatLine('', '', '⚔️ 점프 대결 출발 신호! 3초 뒤에 다 같이 출발해요', true);
+  sendPresence(performance.now(), true);
+}
+function stepJBGate(edge) {
+  const b = me.jb, now = netNow();
+  if (b.hid !== myId()) {
+    const host = avatars.get(b.hid);
+    if (host && host.jb && host.jb.id === b.id) { if (host.jb.t0 && host.jb.t0 !== b.t0) b.t0 = host.jb.t0; }
+    else if (!b.t0 && now - (b.lost || (b.lost = now)) > 4000) { b.hid = myId(); b.c0 = now; notice('⚔️ 방장이 나가서 내가 출발 신호를 맡았어요'); }
+  } else if (!b.t0 && (edge || now - b.c0 > JB_WAIT)) startJBNow();
+  if (!b.t0) {
+    const k = 'wait' + jbPlayers().length;
+    if (jbState.count !== k) { jbState.count = k; centerMsg('⚔️ ' + jbPlayers().length + '명 대기 중', b.hid === myId() ? '모두 모이면 ' + (isTouch ? '[점프]' : 'Space') + '로 출발 신호!' : b.h + '님이 출발 신호를 주면 다 같이 출발해요'); }
+    return false;
+  }
+  const left = b.t0 - now, n = Math.ceil(left / 1000);
+  if (n !== jbState.count && n > 0 && n <= 10) { jbState.count = n; centerMsg(String(n), '⚔️ 점프 대결 · ' + jbPlayers().length + '명 참가'); if (n <= 3) sfx.beep(false); }
+  return left <= 0;
+}
+// side-by-side lanes at the gate so waiting jumpers don't stand inside each other
+function jbLane() {
+  if (!me.jb) return 0;
+  const ids = jbPlayers(), n = ids.length, k = Math.max(0, ids.indexOf(myId()));
+  return n < 2 ? 0 : clamp((k - (n - 1) / 2) * 0.9, -1.2, 1.2);
+}
+function placeJumper() { const j = me.jump, [wx, wy] = jumpWorld(j.x, j.y); if (j.phase === 'gate') j.lane = jbLane(); me.x = wx; me.y = wy; me.z = JUMP.z + (j.lane || 0); me.heading = -Math.PI / 2; me.vx = me.vz = 0; me.air = j.phase === 'flight'; }
 function stepJump(dt) {
   const j = me.jump; if (!j) { me.state = 'ski'; return; }
   const press = keys.Space || keys._jump, edge = press && !j.held; j.held = press; j.t += dt;
   const crouch = keys.ShiftLeft || keys.ShiftRight || keys._boost;
-  if (j.phase === 'gate') { if (edge) { j.phase = 'inrun'; sfx.beep(true); } placeJumper(); return; }
+  if (j.phase === 'gate') {
+    if (jbWaiting()) { if (stepJBGate(edge)) { j.hold = false; j.phase = 'inrun'; sfx.beep(true); centerMsg('출발!', '⚔️ 점프 대결'); } }
+    else if (edge) { j.phase = 'inrun'; sfx.beep(true); }
+    placeJumper(); return;
+  }
   if (j.phase === 'inrun') {
     const eff = crouch ? 0.68 : 0.64;
     const p0 = JUMP.inrun[0];
@@ -3274,8 +3368,8 @@ function landJump() {
   const timingPts = j.timing === 'perfect' ? 18 : j.timing === 'good' ? 14 : j.timing === 'ok' ? 10 : 6;
   const score = Math.max(0, Math.round((60 + (d - JUMP.K) * 2 + timingPts + (tele ? 12 : 4) - (fall ? 30 : 0)) * 10) / 10);
   emitSpray(me.x, me.y, me.z, 0, 0, 40); sfx.thud();
-  if (d > (me.jumpBest || 0)) { me.jumpBest = d; store('ski.jump', String(d)); }
-  if (me.jb && netNow() < me.jb.c0 + JB_TIME) { if (!me.jbs || me.jbs.id !== me.jb.id || score > me.jbs.sc) me.jbs = { id: me.jb.id, sc: score, d }; }
+  if (d > (me.jumpBest || 0)) { me.jumpBest = d; store('ski.jump', String(d)); if (net.room && net.room.jump) net.room.jump(me.name, d); }
+  if (me.jb && me.jb.t0 && netNow() >= me.jb.t0 && jbLive(me.jb)) { if (!me.jbs || me.jbs.id !== me.jb.id || score > me.jbs.sc) me.jbs = { id: me.jb.id, sc: score, d }; }
   centerMsg(d.toFixed(1) + 'm', (fall ? '꽈당! ' : tele ? '텔레마크 착지! ' : '착지 · ') + score.toFixed(1) + '점' + (d >= JUMP.K ? ' · K점 돌파!' : ''));
   if (myAv) setBubble(myAv, fall ? '아야야…' : d >= JUMP.K ? '날았다~! 🕊' : '휴~ 착지!', 2500);
   notice('🎿 비거리 ' + d.toFixed(1) + 'm · ' + score.toFixed(1) + '점');
@@ -3284,17 +3378,21 @@ function landJump() {
 me.jumpBest = Math.min(200, Number(store('ski.jump')) || 0);
 
 /* ---------- jump battle ---------- */
-const JB_TIME = 150000, jbState = { seen: new Set(), shown: null };
+const JB_TIME = 150000, JB_WAIT = 60000, jbState = { seen: new Set(), shown: null };
+function jbEnd(b) { return b && b.t0 ? b.t0 + JB_TIME : Infinity; }
+function jbLive(b) { return !!b && netNow() < jbEnd(b); }
 function validJB(r) {
   if (!r || typeof r !== 'object' || typeof r.id !== 'string' || !/^[a-z0-9]{4,12}$/.test(r.id) || typeof r.c0 !== 'number') return null;
   if (Math.abs(r.c0 - netNow()) > 600000) return null;
-  return { id: r.id, c0: r.c0, h: cleanName(r.h) || '누군가' };
+  return { id: r.id, c0: r.c0, t0: typeof r.t0 === 'number' && Math.abs(r.t0 - netNow()) < 600000 ? r.t0 : 0, h: cleanName(r.h) || '누군가', hid: typeof r.hid === 'string' ? r.hid.slice(0, 64) : '' };
 }
-function openJBs() { const t = netNow(), out = []; for (const [, a] of avatars) if (a.jb && t < a.jb.c0 + JB_TIME - 5000 && !out.some((x) => x.id === a.jb.id)) out.push(a.jb); return out; }
+// a battle can be joined only while its players are still waiting at the gate
+function openJBs() { const t = netNow(), out = []; for (const [, a] of avatars) if (a.jb && (!a.jb.t0 || a.jb.t0 > t + 2500) && !out.some((x) => x.id === a.jb.id)) out.push(a.jb); return out; }
+function jbPlayers() { const ids = [myId()]; if (me.jb) for (const [id, a] of avatars) if (a.jb && a.jb.id === me.jb.id) ids.push(id); return ids.sort(); }
 function talkCoach() {
   setBubble(npcs.coach, '날아 보자!', 2500);
   const choices = [{ label: '🎿 혼자 점프하기', fn: startJump }];
-  if (me.jb && netNow() < me.jb.c0 + JB_TIME) choices.unshift({ label: '⚔️ 대결 계속하기 (점프)', fn: startJump });
+  if (jbLive(me.jb)) choices.unshift({ label: '⚔️ 대결 계속하기 (점프)', fn: startJump });
   else {
     for (const b of openJBs()) choices.push({ label: '⚔️ ' + b.h + '님의 점프 대결 참가', fn: () => joinJB(b) });
     choices.push({ label: '⚔️ 점프 대결 열기', fn: hostJB });
@@ -3304,15 +3402,16 @@ function talkCoach() {
 }
 function hostJB() {
   const id = Math.random().toString(36).slice(2, 10).replace(/[^a-z0-9]/g, 'x').padEnd(6, 'x');
-  me.jb = { id, c0: netNow(), h: me.name }; me.jbs = null; jbState.seen.add(id); jbState.shown = null;
-  addChatLine('', '', '⚔️ 점프 대결을 열었어요! 2분 30초 동안 가장 좋은 점수로 겨뤄요', true);
+  me.jb = { id, c0: netNow(), t0: 0, h: me.name, hid: myId() }; me.jbs = null; jbState.seen.add(id); jbState.shown = null; jbState.count = null;
+  addChatLine('', '', '⚔️ 점프 대결을 열었어요! 친구들이 출발 게이트에 모이면 ' + (isTouch ? '[점프]' : 'Space') + '로 출발 신호를 주세요 (60초 뒤 자동 출발)', true);
   startJump();
 }
-function joinJB(b) { me.jb = { id: b.id, c0: b.c0, h: b.h }; me.jbs = null; jbState.shown = null; notice('⚔️ ' + b.h + '님의 점프 대결에 참가했어요!'); startJump(); }
+function joinJB(b) { if (me.state === 'lift' || me.state === 'queue') { notice('리프트에서는 참가할 수 없어요'); return; } me.jb = { id: b.id, c0: b.c0, t0: b.t0 || 0, h: b.h, hid: b.hid }; me.jbs = null; jbState.shown = null; jbState.count = null; notice('⚔️ ' + b.h + '님의 점프 대결에 참가했어요!'); startJump(); }
 function updateJB() {
   for (const [, a] of avatars) if (a.jb && !jbState.seen.has(a.jb.id)) { jbState.seen.add(a.jb.id); if (!(me.jb && me.jb.id === a.jb.id)) { notice('⚔️ ' + a.jb.h + '님이 점프 대결을 열었어요!'); addChatLine('', '', '⚔️ ' + a.jb.h + '님이 점프 대결을 열었어요. 점프 코치 수리에게 말 걸어 참가하세요!', true); } }
   if (!me.jb) return;
-  if (netNow() >= me.jb.c0 + JB_TIME && jbState.shown !== me.jb.id) {
+  if (!me.jb.t0 && me.state !== 'jump') { notice('⚔️ 점프 대결 대기실에서 나왔어요'); me.jb = null; me.jbs = null; return; }
+  if (netNow() >= jbEnd(me.jb) && jbState.shown !== me.jb.id) {
     jbState.shown = me.jb.id;
     const ps = [{ name: me.name, s: me.jbs && me.jbs.id === me.jb.id ? me.jbs : null, me: true }];
     for (const [, a] of avatars) if (a.jb && a.jb.id === me.jb.id) ps.push({ name: a.name, s: a.jbs && a.jbs.id === me.jb.id ? a.jbs : null });
@@ -3322,6 +3421,7 @@ function updateJB() {
     if (none.length) lines.push('기록 없음: ' + none.join(', '));
     say(npcs.coach, '⚔️ 점프 대결 결과! ' + lines.join(' · '), [{ label: '닫기', fn: closeDialog }]);
     addChatLine('', '', '⚔️ 점프 대결 결과: ' + lines.join(' · '), true);
+    if (ok.length) { jumpBoard.last = '🥇 ' + ok[0].name + ' ' + ok[0].s.d.toFixed(1) + 'm'; renderFishRank(); }
     me.jb = null; me.jbs = null;
   }
 }
@@ -3342,7 +3442,7 @@ function updateStatus(sp) {
     $('#stChip').textContent = '점프'; $('#stTitle').textContent = '🎿 눈꽃 점프대 · K' + JUMP.K;
     $('#stRight').textContent = j.phase === 'flight' ? j.x.toFixed(0) + 'm' : Math.round(j.v * 3.6) + 'km/h';
     $('#stFill').style.width = (j.phase === 'inrun' ? j.s / JUMP.inrunLen * 100 : j.phase === 'gate' ? 0 : 100).toFixed(1) + '%';
-    $('#stSub').textContent = (me.jb ? '⚔️ 대결 ' + Math.max(0, Math.ceil((me.jb.c0 + JB_TIME - netNow()) / 1000)) + '초 남음 · ' : '') + (j.phase === 'gate' ? 'Space로 출발' : j.phase === 'inrun' ? 'Shift 웅크리기 · 끝에서 Space!' : j.phase === 'flight' ? 'W를 누르고 있으면 V자 · 착지 직전 Space' : '착지!');
+    $('#stSub').textContent = (me.jb && me.jb.t0 && netNow() >= me.jb.t0 ? '⚔️ 대결 ' + Math.max(0, Math.ceil((jbEnd(me.jb) - netNow()) / 1000)) + '초 남음 · ' : '') + (j.phase === 'gate' ? (jbWaiting() ? '⚔️ ' + jbPlayers().length + '명 대기 중 · ' + (me.jb.t0 ? '곧 다 같이 출발!' : me.jb.hid === myId() ? (isTouch ? '[점프]' : 'Space') + '로 출발 신호' : me.jb.h + '님의 출발 신호를 기다려요') : 'Space로 출발') : j.phase === 'inrun' ? 'Shift 웅크리기 · 끝에서 Space!' : j.phase === 'flight' ? 'W를 누르고 있으면 V자 · 착지 직전 Space' : '착지!');
     return;
   }
   let chip, title, right = '', fill = 0, sub;
@@ -3541,7 +3641,7 @@ void playersT;
 
 (async function boot() {
   try { await Promise.race([Promise.all([document.fonts.load('60px Jua'), document.fonts.load('40px "Noto Sans KR"')]), new Promise((r) => setTimeout(r, 1500))]); } catch (e) {}
-  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildCafe(); buildSmoke(); buildOnsen(); buildPond(); buildJump(); buildNpcs(); buildMinimap(); buildNight(); buildCafeGlow();
+  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildCafe(); buildSmoke(); buildOnsen(); buildPond(); buildJump(); buildNpcs(); buildJumpBoard(); buildMinimap(); buildNight(); buildCafeGlow();
   const sn = store('ski.night'), hr = new Date().getHours();
   setNight(sn === '1' || (sn === null && (hr >= 18 || hr < 6)));
   rebuildMine();
