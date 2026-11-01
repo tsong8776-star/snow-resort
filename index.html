@@ -3092,7 +3092,7 @@ function updateRaceInvite() {
   if (!r) {
     const jb = !me.jb && me.state !== 'jump' ? openJBs()[0] : null;
     if (!jb) { btn.hidden = true; btn.dataset.id = ''; return; }
-    btn.textContent = '⚔️ ' + jb.h + '님의 점프 대결 참가하기 · ' + (jb.t0 ? Math.max(0, Math.ceil((jb.t0 - netNow()) / 1000)) + '초 뒤 출발' : '대기 중');
+    btn.textContent = '⚔️ ' + jb.h + '님의 점프 대결 참가하기 · ' + (!jb.t0 ? '대기 중' : jb.t0 > netNow() ? Math.ceil((jb.t0 - netNow()) / 1000) + '초 뒤 출발' : '진행 중 · ' + Math.ceil((jbEnd(jb) - netNow()) / 1000) + '초 남음');
     btn.dataset.id = 'jb:' + jb.id; btn.hidden = false; return;
   }
   const left = r.t0 ? Math.max(0, Math.ceil((r.t0 - netNow()) / 1000)) + '초 뒤 출발' : '대기 중';
@@ -3297,7 +3297,8 @@ function stepJBGate(edge) {
     const host = avatars.get(b.hid);
     if (host && host.jb && host.jb.id === b.id) { if (host.jb.t0 && host.jb.t0 !== b.t0) b.t0 = host.jb.t0; }
     else if (!b.t0 && now - (b.lost || (b.lost = now)) > 4000) { b.hid = myId(); b.c0 = now; notice('⚔️ 방장이 나가서 내가 출발 신호를 맡았어요'); }
-  } else if (!b.t0 && (edge || now - b.c0 > JB_WAIT)) startJBNow();
+  } else if (!b.t0 && edge && jbPlayers().length < 2) { centerMsg('⚔️ 아직 혼자예요', '친구가 참가하면 출발 신호를 줄 수 있어요 · ' + Math.ceil(Math.max(0, JB_WAIT - (now - b.c0)) / 1000) + '초 뒤 자동 출발'); jbState.count = 'wait1'; }
+  else if (!b.t0 && (edge || now - b.c0 > JB_WAIT)) startJBNow();
   if (!b.t0) {
     const k = 'wait' + jbPlayers().length;
     if (jbState.count !== k) { jbState.count = k; centerMsg('⚔️ ' + jbPlayers().length + '명 대기 중', b.hid === myId() ? '모두 모이면 ' + (isTouch ? '[점프]' : 'Space') + '로 출발 신호!' : b.h + '님이 출발 신호를 주면 다 같이 출발해요'); }
@@ -3390,7 +3391,7 @@ function validJB(r) {
   return { id: r.id, c0: r.c0, t0: typeof r.t0 === 'number' && Math.abs(r.t0 - netNow()) < 600000 ? r.t0 : 0, h: cleanName(r.h) || '누군가', hid: typeof r.hid === 'string' ? r.hid.slice(0, 64) : '' };
 }
 // a battle can be joined only while its players are still waiting at the gate
-function openJBs() { const t = netNow(), out = []; for (const [, a] of avatars) if (a.jb && (!a.jb.t0 || a.jb.t0 > t + 2500) && !out.some((x) => x.id === a.jb.id)) out.push(a.jb); return out; }
+function openJBs() { const t = netNow(), out = []; for (const [, a] of avatars) if (a.jb && t < jbEnd(a.jb) - 20000 && !out.some((x) => x.id === a.jb.id)) out.push(a.jb); return out; }
 function jbPlayers() { const ids = [myId()]; if (me.jb) for (const [id, a] of avatars) if (a.jb && a.jb.id === me.jb.id) ids.push(id); return ids.sort(); }
 function talkCoach() {
   setBubble(npcs.coach, '날아 보자!', 2500);
