@@ -297,6 +297,7 @@ body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touc
       <button type="button" id="fsBtn" aria-label="전체화면">⛶</button>
       <button type="button" id="nightBtn" aria-label="밤 스키 켜기">🌙</button>
       <button type="button" id="soundBtn" aria-label="소리 끄기">🔊</button>
+      <button type="button" id="fpBtn" aria-pressed="false" aria-label="1인칭 보기">👁</button>
       <button type="button" id="mapBtn" aria-pressed="true" aria-label="지도 보기">🗺</button>
     </div>
     <div id="miniCard" class="glass"><canvas id="mini" width="540" height="430"></canvas></div>
@@ -320,6 +321,7 @@ body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touc
         <button type="button" id="setNight">🌙 밤/낮</button>
         <button type="button" id="setSound">🔊 소리</button>
         <button type="button" id="setFs">⛶ 전체화면</button>
+        <button type="button" id="setFp" aria-pressed="false">👁 1인칭</button>
         <button type="button" id="setSimple" aria-pressed="false">🧹 간단 화면</button>
       </div>
       <h3 style="margin-top:8px">버튼 크기</h3>
@@ -657,8 +659,9 @@ function textPlane(lines, w, h, bg, fg, opts) {
   const tex = canvasTex(Math.round(256 * w / h), 256, (g, cw, ch) => {
     g.fillStyle = bg; g.fillRect(0, 0, cw, ch);
     g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle';
-    if (lines.length === 1) { g.font = (opts && opts.size || 150) + 'px Jua, sans-serif'; g.fillText(lines[0], cw / 2, ch / 2 + 6); }
-    else { g.font = '120px Jua, sans-serif'; g.fillText(lines[0], cw / 2, ch * 0.36); g.font = '72px Jua, sans-serif'; g.fillText(lines[1], cw / 2, ch * 0.78); }
+    const fit = (text, size) => { g.font = size + 'px Jua, sans-serif'; const w2 = g.measureText(text).width, max = cw * 0.9; if (w2 > max) g.font = Math.floor(size * max / w2) + 'px Jua, sans-serif'; };
+    if (lines.length === 1) { fit(lines[0], opts && opts.size || 150); g.fillText(lines[0], cw / 2, ch / 2 + 6); }
+    else { fit(lines[0], 120); g.fillText(lines[0], cw / 2, ch * 0.36); fit(lines[1], 72); g.fillText(lines[1], cw / 2, ch * 0.78); }
   });
   const g = new THREE.Group(), mat = new THREE.MeshLambertMaterial({ map: tex });
   const front = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat), back = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
@@ -2517,6 +2520,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyF' && me.indoor) throwLog();
   if (e.code === 'KeyT') raceMenu();
   if (e.code === 'KeyN') setNight(!night.on);
+  if (e.code === 'KeyC') toggleFp();
   if (e.code === 'KeyR') goHome();
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
 });
@@ -3151,7 +3155,7 @@ function buildJump() {
   for (const [d, m] of [[JUMP.K, red], [JUMP.HS, blue]]) { const ln = mesh(new THREE.BoxGeometry(0.6, 0.06, 30.4), m, d, hillAt(d) + 0.04, 0, g, false); void ln; }
   for (let d = 40; d <= 140; d += 10) {
     const sg = textPlane([d + 'm'], 2.4, 1, d === JUMP.K ? '#e5484d' : d === JUMP.HS ? '#2f7de1' : '#1b2a4a', '#ffffff', { size: 150 });
-    sg.position.set(d, hillAt(d) + 1.3, 16.5); g.add(sg);
+    sg.position.set(d, hillAt(d) + 1.6, -16.6); g.add(sg);
   }
   const big = textPlane(['🎿 눈꽃 점프대', 'K' + JUMP.K + ' · HS' + JUMP.HS], 18, 4, '#1b2a4a', '#ffc53d'); big.position.set(150, JUMP.hill[150] + 9, -17); g.add(big);
   for (const sx of [142, 158]) mesh(new THREE.CylinderGeometry(0.25, 0.25, 9, 8), steel, sx, JUMP.hill[150] + 4.5, -17, g);
@@ -3326,6 +3330,14 @@ function updateStatus(sp) {
 /* ================= loop ================= */
 const camTarget = new V3(), camPos = new V3();
 let last = performance.now(), hudT = 0;
+function toggleFp(on) {
+  cam.fp = on === undefined ? !cam.fp : on; store('ski.fp', cam.fp ? '1' : '0');
+  for (const b of [$('#fpBtn'), $('#setFp')]) b.setAttribute('aria-pressed', String(cam.fp));
+  cam.snap = true; if (playing) notice(cam.fp ? '👁 1인칭 모드' : '🎥 3인칭 모드');
+}
+$('#fpBtn').addEventListener('click', () => toggleFp());
+$('#setFp').addEventListener('click', () => toggleFp());
+setTimeout(() => { if (store('ski.fp') === '1') { cam.fp = true; for (const b of [$('#fpBtn'), $('#setFp')]) b.setAttribute('aria-pressed', 'true'); } }, 0);
 function updateCamera(dt) {
   if (!playing) {
     const a = performance.now() / 14000;
@@ -3333,11 +3345,24 @@ function updateCamera(dt) {
     camera.lookAt(0, 35, -120); return;
   }
   camTarget.set(me.x, me.y + 1.4, me.z);
+  if (myAv) myAv.root.visible = !(cam.fp && playing);
+  if (cam.fp && playing) {
+    // eyes at head height, looking where the character (plus any drag) faces
+    if (!cam.drag) cam.yawOff *= Math.exp(-dt * 0.8);
+    const yaw = me.heading + cam.yawOff, fl = me.state === 'jump' && me.jump && me.jump.phase === 'flight';
+    const eyeY = me.y + (me.bath >= 0 ? 0.75 : me.state === 'sit' ? 1.35 : 1.75);
+    camPos.set(me.x - Math.sin(yaw) * 0.25, eyeY, me.z - Math.cos(yaw) * 0.25);
+    camera.position.copy(camPos); cam.snap = false;
+    const pitch = fl ? -0.45 : me.state === 'jump' ? -0.3 : -0.08;
+    camera.lookAt(camPos.x - Math.sin(yaw) * 10 * Math.cos(pitch), eyeY + Math.sin(pitch) * 10, camPos.z - Math.cos(yaw) * 10 * Math.cos(pitch));
+    return;
+  }
   if (me.state === 'jump' && me.jump) {
     const side = me.jump.phase === 'flight' || me.jump.phase === 'landed';
-    camPos.set(me.x - (side ? 6 : 9), me.y + (side ? 4 : 5), me.z + (side ? 17 : 0.01));
+    // in-run: above and to the side of the deck (never under it); flight: wide side view
+    if (side) camPos.set(me.x - 4, me.y + 12, me.z + 27); else camPos.set(me.x - 2, me.y + 6.5, me.z + 9);
     if (cam.snap) { camera.position.copy(camPos); cam.snap = false; } else camera.position.lerp(camPos, 1 - Math.exp(-dt * (side ? 5 : 8)));
-    camera.lookAt(me.x + (side ? 4 : 10), me.y + (side ? 0 : -3), me.z); return;
+    camera.lookAt(me.x + (side ? 6 : 5), me.y + (side ? -1 : -0.5), me.z); return;
   }
   if (!cam.drag) cam.yawOff *= Math.exp(-dt * 0.8);
   const yaw = me.heading + cam.yawOff;
