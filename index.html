@@ -223,6 +223,54 @@ body.is-touch #sbGauge .gh { display: none; }
 #throwBtn { right: calc(28px + env(safe-area-inset-right, 0px)); bottom: calc(200px + env(safe-area-inset-bottom, 0px)); width: 62px; height: 62px; border-radius: 50%; border: 0; background: rgba(255,255,255,0.9); color: var(--ink); font-weight: 900; font-size: 12px; box-shadow: 0 4px 14px rgba(20,30,50,0.25); }
 .morebtn { width: 100%; padding: 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.5); background: transparent; color: #fff; font-size: 12.5px; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { #splat.show { animation-duration: 0.3s; } }
+/* ---------- phones: compact, non-overlapping layout ---------- */
+:root { --bs: 1; }
+body.is-touch #jumpBtn, body.is-touch #boostBtn, body.is-touch #throwBtn, body.is-touch #burstBtn { width: calc(clamp(52px, 15vmin, 72px) * var(--bs)); height: calc(clamp(52px, 15vmin, 72px) * var(--bs)); font-size: calc(12px * var(--bs)); line-height: 1.15; padding: 0; }
+body.is-touch { --tb: calc(clamp(52px, 15vmin, 72px) * var(--bs)); --tbBottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
+body.is-touch #jumpBtn { right: calc(12px + env(safe-area-inset-right, 0px)); bottom: var(--tbBottom); }
+body.is-touch #boostBtn { right: calc(22px + var(--tb) + env(safe-area-inset-right, 0px)); bottom: var(--tbBottom); }
+body.is-touch #throwBtn { right: calc(12px + env(safe-area-inset-right, 0px)); bottom: calc(var(--tbBottom) + var(--tb) + 10px); }
+body.is-touch #burstBtn { right: calc(22px + var(--tb) + env(safe-area-inset-right, 0px)); bottom: calc(var(--tbBottom) + var(--tb) + 10px); }
+body.is-touch #stick { left: calc(14px + env(safe-area-inset-left, 0px)); bottom: var(--tbBottom); width: calc(clamp(96px, 28vmin, 124px) * var(--bs)); height: calc(clamp(96px, 28vmin, 124px) * var(--bs)); }
+body.is-touch #sbGauge { top: auto; right: calc(12px + env(safe-area-inset-right, 0px)); bottom: calc(var(--tbBottom) + var(--tb) * 2 + 20px); width: calc(var(--tb) * 2 + 10px); padding: 5px 8px; gap: 3px; }
+body.is-touch #sbGauge .gl { font-size: 11px; } body.is-touch #sbGauge .gl b { font-size: 13px; }
+/* dialogs and chat take the screen: hide the controls underneath */
+body.is-touch.dlg-open #stick, body.is-touch.dlg-open #jumpBtn, body.is-touch.dlg-open #boostBtn, body.is-touch.dlg-open #throwBtn, body.is-touch.dlg-open #burstBtn, body.is-touch.dlg-open #sbGauge { display: none !important; }
+body.is-touch #prompt, body.is-touch #dialog, body.is-touch #chatForm { margin-bottom: 4px; }
+body.is-touch #dialog { max-height: 52vh; overflow-y: auto; }
+body.is-touch #dlgChoices button { padding: 6px 10px; font-size: 13.5px; }
+body.is-touch #prompt { margin-bottom: calc(var(--tb) * 2 + 34px); justify-self: start; max-width: calc(100% - var(--tb) * 2 - 40px); white-space: normal; text-align: left; font-size: 12.5px; line-height: 1.35; }
+body.is-touch.dlg-open #prompt { justify-self: center; max-width: 100%; }
+body.is-touch.dlg-open #prompt { margin-bottom: 4px; }
+/* simple view hides the map and the chat lines */
+body.simple #miniCard, body.simple #chatLog, body.simple #histBtn, body.simple #hint, body.simple #feed { display: none !important; }
+.setrow { display: flex; flex-wrap: wrap; gap: 6px; }
+.setrow button { border: 1px solid rgba(255,255,255,0.45); background: transparent; color: #fff; border-radius: 10px; padding: 6px 9px; font-size: 12.5px; font-weight: 700; }
+.setrow button[aria-pressed="true"] { background: rgba(255,255,255,0.9); color: var(--ink); }
+#rotateTip { left: 50%; top: 40%; transform: translateX(-50%); width: min(300px, 86vw); padding: 14px; text-align: center; pointer-events: auto; display: grid; gap: 8px; font-weight: 700; }
+#rotateTip button { border: 0; border-radius: 10px; padding: 8px; font-weight: 900; background: #fff; color: var(--ink); }
+@media (max-width: 560px) {
+  .hud-tl { max-width: 46vw; padding: 6px 10px 6px 6px; gap: 7px; }
+  #placeIcon { width: 32px; height: 32px; font-size: 17px; border-radius: 9px; }
+  #placeChip { font-size: 13px; } .hud-tl small { font-size: 10.5px; }
+  #noticeBtn, #fsBtn, #nightBtn, #soundBtn, .pill .sep { display: none !important; }
+  #miniCard { width: 104px; padding: 5px; }
+  body.is-touch #chatLog { top: calc(70px + env(safe-area-inset-top, 0px)); width: 56vw; max-height: 58px; font-size: 11.5px; }
+  body.is-touch #chatLog div { padding: 2px 8px; font-size: 11.5px; }
+  body.is-touch #histBtn { top: calc(132px + env(safe-area-inset-top, 0px)); padding: 4px 9px; font-size: 11px; }
+  #feed { top: calc(160px + env(safe-area-inset-top, 0px)); }
+  #actions .lb { font-size: 9.5px; } #actions .ic { font-size: 17px; }
+}
+/* landscape phones: little height */
+@media (max-height: 520px) {
+  body.is-touch { --tbBottom: calc(70px + env(safe-area-inset-bottom, 0px)); --tb: calc(clamp(48px, 13vmin, 62px) * var(--bs)); }
+  body.is-touch #jumpBtn, body.is-touch #boostBtn, body.is-touch #throwBtn, body.is-touch #burstBtn { width: var(--tb); height: var(--tb); }
+  #actions .lb { display: none; } #actions button { padding: 6px 8px; }
+  #miniCard { width: 110px; }
+  body.is-touch #chatLog { top: calc(60px + env(safe-area-inset-top, 0px)); max-height: 46px; }
+  body.is-touch #histBtn { top: calc(112px + env(safe-area-inset-top, 0px)); }
+  #more { max-height: calc(100% - 90px); bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
+}
 #err { position: fixed; inset: auto 16px 16px 16px; z-index: 40; background: var(--berry); color: #fff; padding: 10px 14px; border-radius: 12px; font-weight: 700; }
 </style>
 </head>
@@ -259,6 +307,17 @@ body.is-touch #sbGauge .gh { display: none; }
     <div><h3>지금 스키장에</h3><ul id="players"></ul></div>
     <div><h3>코스 최고 기록</h3><ul id="records"></ul></div>
     <div><h3>🐟 빙어 랭킹 (길이)</h3><ol id="fishRank"></ol></div>
+    <div><h3>⚙️ 설정</h3>
+      <div class="setrow" id="setRow">
+        <button type="button" id="setNotice">📢 공지</button>
+        <button type="button" id="setNight">🌙 밤/낮</button>
+        <button type="button" id="setSound">🔊 소리</button>
+        <button type="button" id="setFs">⛶ 전체화면</button>
+        <button type="button" id="setSimple" aria-pressed="false">🧹 간단 화면</button>
+      </div>
+      <h3 style="margin-top:8px">버튼 크기</h3>
+      <div class="setrow"><button type="button" class="bsz" data-s="0.82">작게</button><button type="button" class="bsz" data-s="1">보통</button><button type="button" class="bsz" data-s="1.2">크게</button></div>
+    </div>
     <button id="unstuckBtn" type="button" class="morebtn">🆘 끼인 곳에서 빠져나오기</button>
     <button id="homeBtn" type="button" class="morebtn">🏠 베이스로 돌아가기</button>
     <button id="copy2" type="button">친구 초대 링크 복사</button>
@@ -288,6 +347,7 @@ body.is-touch #sbGauge .gh { display: none; }
   </div>
   <div id="splat"></div>
   <div id="fade"></div>
+  <div id="rotateTip" class="glass" hidden><span>📱 가로로 돌리면 더 넓게 즐길 수 있어요!</span><button type="button" id="rotateOk">알겠어요</button></div>
   <div id="catchCard" class="glass" hidden><span id="catchTag"></span><canvas id="catchCanvas" width="360" height="180"></canvas><b id="catchSize"></b></div>
   <div id="stick" class="touch" hidden><div id="knob"></div></div>
   <button id="throwBtn" class="touch" type="button" hidden>❄ 던지기</button>
@@ -1756,6 +1816,7 @@ let dlg = null, dlgTimer = 0;
 $('#dlgClose').addEventListener('click', (e) => { e.stopPropagation(); closeDialog(); });
 $('#dialog').addEventListener('click', (e) => { if (dlg && !dlg.choices.length && !e.target.closest('button')) closeDialog(); });
 function say(npc, text, choices, autoMs) {
+  document.body.classList.add('dlg-open');
   dlg = { npc, choices: choices || [] };
   $('#dlgFace').textContent = npc.face; $('#dlgName').textContent = npc.name;
   $('#dlgText').textContent = text + ((choices || []).length ? '' : (isTouch ? '  (탭하면 닫혀요)' : '  (클릭하면 닫혀요)'));
@@ -1772,7 +1833,7 @@ function say(npc, text, choices, autoMs) {
   clearTimeout(dlgTimer);
   if (autoMs) dlgTimer = setTimeout(closeDialog, autoMs);
 }
-function closeDialog() { dlg = null; $('#dialog').hidden = true; $('#status').hidden = !$('#chatForm').hidden; }
+function closeDialog() { dlg = null; $('#dialog').hidden = true; if ($('#chatForm').hidden) document.body.classList.remove('dlg-open'); $('#status').hidden = !$('#chatForm').hidden; }
 function pick(i) { if (!dlg || !dlg.choices[i]) return; const fn = dlg.choices[i].fn; fn(); }
 const courseChoices = (after, all) => COURSES.filter((c) => all || !c.race).map((c) => ({ label: c.level + ' ' + c.name, grade: c.id, fn: () => after(c) }));
 function talkCoco() {
@@ -2153,12 +2214,13 @@ function addChatLine(name, color, text, sys) {
   setTimeout(() => { el.style.opacity = '0.35'; }, 20000);
 }
 function openChat() {
+  document.body.classList.add('dlg-open');
   if (!playing) return;
   $('#chatForm').hidden = false; $('#status').hidden = true;
   for (const k in keys) keys[k] = false;
   $('#chatInput').focus();
 }
-function closeChat() { $('#chatForm').hidden = true; $('#status').hidden = false; $('#chatInput').value = ''; $('#chatInput').blur(); }
+function closeChat() { if (!dlg) document.body.classList.remove('dlg-open'); $('#chatForm').hidden = true; $('#status').hidden = false; $('#chatInput').value = ''; $('#chatInput').blur(); }
 $('#chatForm').addEventListener('submit', (e) => {
   e.preventDefault();
   const text = cleanText($('#chatInput').value, 60);
@@ -2428,6 +2490,21 @@ $('#actTalk').addEventListener('click', () => { if (!useAction()) notice('NPC나
 $('#actSit').addEventListener('click', toggleSit);
 $('#actWave').addEventListener('click', wave);
 $('#actMore').addEventListener('click', () => { const m = $('#more'); m.hidden = !m.hidden; $('#actMore').setAttribute('aria-pressed', String(!m.hidden)); renderPlayers(); renderRecords(); });
+// settings (more panel) — proxies for the top-bar buttons that phones hide
+$('#setNotice').addEventListener('click', () => $('#noticeBtn').click());
+$('#setNight').addEventListener('click', () => $('#nightBtn').click());
+$('#setSound').addEventListener('click', () => $('#soundBtn').click());
+$('#setFs').addEventListener('click', () => $('#fsBtn').click());
+function applyUiPrefs() {
+  const bs = Number(store('ski.bs')) || 1, simple = store('ski.simple') === '1';
+  document.documentElement.style.setProperty('--bs', String(bs));
+  document.querySelectorAll('.bsz').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.s) === bs)));
+  document.body.classList.toggle('simple', simple); $('#setSimple').setAttribute('aria-pressed', String(simple));
+}
+document.querySelectorAll('.bsz').forEach((b) => b.addEventListener('click', () => { store('ski.bs', b.dataset.s); applyUiPrefs(); }));
+$('#setSimple').addEventListener('click', () => { store('ski.simple', store('ski.simple') === '1' ? '0' : '1'); applyUiPrefs(); });
+applyUiPrefs();
+$('#rotateOk').addEventListener('click', () => { $('#rotateTip').hidden = true; store('ski.rotate', '1'); });
 $('#mapBtn').addEventListener('click', () => { const c = $('#miniCard'); c.hidden = !c.hidden; $('#mapBtn').setAttribute('aria-pressed', String(!c.hidden)); });
 $('#soundBtn').addEventListener('click', () => {
   if (!actx) return; const muted = actx.state === 'running';
@@ -2491,6 +2568,12 @@ function enter() {
   rebuildMine(); updateGearChip();
   $('#start').hidden = true; $('#hud').hidden = false;
   if (isTouch) ['#stick', '#jumpBtn', '#throwBtn', '#boostBtn', '#burstBtn'].forEach((s) => { $(s).hidden = false; });
+  if (isTouch && innerWidth < 560) {
+    // narrow phones start with the map folded; the 🗺 button opens it
+    $('#miniCard').hidden = true; $('#mapBtn').setAttribute('aria-pressed', 'false');
+    if (innerHeight > innerWidth && store('ski.rotate') !== '1') setTimeout(() => { $('#rotateTip').hidden = false; }, 2500);
+  }
+  addEventListener('resize', () => { if (innerWidth > innerHeight) $('#rotateTip').hidden = true; });
   setTimeout(() => { $('#hint').style.opacity = '0'; setTimeout(() => { $('#hint').hidden = true; }, 900); }, 12000);
   me.x = (Math.random() - 0.5) * 20; me.z = 50; me.heading = 0;
   renderPlayers(); renderRecords();
