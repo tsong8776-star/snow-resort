@@ -3090,7 +3090,9 @@ function updateRaceInvite() {
   if (me.rc || me.state === 'lift' || me.state === 'queue' || !playing) { btn.hidden = true; return; }
   const r = openRaces()[0];
   if (!r) {
-    const jb = !me.jb && me.state !== 'jump' ? openJBs()[0] : null;
+    // also offered while standing at the gate or after landing (not mid-flight)
+    const busy = me.state === 'jump' && me.jump && (me.jump.phase === 'inrun' || me.jump.phase === 'flight');
+    const jb = !jbLive(me.jb) && !busy ? openJBs().find((b) => !me.jb || b.id !== me.jb.id) : null;
     if (!jb) { btn.hidden = true; btn.dataset.id = ''; return; }
     btn.textContent = '⚔️ ' + jb.h + '님의 점프 대결 참가하기 · ' + (!jb.t0 ? '대기 중' : jb.t0 > netNow() ? Math.ceil((jb.t0 - netNow()) / 1000) + '초 뒤 출발' : '진행 중 · ' + Math.ceil((jbEnd(jb) - netNow()) / 1000) + '초 남음');
     btn.dataset.id = 'jb:' + jb.id; btn.hidden = false; return;
@@ -3265,6 +3267,10 @@ function buildJump() {
   LANTERN_GLOW.push([JUMP.lipX + top.x - 2.5, JUMP.lipY + top.y + 3.4, JUMP.z]);
 }
 const JUMP_SPD = 1.45; // the whole jump plays this much faster than real time
+function leaveJump() {
+  const f = $('#fade'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+  me.state = 'ski'; me.jump = null; me.x = -72 + Math.random() * 4; me.z = 84; me.y = H(me.x, me.z); me.heading = Math.PI; me.vx = me.vz = 0; cam.snap = true;
+}
 function jumpWorld(x, y) { return [JUMP.lipX + x, JUMP.lipY + y]; }
 function startJump() {
   if (me.state === 'lift' || me.state === 'queue') { notice('리프트에서는 할 수 없어요'); return; }
@@ -3272,7 +3278,7 @@ function startJump() {
   closeDialog();
   const f = $('#fade'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
   me.state = 'jump'; me.indoor = false; me.bath = -1; me.stump = -1; me.item = 0;
-  me.jump = { phase: 'gate', s: 0, v: 0, x: JUMP.inrun[0].x, y: JUMP.inrun[0].y, vx: 0, vy: 0, up: 0, timing: '', teleAt: -9, t: 0, hold: !!(me.jb && (!me.jb.t0 || netNow() < me.jb.t0)) };
+  me.jump = { phase: 'gate', s: 0, v: 0, x: JUMP.inrun[0].x, y: JUMP.inrun[0].y, vx: 0, vy: 0, up: 0, timing: '', teleAt: -9, t: 0, eHeld: true, hold: !!(me.jb && (!me.jb.t0 || netNow() < me.jb.t0)) };
   placeJumper(); cam.snap = true; cam.yawOff = 0;
   centerMsg('🎿 출발 게이트', (isTouch ? '[점프] 버튼' : 'Space') + '으로 출발!');
 }
@@ -3320,6 +3326,8 @@ function stepJump(dt) {
   const press = keys.Space || keys._jump, edge = press && !j.held; j.held = press; j.t += dt;
   const crouch = keys.ShiftLeft || keys.ShiftRight || keys._boost;
   if (j.phase === 'gate') {
+    // E at the gate: step off the jump (also leaves a battle lobby)
+    if (keys.KeyE && !j.eHeld) { leaveJump(); return; } j.eHeld = !!keys.KeyE;
     if (jbWaiting()) { if (stepJBGate(edge)) { j.hold = false; j.phase = 'inrun'; sfx.beep(true); centerMsg('출발!', '⚔️ 점프 대결'); } }
     else if (edge) { j.phase = 'inrun'; sfx.beep(true); }
     placeJumper(); return;
@@ -3360,8 +3368,7 @@ function stepJump(dt) {
   if (j.phase === 'landed') {
     j.vx = Math.max(0, j.vx - dt * 9); j.x = Math.min(228, j.x + j.vx * dt * JUMP_SPD); j.y = hillAt(j.x); placeJumper();
     if (j.t > j.endAt) {
-      const f = $('#fade'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
-      me.state = 'ski'; me.jump = null; me.x = -72 + Math.random() * 4; me.z = 84; me.y = H(me.x, me.z); me.heading = Math.PI; me.vx = me.vz = 0; cam.snap = true;
+      leaveJump();
     }
   }
 }
@@ -3427,6 +3434,8 @@ function updateJB() {
     addChatLine('', '', '⚔️ 점프 대결 결과: ' + lines.join(' · '), true);
     if (ok.length) { jumpBoard.last = '🥇 ' + ok[0].name + ' ' + ok[0].s.d.toFixed(1) + 'm'; renderFishRank(); }
     me.jb = null; me.jbs = null;
+    // whoever is still waiting at the gate comes back down next to the coach
+    if (me.state === 'jump' && me.jump && me.jump.phase === 'gate') leaveJump();
   }
 }
 setInterval(() => { if (playing) updateJB(); }, 500);
@@ -3446,7 +3455,7 @@ function updateStatus(sp) {
     $('#stChip').textContent = '점프'; $('#stTitle').textContent = '🎿 눈꽃 점프대 · K' + JUMP.K;
     $('#stRight').textContent = j.phase === 'flight' ? j.x.toFixed(0) + 'm' : Math.round(j.v * 3.6 * JUMP_SPD) + 'km/h';
     $('#stFill').style.width = (j.phase === 'inrun' ? j.s / JUMP.inrunLen * 100 : j.phase === 'gate' ? 0 : 100).toFixed(1) + '%';
-    $('#stSub').textContent = (me.jb && me.jb.t0 && netNow() >= me.jb.t0 ? '⚔️ 대결 ' + Math.max(0, Math.ceil((jbEnd(me.jb) - netNow()) / 1000)) + '초 남음 · ' : '') + (j.phase === 'gate' ? (jbWaiting() ? '⚔️ ' + jbPlayers().length + '명 대기 중 · ' + (me.jb.t0 ? '곧 다 같이 출발!' : me.jb.hid === myId() ? (isTouch ? '[점프]' : 'Space') + '로 출발 신호' : me.jb.h + '님의 출발 신호를 기다려요') : 'Space로 출발') : j.phase === 'inrun' ? (isTouch ? '[부스트]' : 'Shift') + ' 꾹 = 웅크려 부스트 · 끝에서 ' + (isTouch ? '[점프]' : 'Space') + '!' : j.phase === 'flight' ? 'W를 누르고 있으면 V자 · 착지 직전 Space' : '착지!');
+    $('#stSub').textContent = (me.jb && me.jb.t0 && netNow() >= me.jb.t0 ? '⚔️ 대결 ' + Math.max(0, Math.ceil((jbEnd(me.jb) - netNow()) / 1000)) + '초 남음 · ' : '') + (j.phase === 'gate' ? (jbWaiting() ? '⚔️ ' + jbPlayers().length + '명 대기 중 · ' + (me.jb.t0 ? '곧 다 같이 출발!' : me.jb.hid === myId() ? (isTouch ? '[점프]' : 'Space') + '로 출발 신호' : me.jb.h + '님의 출발 신호를 기다려요') : 'Space로 출발') + (isTouch ? '' : ' · E 나가기') : j.phase === 'inrun' ? (isTouch ? '[부스트]' : 'Shift') + ' 꾹 = 웅크려 부스트 · 끝에서 ' + (isTouch ? '[점프]' : 'Space') + '!' : j.phase === 'flight' ? 'W를 누르고 있으면 V자 · 착지 직전 Space' : '착지!');
     return;
   }
   let chip, title, right = '', fill = 0, sub;
@@ -3492,6 +3501,62 @@ function toggleFp(on) {
 $('#fpBtn').addEventListener('click', () => toggleFp());
 $('#setFp').addEventListener('click', () => toggleFp());
 setTimeout(() => { if (store('ski.fp') === '1') { cam.fp = true; for (const b of [$('#fpBtn'), $('#setFp')]) b.setAttribute('aria-pressed', 'true'); } }, 0);
+/* ---------- first-person hands: mug and marshmallow stick in front of the eyes ---------- */
+const fpv = {};
+function buildFpView() {
+  const g = new THREE.Group(); g.visible = false; camera.add(g); fpv.g = g;
+  const M = (c) => new THREE.MeshLambertMaterial({ color: c });
+  fpv.handMat = M(0xff4f6d); fpv.cupMat = M(0xffffff); fpv.drinkMat = M(0x6b3a1e); fpv.marshMat = M(0xfff2dc);
+  // mug held in a mitten
+  const mug = new THREE.Group(); g.add(mug); fpv.mug = mug;
+  mesh(new THREE.CylinderGeometry(0.075, 0.064, 0.17, 20), fpv.cupMat, 0, 0, 0, mug, false);
+  mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.012, 20), fpv.drinkMat, 0, 0.075, 0, mug, false);
+  mesh(new THREE.TorusGeometry(0.045, 0.014, 6, 14), fpv.cupMat, 0.085, 0, 0, mug, false);
+  sph(0.07, fpv.handMat, 0.06, -0.04, 0.05, 1.1, 1, 1.2, mug);
+  fpv.steam = [];
+  const stM = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false });
+  for (let k = 0; k < 4; k++) { const st = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), stM.clone()); mug.add(st); fpv.steam.push(st); }
+  // marshmallow on a long stick, held from the bottom right
+  const stick = new THREE.Group(); g.add(stick); fpv.stick = stick;
+  const rod = mesh(new THREE.CylinderGeometry(0.007, 0.01, 1.4, 6), M(0x8a5a32), 0, 0, -0.7, stick, false); rod.rotation.x = Math.PI / 2;
+  fpv.marsh = new THREE.Group(); fpv.marsh.position.z = -1.33; stick.add(fpv.marsh);
+  const mm = mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.08, 12), fpv.marshMat, 0, 0, 0, fpv.marsh, false); mm.rotation.x = Math.PI / 2;
+  mesh(new THREE.BoxGeometry(0.02, 0.02, 0.02), M(0x3a2414), 0.03, 0.035, 0.0, fpv.marsh, false);
+  sph(0.07, fpv.handMat, 0, -0.01, 0.02, 1, 1, 1.3, stick);
+}
+function updateFpView() {
+  if (!fpv.g) return;
+  const it = me.item || 0, on = cam.fp && playing && me.snow < 100 && it >= 1 && it <= 4;
+  fpv.g.visible = on; if (!on) return;
+  const t = performance.now() / 1000;
+  fpv.handMat.color.set(me.color || '#ff4f6d');
+  fpv.mug.visible = it === 1 || it === 3; fpv.stick.visible = it === 2 || it === 4;
+  if (fpv.mug.visible) {
+    fpv.cupMat.color.setHex(it === 3 ? 0x2f3e5c : 0xffffff); fpv.drinkMat.color.setHex(it === 3 ? 0x2a1608 : 0x6b3a1e);
+    // same sip rhythm as the avatar: every 4 s raise the mug to the mouth and tip it
+    const ph = (t + (myAv ? myAv.ph : 0)) % 4, k = ph < 1.4 ? Math.sin(ph / 1.4 * Math.PI) : 0, sway = Math.sin(t * 1.6) * 0.008;
+    fpv.mug.position.set(0.25 - 0.19 * k, -0.17 + 0.07 * k + sway, -0.6 + 0.17 * k);
+    fpv.mug.rotation.set(0.85 * k, 0, 0.08 * (1 - k));
+    fpv.steam.forEach((st, i) => { const q = (t * 0.6 + i / 4) % 1; st.visible = k < 0.3; st.position.set(Math.sin(i * 2 + t) * 0.03, 0.1 + q * 0.22, Math.cos(i) * 0.02); st.scale.setScalar(0.6 + q * 1.4); st.material.opacity = (1 - q) * 0.45; });
+  }
+  if (fpv.stick.visible) {
+    if (it === 2) {
+      // roasting: stick reaching out over the fire, slowly twirled, browning as it cooks
+      const r = clamp(1 - me.itemT / 6, 0, 1);
+      fpv.marshMat.color.setRGB(1, 0.95 - 0.35 * r, 0.86 - 0.6 * r);
+      fpv.stick.position.set(0.24, -0.2 + Math.sin(t * 1.3) * 0.01, -0.3);
+      fpv.stick.rotation.set(0.05, 0.16, 0);
+      fpv.marsh.rotation.z = t * 2.2; fpv.marsh.scale.setScalar(1.7);
+    } else {
+      // toasted: bring it up to the mouth and nibble
+      fpv.marshMat.color.setRGB(0.85, 0.55, 0.25);
+      const bite = Math.max(0, Math.sin(t * 3)) * 0.06;
+      fpv.stick.position.set(0.12, -0.1, 0.85 + bite);
+      fpv.stick.rotation.set(0.05, 0.08, 0);
+      fpv.marsh.rotation.z = 0; fpv.marsh.scale.setScalar(1);
+    }
+  }
+}
 function updateCamera(dt) {
   if (!playing) {
     const a = performance.now() / 14000;
@@ -3499,6 +3564,7 @@ function updateCamera(dt) {
     camera.lookAt(0, 35, -120); return;
   }
   camTarget.set(me.x, me.y + 1.4, me.z);
+  updateFpView();
   if (myAv) myAv.root.visible = !(cam.fp && playing);
   if (cam.fp && playing) {
     // eyes at head height, looking where the character (plus any drag) faces
@@ -3507,7 +3573,7 @@ function updateCamera(dt) {
     const eyeY = me.y + (me.bath >= 0 ? 0.75 : me.state === 'sit' ? 1.35 : 1.75);
     camPos.set(me.x - Math.sin(yaw) * 0.25, eyeY, me.z - Math.cos(yaw) * 0.25);
     camera.position.copy(camPos); cam.snap = false;
-    const pitch = fl ? -0.45 : me.state === 'jump' ? -0.3 : -0.08;
+    const pitch = fl ? -0.45 : me.state === 'jump' ? -0.3 : me.item === 2 ? -0.32 : me.item === 1 || me.item === 3 || me.item === 4 ? -0.14 : -0.08;
     camera.lookAt(camPos.x - Math.sin(yaw) * 10 * Math.cos(pitch), eyeY + Math.sin(pitch) * 10, camPos.z - Math.cos(yaw) * 10 * Math.cos(pitch));
     return;
   }
@@ -3645,7 +3711,7 @@ void playersT;
 
 (async function boot() {
   try { await Promise.race([Promise.all([document.fonts.load('60px Jua'), document.fonts.load('40px "Noto Sans KR"')]), new Promise((r) => setTimeout(r, 1500))]); } catch (e) {}
-  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildCafe(); buildSmoke(); buildOnsen(); buildPond(); buildJump(); buildNpcs(); buildJumpBoard(); buildMinimap(); buildNight(); buildCafeGlow();
+  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildCafe(); buildSmoke(); buildOnsen(); buildPond(); buildJump(); buildNpcs(); buildJumpBoard(); buildFpView(); buildMinimap(); buildNight(); buildCafeGlow();
   const sn = store('ski.night'), hr = new Date().getHours();
   setNight(sn === '1' || (sn === null && (hr >= 18 || hr < 6)));
   rebuildMine();
