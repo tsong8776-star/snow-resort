@@ -252,8 +252,32 @@ body.simple #miniCard, body.simple #chatLog, body.simple #histBtn, body.simple #
 .setrow { display: flex; flex-wrap: wrap; gap: 6px; }
 .setrow button { border: 1px solid rgba(255,255,255,0.45); background: transparent; color: #fff; border-radius: 10px; padding: 6px 9px; font-size: 12.5px; font-weight: 700; }
 .setrow button[aria-pressed="true"] { background: rgba(255,255,255,0.9); color: var(--ink); }
-body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touch #notice { left: calc(8px + env(safe-area-inset-left, 0px)); right: calc(8px + env(safe-area-inset-right, 0px)); top: auto; transform: none; width: auto; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); max-height: 62vh; overflow-y: auto; z-index: 6; }
-@media (max-height: 520px) { body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touch #notice { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); max-height: 70vh; } }
+body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touch #notice, body.is-touch #stamps { left: calc(8px + env(safe-area-inset-left, 0px)); right: calc(8px + env(safe-area-inset-right, 0px)); top: auto; transform: none; width: auto; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); max-height: 62vh; overflow-y: auto; z-index: 6; }
+@media (max-height: 520px) { body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touch #notice, body.is-touch #stamps { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); max-height: 70vh; } }
+/* stamp book (도장 깨기) */
+#stamps { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(640px, calc(100% - 24px)); max-height: min(620px, 84vh); pointer-events: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; box-sizing: border-box; z-index: 3; }
+#stamps .stsub { font-size: 12px; opacity: 0.85; margin: -2px 0 0; }
+.stbar { height: 8px; border-radius: 99px; background: rgba(255,255,255,0.2); overflow: hidden; flex: none; }
+#stampFill { height: 100%; width: 0; background: linear-gradient(90deg, #ff4f6d, #ffc53d); border-radius: inherit; transition: width 0.4s; }
+#stampList { list-style: none; margin: 0; padding: 2px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; min-height: 0; }
+#stampList li { background: rgba(255,255,255,0.08); border-radius: 14px; padding: 10px 6px 8px; display: grid; justify-items: center; align-content: start; gap: 3px; text-align: center; }
+#stampList li.on { background: rgba(255,255,255,0.17); }
+#stampList b { font-size: 12.5px; } #stampList small { font-size: 11px; opacity: 0.8; line-height: 1.35; }
+#stampList .pg { font-size: 10.5px; font-weight: 700; opacity: 0.9; background: rgba(255,255,255,0.14); border-radius: 99px; padding: 1px 8px; margin-top: 2px; }
+.seal { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font-size: 25px; border: 2px dashed rgba(255,255,255,0.4); filter: grayscale(1); opacity: 0.55; box-sizing: border-box; }
+.seal.on { border: 3px solid #e5484d; box-shadow: inset 0 0 0 3px #fff, inset 0 0 0 5px #e5484d; background: #fff8f0; filter: none; opacity: 1; transform: rotate(-12deg); }
+#stampToast { left: 50%; top: calc(64px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); display: flex; gap: 12px; align-items: center; padding: 10px 20px 10px 10px; background: rgba(255,250,240,0.97); color: var(--ink); border-radius: 18px; border: 3px solid #e5484d; box-shadow: 0 10px 30px rgba(20,30,50,0.3); z-index: 8; max-width: calc(100% - 24px); box-sizing: border-box; }
+#stampToast .seal { width: 58px; height: 58px; font-size: 28px; flex: none; }
+#stampToast .tx { display: grid; gap: 1px; min-width: 0; }
+#stampToast small { font-size: 11.5px; font-weight: 900; color: #e5484d; letter-spacing: 0.04em; }
+#stampToast b { font-family: var(--font-display); font-weight: 400; font-size: 21px; line-height: 1.15; }
+#stampToast .tx span { font-size: 12.5px; color: var(--ink-soft); }
+#stampToast.go { animation: stIn 0.3s ease-out; }
+#stampToast.go .seal { animation: slam 0.55s cubic-bezier(.2,1.5,.4,1) both; animation-delay: 0.12s; }
+@keyframes stIn { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; transform: translateX(-50%); } }
+@keyframes slam { 0% { transform: scale(2.8) rotate(-40deg); opacity: 0; } 55% { opacity: 1; } 100% { transform: scale(1) rotate(-12deg); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #stampToast.go, #stampToast.go .seal { animation: none; } }
+@media (max-width: 560px) { #stampList { grid-template-columns: repeat(3, 1fr); gap: 6px; } .seal { width: 46px; height: 46px; font-size: 21px; } #stampToast { top: calc(110px + env(safe-area-inset-top, 0px)); } }
 #rotateTip { left: 50%; top: 40%; transform: translateX(-50%); width: min(300px, 86vw); padding: 14px; text-align: center; pointer-events: auto; display: grid; gap: 8px; font-weight: 700; }
 #rotateTip button { border: 0; border-radius: 10px; padding: 8px; font-weight: 900; background: #fff; color: var(--ink); }
 @media (max-width: 560px) {
@@ -293,6 +317,7 @@ body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touc
   <div class="hud-tr">
     <div class="pill glass">
       <button type="button" id="peopleBtn" aria-label="참가자 보기"><span aria-hidden="true">👥</span><span id="netTxt">1</span></button>
+      <button type="button" id="stampBtn" aria-label="도장판 보기"><span aria-hidden="true">🏅</span><span id="stampTxt">0</span></button>
       <span class="sep"></span>
       <button type="button" id="noticeBtn" aria-label="공지사항">📢</button>
       <button type="button" id="fsBtn" aria-label="전체화면">⛶</button>
@@ -316,6 +341,8 @@ body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touc
   <div id="history" class="glass" hidden><div class="phead"><b>📜 이전 대화</b><button type="button" class="pclose" id="histClose" aria-label="닫기">✕</button></div><ol id="histList"></ol></div>
   <div id="people" class="glass" hidden><div class="phead"><b>👥 참가자 <span id="peopleCount"></span></b><button type="button" class="pclose" id="peopleClose" aria-label="닫기">✕</button></div><ul id="peopleList"></ul></div>
   <div id="notice" class="glass" hidden><div class="phead"><b>📢 공지사항</b><button type="button" class="pclose" id="noticeClose" aria-label="닫기">✕</button></div><div id="noticeList"></div></div>
+  <div id="stamps" class="glass" hidden><div class="phead"><b>🏅 도장 깨기 <span id="stampCount"></span></b><button type="button" class="pclose" id="stampClose" aria-label="닫기">✕</button></div><p class="stsub">스키장 곳곳에서 도전을 해내면 도장이 쾅! 찍혀요. 도장은 이 기기에 저장돼요.</p><div class="stbar"><div id="stampFill"></div></div><ol id="stampList"></ol></div>
+  <div id="stampToast" hidden><span class="seal on" id="stToastIc"></span><span class="tx"><small>도장 획득!</small><b id="stToastName"></b><span id="stToastDesc"></span></span></div>
   <div id="more" class="glass" hidden>
     <div><h3>지금 스키장에</h3><ul id="players"></ul></div>
     <div><h3>코스 최고 기록</h3><ul id="records"></ul></div>
@@ -333,10 +360,11 @@ body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touc
       <h3 style="margin-top:8px">버튼 크기</h3>
       <div class="setrow"><button type="button" class="bsz" data-s="0.82">작게</button><button type="button" class="bsz" data-s="1">보통</button><button type="button" class="bsz" data-s="1.2">크게</button></div>
     </div>
+    <button id="stampMore" type="button" class="morebtn">🏅 도장판 보기</button>
     <button id="unstuckBtn" type="button" class="morebtn">🆘 끼인 곳에서 빠져나오기</button>
     <button id="homeBtn" type="button" class="morebtn">🏠 베이스로 돌아가기</button>
     <button id="copy2" type="button">친구 초대 링크 복사</button>
-    <div class="help" id="keys"><kbd>A</kbd><kbd>D</kbd> 방향 · <kbd>W</kbd> 밀기 · <kbd>S</kbd> 브레이크<br><kbd>Space</kbd> 점프 · <kbd>E</kbd> NPC와 대화 · <kbd>Enter</kbd> 채팅<br><kbd>Q</kbd> 스키↔보드 · <kbd>X</kbd> 앉기 · <kbd>G</kbd> 인사 · <kbd>R</kbd> 베이스로<br><kbd>Shift</kbd> 부스트 · <kbd>F</kbd> 눈덩이 · <kbd>T</kbd> 레이스 · <kbd>N</kbd> 낮/밤<br>화면을 끌면 시점 회전, 휠로 확대</div>
+    <div class="help" id="keys"><kbd>A</kbd><kbd>D</kbd> 방향 · <kbd>W</kbd> 밀기 · <kbd>S</kbd> 브레이크<br><kbd>Space</kbd> 점프 · <kbd>E</kbd> NPC와 대화 · <kbd>Enter</kbd> 채팅<br><kbd>Q</kbd> 스키↔보드 · <kbd>X</kbd> 앉기 · <kbd>G</kbd> 인사 · <kbd>R</kbd> 베이스로<br><kbd>Shift</kbd> 부스트 · <kbd>F</kbd> 눈덩이 · <kbd>T</kbd> 레이스 · <kbd>N</kbd> 낮/밤<br><kbd>B</kbd> 눈사람 만들기 · <kbd>K</kbd> 도장판<br>화면을 끌면 시점 회전, 휠로 확대</div>
   </div>
   <div class="bottom">
     <div id="offWarn" hidden></div>
@@ -352,6 +380,7 @@ body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touc
       <button type="button" id="chatOpen"><span class="ic">💬</span><span class="lb">말 남기기</span></button>
       <button type="button" id="actThrow"><span class="ic" id="throwIc">❄</span><span class="lb" id="throwLb">눈덩이</span></button>
       <button type="button" id="actRace"><span class="ic">🏁</span><span class="lb">레이스</span></button>
+      <button type="button" id="actBuild"><span class="ic">⛄</span><span class="lb" id="buildLb">눈사람</span></button>
       <button type="button" id="actMore" aria-pressed="false"><span class="ic">⋯</span><span class="lb">더 보기</span></button>
     </div>
   </div>
@@ -1646,6 +1675,7 @@ function stepSki(dt) {
     const hop = Math.hypot(me.vx, me.vz) > 0.2 ? Math.abs(Math.sin(performance.now() / 160)) * 0.18 : 0;
     me.y = H(me.x, me.z) + hop; me.air = false; me.steer = 0; return;
   }
+  if (me.build) { stepBuild(dt); return; }
   if (!me.air && inWalkZone(me.x, me.z)) { walkStep(dt); return; }
   me.bath = -1;
   const gx = (H(me.x + 0.5, me.z) - H(me.x - 0.5, me.z)), gz = (H(me.x, me.z + 0.5) - H(me.x, me.z - 0.5));
@@ -1735,6 +1765,7 @@ function walkStep(dt) {
   me.y = H(me.x, me.z); me.vyG = 0; me.air = false;
   const pi = poolAt(me.x, me.z);
   if (pi !== me.bath) {
+    if (pi >= 0) bumpStat('pools', 1 << pi, true);
     if (pi >= 0) { const P = POOLS[pi]; notice(P.cold ? '🥶 으슬으슬! ' + P.name + ' ' + P.temp : '♨ ' + P.name + ' ' + P.temp + ' · 아~ 따뜻해요'); if (myAv) setBubble(myAv, P.cold ? '앗 차가워!' : '아~ 따뜻해 ♨', 3500); }
     me.bath = pi;
   }
@@ -1824,7 +1855,7 @@ function startRun(c) {
 function cancelRun(msg) {
   $('#offWarn').hidden = true; if (me.run && me.run.race && me.rc) me.rf = { id: me.rc.id, ms: -1 }; me.run = null; if (msg) notice(msg); }
 function updateRun(dt) {
-  if (me.state !== 'ski') return;
+  if (me.state !== 'ski' || me.build) return;
   const sp = Math.hypot(me.vx, me.vz);
   if (!me.run) {
     if (me.rc) return;
@@ -1867,6 +1898,8 @@ function updateRun(dt) {
     const isBest = !me.best[c.id] || ms < me.best[c.id];
     if (isBest) { me.best[c.id] = Math.round(ms); store('ski.best', JSON.stringify(me.best)); }
     me.fin = { i: ++me.finSeq, co: c.id, ms: Math.round(ms) };
+    if (r.race) stamp('racefin'); else stamp('c' + c.id);
+    if (night.on) stamp('night');
     sfx.finish(); centerMsg(fmtTime(ms), c.id + ' ' + c.name + ' 완주!' + (pen >= 100 ? ' · 패널티 +' + (pen / 1000).toFixed(1) + '초' : '') + (isBest ? ' · 내 최고 기록' : ''));
     renderRecords();
   }
@@ -1892,7 +1925,7 @@ function requestBoard() {
     if (w < wait) { wait = w; pick = i; }
   }
   if (pick < 0) { say(npcs.coco, '지금은 의자가 꽉 찼어요. 잠깐 뒤에 다시 말 걸어 주세요!'); return; }
-  me.state = 'queue'; me.chair = pick; me.boardAt = t + wait; me.vx = me.vz = 0;
+  me.state = 'queue'; me.chair = pick; me.boardAt = t + wait; me.vx = me.vz = 0; cancelBuild();
   if (me.run) cancelRun();
   if (me.rc) leaveRace();
   const friends = occupants(pick).map(nameOfPeer).filter(Boolean);
@@ -1904,6 +1937,7 @@ function attachToChair() {
   const ids = [myId(), ...occupants(me.chair)].sort();
   me.seat = clamp(ids.indexOf(myId()), 0, 3);
   me.state = 'lift'; me.rideMsgs = 0; sfx.clack();
+  if (ids.length > 1) stamp('liftmate');
   say(npcs.coco, '안전바 내립니다~ 덜컹! 정상까지 즐거운 여행 되세요 🚡', [], 3500);
   setBubble(npcs.coco, '안전바 내릴게요~', 3000);
 }
@@ -1927,6 +1961,7 @@ function updateLift(dt) {
   if (prog >= LIFT.unloadAt) {
     me.state = 'ski'; me.chair = -1; me.air = false;
     me.y = H(me.x, me.z); me.vx = 0; me.vz = -3.5; me.heading = 0; me.vyG = 0;
+    stamp('lift'); bumpStat('lift', 1);
     sfx.clack();
     const g = me.guide ? courseById[me.guide] : null;
     say(npcs.bu, g ? '정상 도착! ' + g.id + ' ' + g.level + ' ' + g.name + ' 코스로 안내할게요. 머리 위 화살표를 따라가세요!' : '정상 도착! 뒤로 돌아서 코스를 골라 내려가요. 길을 모르면 저에게 말 걸어 주세요.', [], 6000);
@@ -1979,7 +2014,7 @@ function talkBu() {
   }));
 }
 function snowcat(c) {
-  if (me.run) cancelRun(); if (me.rc) leaveRace();
+  if (me.run) cancelRun(); if (me.rc) leaveRace(); cancelBuild();
   closeDialog();
   const f = $('#fade'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
   const [x, z] = c.s[0], [dx, dz] = c.dir[0];
@@ -1990,8 +2025,8 @@ function snowcat(c) {
 function talkBear() {
   setBubble(npcs.bear, '어서 와요~', 2500);
   say(npcs.bear, '어서 와요! 산장 카페 곰 사장이에요 🐻‍❄️ 꽁꽁 언 몸 좀 녹이고 가요. 핫초코나 커피 한 잔 줄까요?', [
-    { label: '커피 주세요 ☕', fn: () => { me.item = 3; me.itemT = 45; sfx.pop(); say(npcs.bear, '갓 내린 커피예요! 향 좋죠? 홀짝홀짝 천천히 마셔요 ☕', [], 4500); if (myAv) setBubble(myAv, '음~ 향 좋다 ☕', 3500); } },
-    { label: '핫초코 주세요 ☕', fn: () => { me.item = 1; me.itemT = 45; sfx.pop(); say(npcs.bear, '여기 있어요! 뜨거우니까 호호 불어서 마셔요. 모닥불 옆 통나무에 앉으면 더 따뜻해요 🔥 뒷문으로 나가면 온천도 있어요 ♨', [], 6000); if (myAv) setBubble(myAv, '따뜻해~ ☕', 3500); } },
+    { label: '커피 주세요 ☕', fn: () => { me.item = 3; me.itemT = 45; sfx.pop(); stamp('drink'); say(npcs.bear, '갓 내린 커피예요! 향 좋죠? 홀짝홀짝 천천히 마셔요 ☕', [], 4500); if (myAv) setBubble(myAv, '음~ 향 좋다 ☕', 3500); } },
+    { label: '핫초코 주세요 ☕', fn: () => { me.item = 1; me.itemT = 45; sfx.pop(); stamp('drink'); say(npcs.bear, '여기 있어요! 뜨거우니까 호호 불어서 마셔요. 모닥불 옆 통나무에 앉으면 더 따뜻해요 🔥 뒷문으로 나가면 온천도 있어요 ♨', [], 6000); if (myAv) setBubble(myAv, '따뜻해~ ☕', 3500); } },
     { label: '온천은 어디예요?', fn: () => say(npcs.bear, '카페 뒷문으로 나가서 디딤돌을 따라가면 눈꽃 온천이에요 ♨ 탕에 들어가면 스키 피로가 싹 풀려요. 냉탕은 정말 차가우니 조심!', [], 6500) },
     { label: '괜찮아요', fn: () => say(npcs.bear, '언제든 불러요~ 모닥불 쬐고 가요!', [], 2500) },
   ]);
@@ -2049,6 +2084,7 @@ function reelIn() {
   const size = Math.round((7 + Math.random() * 8 + (Math.random() < 0.08 ? 5 : 0)) * 10) / 10;
   me.fishCount = (me.fishCount || 0) + 1; if (size > (me.fishBest || 0)) { me.fishBest = size; store('ski.fish', String(size)); if (net.room && net.room.fish) net.room.fish(me.name, size); }
   me.lastFish = size; me.fishSeq = (me.fishSeq || 0) + 1;
+  stamp('fish'); if (size >= 15) stamp('fishking'); bumpStat('fish', 1);
   addPileFish('me', me.x, me.z, me.heading, me.fishCount + 1, size);
   me.item = 6; f.showT = 2.2; f.phase = 'wait'; f.biteAt = f.t + 3 + Math.random() * 6;
   showCatch(size);
@@ -2061,21 +2097,28 @@ function holdNote() {
   me.holdNoteAt = performance.now(); notice('🏁 출발 대기 중이에요. 출발 신호를 기다려요!');
 }
 function useAction() {
+  if (me.build) { placeBall(); return true; }
   if (me.fishing && me.state === 'sit') { reelIn(); return true; }
   { const hi = nearHole(); if (hi >= 0) { startFishing(hi); return true; } }
   if (me.raceHold && me.rc && !me.rc.t0 && me.rc.hid === myId()) { startRaceNow(); return true; }
   if (me.raceHold) { holdNote(); return true; }
   if (nearNpc()) { interact(); return true; }
+  { const sm0 = nearSnowman(); if (sm0) { talkSnowman(sm0); return true; } }
   if (me.state === 'sit' && me.stump >= 0) { if (me.item !== 2 && me.item !== 4) { me.item = 2; me.itemT = 6; notice('🔥 마시멜로를 굽는 중…'); } return true; }
   const st = nearStump(); if (st >= 0) { sitStump(st); return true; }
   return false;
 }
 function promptText() {
+  if (me.build) {
+    const b = me.build, part = ['몸통', '가슴', '머리'][b.parts.length], min = b.parts.length ? 0.3 : 0.4;
+    return b.ball < min ? '⛄ ' + part + ' 굴리는 중 · 앞으로 걸어서 키워요' + (b.parts.length === 0 && b.walked < 1.5 ? ' (한 번 더 누르면 그만두기)' : '') : '⛄ ' + part + ' 내려놓기' + (isTouch ? '' : ' (B)') + (b.parts.length ? ' · 몸통 앞에서' : '');
+  }
   if (me.fishing && me.state === 'sit') return me.fishing.phase === 'bite' ? '🎣 지금 낚아채기!' : '입질을 기다리는 중… (움직이면 일어나요)';
   if (nearHole() >= 0) return '🎣 빙어 낚시하기';
   if (me.raceHold && me.rc && !me.rc.t0) return me.rc.hid === myId() ? '🏁 모두 모였으면 출발!' : '';
   const n = nearNpc();
   if (n) return n.name + (n.id === 'coco' ? '에게 말 걸기 · 리프트 타기' : n.id === 'bear' ? '에게 핫초코·커피 주문하기' : n.id === 'coach' ? '에게 스키점프 하기' : '에게 길 물어보기');
+  { const sm0 = nearSnowman(); if (sm0) return '⛄ ' + sm0.n + '님의 눈사람' + (SM.mine.has(sm0.id) ? ' · 치우기' : ' · 말 걸기'); }
   if (me.state === 'sit' && me.stump >= 0) return me.item === 2 || me.item === 4 ? '' : '마시멜로 굽기 · 움직이면 일어나요';
   if (nearStump() >= 0) return '통나무 의자에 앉기';
   return '';
@@ -2273,8 +2316,9 @@ function drawMinimap() {
 
 /* ================= chat ================= */
 /* ================= notices ================= */
-const NOTICE_VER = '2026-11-01-c';
+const NOTICE_VER = '2026-11-01-d';
 const NOTICES = [
+  { date: '11월 1일', title: '🏅 도장 깨기 · ⛄ 눈사람 만들기', items: ['오른쪽 위 🏅 버튼(또는 K)을 누르면 도장판이 열려요. 코스 완주, 빙어, 온천, 눈싸움… 35개 도장을 모아 보세요!', '눈밭에서 B(휴대폰은 ⛄ 눈사람 버튼)를 누르면 눈덩이를 굴려요. 앞으로 걸을수록 커져요.', '몸통 → 가슴 → 머리 순서로 B를 눌러 쌓으면 눈사람 완성! 다 같이 볼 수 있게 스키장에 남아요.', '슬로프·리프트 길·카페·온천에는 만들 수 없어요. 내 눈사람은 한 사람당 3개까지, E로 말 걸면 치울 수 있어요.'] },
   { date: '11월 1일', title: '🎿 스키점프 · ⚔️ 점프 대결', items: ['빙어 낚시터 옆 🦅 점프 코치 수리에게 말을 걸면 스키점프를 할 수 있어요.', '게이트에서 Space로 출발 → 도약대 끝에서 Space! → 날 때 W를 누르고 있으면 V자 자세 → 착지 직전 Space로 텔레마크 보너스.', '점프 대결을 열면 2분 30초 동안 가장 좋은 점수로 순위를 겨뤄요.', '휴대폰에서 캐릭터가 사라지던 문제를 고쳤어요.', '마실 때 컵을 얼굴 앞으로 가져가요. 부딪힌 물체에 맞는 안내가 떠요.'] },
   { date: '11월 1일', title: '♨ 온천 새단장 · ⛄ 눈사람 이동', items: ['냉탕이 없어지고 탕마다 온도가 10℃씩 달라졌어요: 노을탕 40℃ · 유자탕 50℃ · 큰 노천탕 60℃ · 나무탕 70℃', '유자가 둥둥, 꽃잎이 동동, 대나무 물줄기와 나무 바가지가 생겼어요.', '탕에 오래 있으면 얼굴이 빨개지고 머리에서 김이 나요. 뜨거운 탕일수록 빨리!', '인사하면 “안녕~ 👋” 말풍선이 떠요.', '눈사람이 돼도 천천히 깡총깡총 움직일 수 있어요.'] },
   { date: '10월 31일', title: '💥 눈덩이 게이지 · 몰아 던지기', items: ['오른쪽 아래 ❄ 게이지에 눈덩이가 최대 30개까지 모여요.', 'V 키(또는 게이지/💥 한방 버튼)를 누르면 모아 둔 눈덩이를 부채꼴로 한 번에 던져요.', 'F를 누르고 있으면 지금처럼 한 발씩 연사해요.', '레이스 출발 대기 중에는 움직이거나 앉을 수 없어요.'] },
@@ -2284,7 +2328,7 @@ const NOTICES = [
   { date: '10월 31일', title: '👥 참가자 탭 · 🌌 롱 코스 · 🐟 잡은 빙어 쌓기', items: ['오른쪽 위 👥 숫자를 누르면 접속한 사람과 지금 하는 일이 보여요. 📍 같이 가기로 친구 옆으로 이동해요.', '서쪽 능선 너머에 거의 일직선인 가장 긴 L 은하수 코스가 생겼어요. 코코나 부엉이에게 말 걸면 설상차로 데려다줘요.', '잡은 빙어가 의자 옆 얼음 위에 차곡차곡 쌓여요.', '레이스 중에는 눈덩이가 더 잘 맞아요. R 코스 기문은 주황색 한 가지예요.', '나무 사이에 끼면 자동으로 빠져나와요. 더 보기 → 🆘 버튼도 있어요.'] },
   { date: '10월 31일', title: '🎣 빙어 랭킹 · 📜 대화 기록 · 📢 공지사항', items: ['빙어 낚시터에 길이 순위가 생겼어요. 더 보기와 낚시터 입구 게시판에서 확인하세요.', '대화창 위 📜 대화 기록에서 이전 대화를 볼 수 있어요. 늦게 들어와도 최근 대화가 보여요.', '오른쪽 위 📢 버튼으로 공지사항을 다시 볼 수 있어요.'] },
   { date: '10월 31일', title: '🏁 레이스 전용 계곡 · 🔥 장작 넣기 · 🎣 빙어 낚시터', items: ['R 챔피언 코스가 동쪽 능선 너머 레이스 전용 계곡으로 옮겨졌어요.', '레이스를 연 사람이 “출발!”을 누르면 모두 같이 출발해요. 90초 뒤엔 자동 출발해요.', '카페 안에서 F(🪵 버튼)로 장작을 던져 모닥불을 키워 보세요.', '온천 서쪽 얼음 호수에서 빙어 낚시! 입질이 오면 E를 눌러요.', 'Shift 부스트가 더 빨라졌어요.'] },
-  { date: '이용 방법', title: '⛷ 눈꽃 스키장 즐기는 법', items: ['리프트 앞 코코에게 말을 걸어 정상에 올라가요.', 'A(초급)부터 D(최상급)까지 코스를 골라 기록에 도전해요.', 'F로 눈덩이를 던져요. 13번쯤 맞으면 ⛄ 눈사람이 돼요.', '베이스 뒤 산장 카페와 ♨ 온천에서 쉬어 가요.'] },
+  { date: '이용 방법', title: '⛷ 눈꽃 스키장 즐기는 법', items: ['리프트 앞 코코에게 말을 걸어 정상에 올라가요.', 'A(초급)부터 D(최상급)까지 코스를 골라 기록에 도전해요.', 'F로 눈덩이를 던져요. 13번쯤 맞으면 ⛄ 눈사람이 돼요.', 'B로 눈덩이를 굴려 진짜 눈사람을 만들고, 🏅 도장판을 채워 보세요.', '베이스 뒤 산장 카페와 ♨ 온천에서 쉬어 가요.'] },
 ];
 function renderNotices() {
   const box = $('#noticeList'); box.textContent = '';
@@ -2300,9 +2344,337 @@ function openNotice(on) { $('#notice').hidden = !on; if (on) { renderNotices(); 
 $('#noticeBtn').addEventListener('click', () => openNotice($('#notice').hidden));
 $('#noticeClose').addEventListener('click', () => openNotice(false));
 
+/* ================= stamps (도장 깨기) ================= */
+const STAMPS = [
+  { id: 'lift', ic: '🚡', name: '첫 리프트', desc: '리프트를 타고 정상에 올라요' },
+  { id: 'liftmate', ic: '🤝', name: '둘이서 리프트', desc: '친구와 같은 의자에 타요' },
+  { id: 'lift10', ic: '🎟', name: '리프트 단골', desc: '리프트 10번 타기', stat: 'lift', goal: 10 },
+  { id: 'cA', ic: '🟢', name: '눈송이 완주', desc: 'A 초급 코스 완주' },
+  { id: 'cB', ic: '🔵', name: '솔바람 완주', desc: 'B 중급 코스 완주' },
+  { id: 'cC', ic: '🔴', name: '번개 완주', desc: 'C 상급 코스 완주' },
+  { id: 'cD', ic: '⚫', name: '얼음절벽 완주', desc: 'D 최상급 코스 완주' },
+  { id: 'cL', ic: '🌌', name: '은하수 완주', desc: 'L 롱 코스 완주' },
+  { id: 'allc', ic: '🏆', name: '전 코스 정복', desc: 'A·B·C·D·L 코스 모두 완주' },
+  { id: 'night', ic: '🌙', name: '밤 스키', desc: '밤에 코스 하나 완주' },
+  { id: 'speed', ic: '🚀', name: '스피드광', desc: '시속 100km 넘기기 (부스트!)' },
+  { id: 'racefin', ic: '🏁', name: '레이스 완주', desc: '레이스에서 골인하기' },
+  { id: 'racewin', ic: '🥇', name: '레이스 우승', desc: '2명 이상 레이스에서 1등' },
+  { id: 'jump', ic: '🎿', name: '첫 스키점프', desc: '점프대에서 날아 착지하기' },
+  { id: 'jumpk', ic: '🕊', name: 'K점 돌파', desc: '스키점프 120m 넘게 날기' },
+  { id: 'jbwin', ic: '⚔️', name: '점프 대결 승리', desc: '2명 이상 점프 대결에서 1등' },
+  { id: 'fish', ic: '🐟', name: '첫 빙어', desc: '얼음 호수에서 빙어 낚기' },
+  { id: 'fishking', ic: '👑', name: '왕빙어', desc: '15cm 넘는 빙어 낚기' },
+  { id: 'fish10', ic: '🪣', name: '빙어 한 양동이', desc: '빙어 10마리 낚기', stat: 'fish', goal: 10 },
+  { id: 'hit', ic: '🎯', name: '첫 명중', desc: '눈덩이로 친구 맞히기' },
+  { id: 'hit50', ic: '❄', name: '눈싸움 고수', desc: '눈덩이 50번 명중', stat: 'hits', goal: 50 },
+  { id: 'burst', ic: '💥', name: '눈덩이 폭탄', desc: '30개를 한 번에 던지기 (V)' },
+  { id: 'frozen', ic: '🥶', name: '꽁꽁', desc: '눈덩이에 맞아 눈사람이 되기' },
+  { id: 'drink', ic: '☕', name: '따뜻한 한 잔', desc: '카페에서 음료 주문하기' },
+  { id: 'marsh', ic: '🍡', name: '마시멜로 굽기', desc: '모닥불에 마시멜로 노릇노릇' },
+  { id: 'logs', ic: '🔥', name: '불지킴이', desc: '모닥불에 장작 10개 넣기', stat: 'logs', goal: 10 },
+  { id: 'onsen', ic: '♨', name: '온천 순례', desc: '온천 탕 4곳 모두 들어가 보기', stat: 'pools', goal: 4, bits: true },
+  { id: 'hot', ic: '🥵', name: '화끈화끈', desc: '온천에서 얼굴이 빨개지기' },
+  { id: 'chat', ic: '💬', name: '첫 마디', desc: '채팅으로 말 남기기' },
+  { id: 'wave', ic: '👋', name: '안녕~', desc: '친구에게 인사하기 (G)' },
+  { id: 'visit', ic: '📍', name: '같이 가기', desc: '👥 탭에서 친구 옆으로 이동' },
+  { id: 'sm', ic: '⛄', name: '눈사람 만들기', desc: '눈덩이를 굴려 눈사람 완성 (B)' },
+  { id: 'smbig', ic: '🏔', name: '왕 눈사람', desc: '키 3.5m 넘는 눈사람 만들기' },
+  { id: 'sm3', ic: '☃', name: '눈사람 가족', desc: '눈사람 3개 만들기', stat: 'sm', goal: 3 },
+  { id: 'master', ic: '🏅', name: '도장 마스터', desc: '도장 30개 모으기' },
+];
+const STAMP_MASTER = 30;
+const stampState = { got: {}, stat: {}, queue: [], showing: false };
+try { stampState.got = JSON.parse(store('ski.stamps') || '{}') || {}; } catch (e) { stampState.got = {}; }
+try { stampState.stat = JSON.parse(store('ski.stat') || '{}') || {}; } catch (e) { stampState.stat = {}; }
+if (typeof stampState.got !== 'object' || Array.isArray(stampState.got)) stampState.got = {};
+if (typeof stampState.stat !== 'object' || Array.isArray(stampState.stat)) stampState.stat = {};
+const stampById = Object.fromEntries(STAMPS.map((s) => [s.id, s]));
+function stampCount() { let n = 0; for (const s of STAMPS) if (stampState.got[s.id]) n++; return n; }
+function bitCount(v) { let n = 0; v = v | 0; while (v) { n += v & 1; v >>>= 1; } return n; }
+function statVal(s) { const v = Number(stampState.stat[s.stat]) || 0; return s.bits ? bitCount(v) : v; }
+function stamp(id) {
+  const s = stampById[id];
+  if (!s || stampState.got[id] || !playing) return;
+  stampState.got[id] = Date.now(); store('ski.stamps', JSON.stringify(stampState.got));
+  stampState.queue.push(s); showNextStamp();
+  updateStampBtn();
+  if (!$('#stamps').hidden) renderStamps();
+  if (id.length === 2 && id[0] === 'c' && ['A', 'B', 'C', 'D', 'L'].every((c) => stampState.got['c' + c])) stamp('allc');
+  if (id !== 'master' && stampCount() >= STAMP_MASTER) stamp('master');
+  addChatLine('', '', '🏅 도장 획득! ' + s.ic + ' ' + s.name + ' (' + stampCount() + '/' + STAMPS.length + ')', true);
+  sendPresence(performance.now(), true);
+}
+function bumpStat(key, add, bit) {
+  const st = stampState.stat;
+  st[key] = bit ? ((st[key] | 0) | add) : (Number(st[key]) || 0) + add;
+  store('ski.stat', JSON.stringify(st));
+  for (const s of STAMPS) if (s.stat === key && statVal(s) >= s.goal) stamp(s.id);
+  if (!$('#stamps').hidden) renderStamps();
+}
+function showNextStamp() {
+  if (stampState.showing || !stampState.queue.length) return;
+  const s = stampState.queue.shift(), el = $('#stampToast');
+  stampState.showing = true;
+  $('#stToastIc').textContent = s.ic; $('#stToastName').textContent = s.name; $('#stToastDesc').textContent = s.desc;
+  el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+  tone([110, 70], 0.3, 0.2, 'sine', 0.18); [784, 988, 1319].forEach((f, i) => tone([f], 0.09, 0.3, 'triangle', 0.3 + i * 0.09));
+  setTimeout(() => { el.hidden = true; stampState.showing = false; setTimeout(showNextStamp, 250); }, 3200);
+}
+function updateStampBtn() { $('#stampTxt').textContent = stampCount(); }
+function renderStamps() {
+  const n = stampCount();
+  $('#stampCount').textContent = n + ' / ' + STAMPS.length;
+  $('#stampFill').style.width = (n / STAMPS.length * 100).toFixed(1) + '%';
+  const ol = $('#stampList'); ol.textContent = '';
+  for (const s of STAMPS) {
+    const got = stampState.got[s.id], li = document.createElement('li');
+    if (got) li.className = 'on';
+    const seal = document.createElement('span'); seal.className = 'seal' + (got ? ' on' : ''); seal.textContent = s.ic;
+    const b = document.createElement('b'); b.textContent = s.name;
+    const sm = document.createElement('small'); sm.textContent = s.desc;
+    li.append(seal, b, sm);
+    const pg = document.createElement('span'); pg.className = 'pg';
+    if (got) { const d = new Date(got); pg.textContent = (d.getMonth() + 1) + '/' + d.getDate() + ' 획득'; }
+    else if (s.goal) pg.textContent = Math.min(statVal(s), s.goal) + ' / ' + s.goal;
+    else if (s.id === 'master') pg.textContent = Math.min(n, STAMP_MASTER) + ' / ' + STAMP_MASTER;
+    if (pg.textContent) li.appendChild(pg);
+    ol.appendChild(li);
+  }
+}
+function openStamps(on) { $('#stamps').hidden = !on; if (on) renderStamps(); }
+$('#stampBtn').addEventListener('click', () => openStamps($('#stamps').hidden));
+$('#stampClose').addEventListener('click', () => openStamps(false));
+$('#stampMore').addEventListener('click', () => openStamps(true));
+updateStampBtn();
+
+/* ================= snowman building (눈사람 만들기) ================= */
+const SM = { built: new Map(), mine: new Set(), seq: 0, key: store('ski.key') || '' };
+if (!/^[a-z0-9]{16,40}$/.test(SM.key)) { SM.key = ''; for (let i = 0; i < 24; i++) SM.key += Math.floor(Math.random() * 36).toString(36); store('ski.key', SM.key); }
+try { for (const id of JSON.parse(store('ski.mysm') || '[]')) if (typeof id === 'string') SM.mine.add(id); } catch (e) {}
+const smBallGeo = new THREE.SphereGeometry(1, 22, 16), smRollGeo = new THREE.IcosahedronGeometry(1, 1), smSnowM = lam(0xfdfeff);
+const SM_START = 0.25, SM_GROW = 0.065;
+// centers of the three balls, stacked a little into each other like real packed snow
+function smLayout(r) {
+  const y0 = r[0] * 0.85, y1 = y0 + r[0] * 0.78 + r[1] * 0.78, y2 = y1 + r[1] * 0.8 + r[2] * 0.8;
+  return [y0, y1, y2, y2 + r[2]];
+}
+function smHeight(r) { return smLayout(r)[3]; }
+function smCap(parts) { return parts.length === 0 ? 1.15 : parts.length === 1 ? Math.min(0.95, parts[0] * 0.9) : Math.min(0.75, parts[1] * 0.9); }
+function makeSnowmanModel(r, deco, color) {
+  const g = new THREE.Group(), y = smLayout(r), blk = lam(0x1d1d26), col = lam(cleanColor(color));
+  for (let i = 0; i < 3; i++) { const m = new THREE.Mesh(smBallGeo, smSnowM); m.scale.set(r[i], r[i] * 0.94, r[i]); m.position.y = y[i]; m.castShadow = true; m.receiveShadow = true; g.add(m); }
+  const r1 = r[1], r2 = r[2], hy = y[2];
+  // face (front is -z, like the animals)
+  for (const sx of [-1, 1]) sph(r2 * 0.11, blk, sx * r2 * 0.36, hy + r2 * 0.22, -r2 * 0.88, 1, 1, 0.6, g);
+  cone(r2 * 0.13, r2 * 0.75, lam(0xff8a2a), 0, hy, -r2 * 1.25, -Math.PI / 2, g);
+  for (let k = 0; k < 5; k++) { const a = (k / 4 - 0.5) * 1.3; sph(r2 * 0.055, blk, Math.sin(a) * r2 * 0.42, hy - r2 * 0.3 - Math.cos(a) * r2 * 0.08, -r2 * 0.86, 1, 1, 0.6, g); }
+  // coal buttons on the chest
+  for (const dy of [0.45, 0, -0.45]) { const yy = dy * r1; sph(r1 * 0.09, blk, 0, y[1] + yy, -Math.sqrt(Math.max(0, r1 * r1 - yy * yy)) * 0.97, 1, 1, 0.6, g); }
+  // twig arms
+  const twig = lam(0x6b4a2b);
+  for (const sx of [-1, 1]) {
+    const L = r1 * 1.5, arm = mesh(new THREE.CylinderGeometry(0.035, 0.05, L, 5), twig, sx * (r1 * 0.9 + L * 0.38), y[1] + r1 * 0.25, 0, g); arm.rotation.z = -sx * 1.0;
+    const f = mesh(new THREE.CylinderGeometry(0.02, 0.025, L * 0.3, 4), twig, sx * (r1 * 0.9 + L * 0.7), y[1] + r1 * 0.25 + L * 0.42, 0, g); f.rotation.z = -sx * 0.3;
+  }
+  // scarf in the builder's color
+  const neck = y[1] + r1 * 0.78, sr = Math.min(r1, r2) * 0.92;
+  const scarf = new THREE.Mesh(new THREE.TorusGeometry(sr, r2 * 0.17, 8, 22), col); scarf.rotation.x = Math.PI / 2; scarf.position.y = neck; scarf.castShadow = true; g.add(scarf);
+  const tail = mesh(new THREE.BoxGeometry(r2 * 0.4, r2 * 0.9, r2 * 0.14), col, sr * 0.55, neck - r2 * 0.45, -sr * 0.82, g); tail.rotation.z = 0.15;
+  // hat
+  const top = hy + r2 * 0.82;
+  if (deco === 0) {
+    mesh(new THREE.CylinderGeometry(r2 * 0.95, r2 * 0.95, r2 * 0.08, 18), blk, 0, top, 0, g);
+    mesh(new THREE.CylinderGeometry(r2 * 0.58, r2 * 0.58, r2 * 0.85, 18), blk, 0, top + r2 * 0.45, 0, g);
+    mesh(new THREE.CylinderGeometry(r2 * 0.6, r2 * 0.6, r2 * 0.16, 18), col, 0, top + r2 * 0.14, 0, g);
+  } else if (deco === 1) {
+    const b = mesh(new THREE.CylinderGeometry(r2 * 0.55, r2 * 0.72, r2 * 0.7, 16), col, 0, top + r2 * 0.25, 0, g); b.rotation.z = 0.22;
+  } else if (deco === 2) {
+    const cap = mesh(new THREE.SphereGeometry(r2 * 0.78, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), col, 0, top - r2 * 0.18, 0, g); void cap;
+    sph(r2 * 0.24, lam(0xffffff), 0, top + r2 * 0.66, 0, 1, 1, 1, g);
+  } else {
+    const hg = new THREE.Group(); hg.position.set(0, top - r2 * 0.12, 0); hg.rotation.z = -0.3; g.add(hg);
+    cone(r2 * 0.72, r2 * 1.4, col, 0, r2 * 0.68, 0, 0, hg);
+    const fur = new THREE.Mesh(new THREE.TorusGeometry(r2 * 0.72, r2 * 0.15, 8, 20), lam(0xffffff)); fur.rotation.x = Math.PI / 2; hg.add(fur);
+    sph(r2 * 0.22, lam(0xffffff), 0, r2 * 1.42, 0, 1, 1, 1, hg);
+  }
+  return g;
+}
+function validSnowman(s) {
+  if (!s || typeof s !== 'object' || typeof s.id !== 'string' || s.id.length > 40) return null;
+  const x = +s.x, z = +s.z, h = +s.h, r = Array.isArray(s.r) ? s.r.slice(0, 3).map(Number) : [];
+  if (![x, z, h].every(isFinite) || Math.abs(x) > 400 || Math.abs(z) > 400) return null;
+  if (r.length !== 3 || !r.every((v) => isFinite(v) && v >= 0.2 && v <= 1.3)) return null;
+  return { id: s.id, x, z, h, r, n: cleanName(s.n) || '스키어', c: cleanColor(s.c), d: clamp(s.d | 0, 0, 3), at: +s.at || Date.now() };
+}
+function addSnowman(raw, mine, announce) {
+  const s = validSnowman(raw); if (!s) return;
+  if (SM.built.has(s.id)) removeSnowman(s.id);
+  if (mine) { SM.mine.add(s.id); saveMine(); }
+  const root = new THREE.Group();
+  root.position.set(s.x, H(s.x, s.z) - s.r[0] * 0.12, s.z); root.rotation.y = s.h;
+  root.add(makeSnowmanModel(s.r, s.d, s.c));
+  const tag = makeTag('⛄ ' + s.n, s.c); tag.scale.multiplyScalar(0.72); tag.position.y = smHeight(s.r) + 1.0; root.add(tag);
+  scene.add(root);
+  s.root = root; s.ob = [s.x, s.z, s.r[0] * 0.92, 'snowman'];
+  const k = Math.floor(s.x / 8) + ',' + Math.floor(s.z / 8); if (!obstacles.has(k)) obstacles.set(k, []); obstacles.get(k).push(s.ob); s.obKey = k;
+  SM.built.set(s.id, s);
+  if (announce && !SM.mine.has(s.id)) { notice('⛄ ' + s.n + '님이 눈사람을 만들었어요!'); addChatLine('', '', '⛄ ' + s.n + '님이 눈사람을 만들었어요!', true); }
+}
+function removeSnowman(id) {
+  const s = SM.built.get(id); if (!s) return;
+  scene.remove(s.root); disposeGroup(s.root);
+  const list = obstacles.get(s.obKey); if (list) { const i = list.indexOf(s.ob); if (i >= 0) list.splice(i, 1); }
+  SM.built.delete(id);
+  if (SM.mine.delete(id)) saveMine();
+}
+function setSnowmen(list) {
+  const keep = new Set();
+  for (const raw of list) { const s = validSnowman(raw); if (!s) continue; keep.add(s.id); if (!SM.built.has(s.id)) addSnowman(raw, false, false); }
+  for (const id of [...SM.built.keys()]) if (!keep.has(id) && !id.startsWith('L')) removeSnowman(id);
+  // forget my ids the server no longer has
+  let changed = false; for (const id of [...SM.mine]) if (!keep.has(id) && !id.startsWith('L')) { SM.mine.delete(id); changed = true; }
+  if (changed) saveMine();
+}
+function saveMine() { store('ski.mysm', JSON.stringify([...SM.mine].filter((id) => !id.startsWith('L')).slice(-10))); }
+function smOnline() { return net.mode === 'ws' && net.room && net.room.connected && net.room.connected(); }
+// what blocks a snowman at this spot ('' = fine)
+function buildBlock(x, z, r) {
+  if (x < BOUNDS.minX + 3 || x > BOUNDS.maxX - 3 || z < BOUNDS.minZ + 3 || z > BOUNDS.maxZ - 3) return '여기는 너무 끝이에요';
+  if (inWalkZone(x, z) || inWall(x, z)) return '여기는 눈이 없어요 · 눈밭에서 만들어요';
+  if (Math.abs(x) < 9 && z > -266 && z < 42) return '🚡 리프트 길에는 만들 수 없어요';
+  for (const c of COURSES) {
+    if (x < c.box[0] || x > c.box[1] || z < c.box[2] || z > c.box[3]) continue;
+    if (nearestOnCourse(c, x, z).d < c.width / 2 + 2) return '⛷ 슬로프 위에는 만들 수 없어요 · 스키 타는 친구가 부딪혀요';
+  }
+  for (const n of Object.values(npcs)) if (Math.hypot(x - n.x, z - n.z) < 5) return 'NPC 가까이는 비워 둬요';
+  if (nearObstacle(x, z, r)) return '나무나 물건이 너무 가까워요';
+  for (const [, s] of SM.built) if (Math.hypot(x - s.x, z - s.z) < r + s.r[0] + 0.8) return '다른 눈사람이 너무 가까워요';
+  return '';
+}
+// the ball is pushed a little to the front-right, so the chase camera sees it past the character
+function buildBallPos(x, z, heading, ball) { const d = 0.5 + ball * 0.9, s = 0.3 + ball * 0.65; return [x - Math.sin(heading) * d + Math.cos(heading) * s, z - Math.cos(heading) * d - Math.sin(heading) * s]; }
+function startBuild() {
+  if (!playing) return;
+  if (me.build) { placeBall(); return; }
+  if (me.snowmanT > 0) { notice('눈사람이 된 채로는 만들 수 없어요 ⛄'); return; }
+  if (me.state !== 'ski' || me.air || me.raceHold || me.rc || me.run || me.jump) { notice('지금은 눈사람을 만들 수 없어요'); return; }
+  if (Math.hypot(me.vx, me.vz) > 3) { notice('멈춘 다음에 만들 수 있어요'); return; }
+  if (me.indoor || inWalkZone(me.x, me.z)) { notice('여기는 눈이 없어요 · 바깥 눈밭에서 만들어요'); return; }
+  const why = buildBlock(me.x, me.z, 0.4); if (why) { notice(why); return; }
+  me.build = { x: 0, z: 0, parts: [], ball: SM_START, roll: 0, walked: 0, lx: me.x, lz: me.z, capNote: false };
+  me.vx = me.vz = 0;
+  sfx.pop();
+  centerMsg('⛄ 눈사람 만들기', '앞으로 걸으면 눈덩이가 커져요 · 몸통 → 가슴 → 머리');
+}
+function cancelBuild(msg) { if (!me.build) return; me.build = null; if (msg) notice(msg); sendPresence(performance.now(), true); }
+function stepBuild(dt) {
+  const b = me.build;
+  const steer = clamp(((keys.KeyD || keys.ArrowRight) ? 1 : 0) - ((keys.KeyA || keys.ArrowLeft) ? 1 : 0) + stick.x, -1, 1);
+  const f = clamp(((keys.KeyW || keys.ArrowUp) ? 1 : 0) - ((keys.KeyS || keys.ArrowDown) ? 0.6 : 0) - stick.y, -0.6, 1);
+  me.steer = 0; me.brake = false;
+  me.heading -= steer * 2.2 * dt;
+  const fx = -Math.sin(me.heading), fz = -Math.cos(me.heading), spd = 2.8 - b.ball * 0.8, k = Math.min(1, dt * 6);
+  me.vx += (fx * f * spd - me.vx) * k; me.vz += (fz * f * spd - me.vz) * k;
+  const ox = me.x, oz = me.z;
+  me.x = clamp(me.x + me.vx * dt, BOUNDS.minX, BOUNDS.maxX); me.z = clamp(me.z + me.vz * dt, BOUNDS.minZ, BOUNDS.maxZ);
+  collideWalls(me, ox, oz); if (nearObstacle(me.x, me.z)) pushOutAll();
+  me.y = H(me.x, me.z); me.vyG = 0; me.air = false;
+  const moved = Math.hypot(me.x - ox, me.z - oz) * (me.vx * fx + me.vz * fz >= 0 ? 1 : -1);
+  b.roll += moved / b.ball; b.walked += Math.abs(moved);
+  if (moved > 0) {
+    const [bx, bz] = buildBallPos(me.x, me.z, me.heading, b.ball), cap = smCap(b.parts);
+    if (!inWalkZone(bx, bz) && b.ball < cap) {
+      b.ball = Math.min(cap, b.ball + moved * SM_GROW);
+      if (Math.random() < dt * 8) emitSpray(bx, H(bx, bz), bz, me.vx * 0.3, me.vz * 0.3, 2);
+      if (b.ball >= cap && !b.capNote) { b.capNote = true; notice('⛄ 더는 안 커져요! ' + (isTouch ? '[⛄]' : 'B') + '로 ' + ['몸통', '가슴', '머리'][b.parts.length] + ' 내려놓기'); }
+    }
+  }
+  if (inWalkZone(me.x, me.z)) cancelBuild('여기는 눈이 없어서 눈덩이가 녹았어요');
+  else if (b.parts.length && Math.hypot(me.x - b.x, me.z - b.z) > 40) cancelBuild('몸통에서 너무 멀어져서 그만뒀어요');
+}
+function placeBall() {
+  const b = me.build; if (!b) return;
+  const st = b.parts.length, min = st === 0 ? 0.4 : 0.3;
+  if (b.ball < min) {
+    if (st === 0 && b.walked < 1.5) { cancelBuild('⛄ 눈사람 만들기를 그만뒀어요'); return; }
+    notice('❄ 조금 더 굴려서 키워요 · 앞으로 걸어요'); return;
+  }
+  const [bx, bz] = buildBallPos(me.x, me.z, me.heading, b.ball);
+  if (st === 0) {
+    const why = buildBlock(bx, bz, b.ball); if (why) { notice(why); return; }
+    b.x = bx; b.z = bz; b.parts.push(r2(b.ball));
+    notice('⛄ 몸통 완성! 이제 가슴이 될 눈덩이를 굴려 몸통 앞에서 ' + (isTouch ? '[⛄]' : 'B') + '를 눌러요');
+  } else {
+    if (Math.hypot(bx - b.x, bz - b.z) > b.parts[0] + b.ball + 1.6) { notice('몸통 바로 앞까지 굴려 와서 올려요'); return; }
+    b.parts.push(r2(b.ball));
+    if (st === 1) notice('⛄ 가슴을 올렸어요! 마지막으로 머리를 굴려 올려요');
+  }
+  b.ball = SM_START; b.roll = 0; b.capNote = false;
+  sfx.thud(); emitSpray(b.x, H(b.x, b.z) + 0.3, b.z, 0, 0, 18);
+  if (b.parts.length === 3) finishSnowman();
+  sendPresence(performance.now(), true);
+}
+function finishSnowman() {
+  const b = me.build, r = b.parts.slice(0, 3), height = smHeight(r);
+  const data = { x: r2(b.x), z: r2(b.z), h: r2(Math.atan2(-(me.x - b.x), -(me.z - b.z))), r, n: me.name, c: me.color, d: Math.floor(Math.random() * 4) };
+  me.build = null;
+  if (smOnline() && net.room.snowman) net.room.snowman(Object.assign({ k: SM.key }, data));
+  else addSnowman(Object.assign({ id: 'L' + (++SM.seq) }, data), true, false);
+  sfx.finish(); emitSpray(data.x, H(data.x, data.z) + 1.5, data.z, 0, 0, 40);
+  centerMsg('⛄ 눈사람 완성!', '키 ' + height.toFixed(1) + 'm' + (height >= 3.5 ? ' · 왕 눈사람!' : ''));
+  if (myAv) setBubble(myAv, '눈사람 완성! ⛄', 3000);
+  addChatLine('', '', '⛄ 키 ' + height.toFixed(1) + 'm 눈사람을 만들었어요!' + (smOnline() ? ' 모두에게 보여요' : ''), true);
+  stamp('sm'); if (height >= 3.5) stamp('smbig'); bumpStat('sm', 1);
+}
+function nearSnowman() {
+  if (me.state !== 'ski' || me.build) return null;
+  let best = null, bd = 1e9;
+  for (const [, s] of SM.built) { const d = Math.hypot(me.x - s.x, me.z - s.z) - s.r[0]; if (d < 1.8 && d < bd) { bd = d; best = s; } }
+  return best;
+}
+function talkSnowman(s) {
+  const who = { id: 'sm', name: s.n + '님의 눈사람', face: '⛄', x: s.x, z: s.z }, mine = SM.mine.has(s.id), ht = smHeight(s.r).toFixed(1);
+  if (mine) {
+    say(who, '내가 만든 키 ' + ht + 'm 눈사람이에요. 한 사람당 3개까지 세워 둘 수 있어요(4번째를 만들면 제일 오래된 눈사람이 녹아요).', [
+      { label: '🧹 치우기', fn: () => { if (smOnline() && !s.id.startsWith('L')) net.room.smdel(s.id, SM.key); else removeSnowman(s.id); closeDialog(); notice('🧹 눈사람을 치웠어요'); } },
+      { label: '그대로 두기', fn: closeDialog },
+    ]);
+    return;
+  }
+  const lines = ['차가워도 마음은 따뜻해요 ☃', '오늘 눈이 참 보송보송하죠?', '저 당근 코, 멋지지 않아요?', s.n + '님이 열심히 굴려서 만들었대요!', '녹지 않게 햇빛을 가려 주세요~'];
+  say(who, '키 ' + ht + 'm · ' + lines[Math.floor(Math.random() * lines.length)], [], 3500);
+  if (myAv) setBubble(myAv, '귀엽다~ ⛄', 2500);
+}
+// the snowman in progress (placed balls + the ball being rolled); used for me and for friends
+function makeWip() {
+  const g = new THREE.Group(), balls = [];
+  for (let i = 0; i < 3; i++) { const m = new THREE.Mesh(i < 2 ? smBallGeo : smRollGeo, i < 2 ? smSnowM : lam(0xe6eef9)); m.castShadow = true; m.visible = false; m.rotation.order = 'YXZ'; g.add(m); balls.push(m); }
+  scene.add(g); return { g, balls };
+}
+function drawWip(w, bd, x, z, heading, roll) {
+  w.g.visible = !!bd; if (!bd) return;
+  const p = bd.p, y = smLayout([p[0] || 0.5, p[1] || 0.4, 0.3]), gy = p.length ? H(bd.x, bd.z) - p[0] * 0.12 : 0;
+  for (let i = 0; i < 2; i++) {
+    const m = w.balls[i]; m.visible = p.length > i; if (!m.visible) continue;
+    m.position.set(bd.x, gy + y[i], bd.z); m.scale.set(p[i], p[i] * 0.94, p[i]);
+  }
+  const rb = w.balls[2], [bx, bz] = buildBallPos(x, z, heading, bd.b);
+  rb.visible = true; rb.position.set(bx, H(bx, bz) + bd.b * 0.9, bz); rb.scale.setScalar(bd.b);
+  rb.rotation.set(-roll, heading, 0);
+}
+const myWip = makeWip();
+function wipOf(b) { return b ? { x: b.x, z: b.z, p: b.parts, b: b.ball } : null; }
+function validBd(v) {
+  if (!v || typeof v !== 'object' || !Array.isArray(v.p) || v.p.length > 2) return null;
+  const b = +v.b, x = +v.x, z = +v.z, p = v.p.map(Number);
+  if (!isFinite(b) || b < 0.2 || b > 1.3 || !isFinite(x) || !isFinite(z) || Math.abs(x) > 400 || Math.abs(z) > 400 || !p.every((q) => isFinite(q) && q >= 0.2 && q <= 1.3)) return null;
+  return { x, z, p, b };
+}
+
 /* ================= people tab ================= */
 function activityOf(o) {
   if ((o.sn || 0) >= 100) return '⛄ 눈사람이 됐어요';
+  if (o.bd) return '⛄ 눈사람 만드는 중';
   if (o.st === 4) return '🚡 리프트 타는 중';
   if (o.st === 3) return '🚡 리프트 기다리는 중';
   if (o.rc) return '🏁 ' + o.rc.co + ' 레이스 중';
@@ -2316,15 +2688,15 @@ function activityOf(o) {
 }
 function renderPeople() {
   const ul = $('#peopleList'); ul.textContent = '';
-  const rows = [{ me: true, name: me.name, color: me.color, sp: me.sp, x: me.x, z: me.z, st: STATE_CODE[me.state], sn: me.snow, rc: me.rc, co: me.run && me.run.c.id, bt: me.bath, it: me.item, sh: me.sbHits || 0, fc: me.fishCount || 0 }];
-  for (const [id, a] of avatars) rows.push({ id, name: a.name, color: a.color, sp: a.sp, x: a.pos.x, z: a.pos.z, st: a.st, sn: a.sn, rc: a.rc, co: a.co, bt: a.bt, it: a.it, sh: a.sh || 0, fc: a.fc || 0 });
+  const rows = [{ me: true, name: me.name, color: me.color, sp: me.sp, x: me.x, z: me.z, st: STATE_CODE[me.state], sn: me.snow, rc: me.rc, co: me.run && me.run.c.id, bt: me.bath, it: me.item, sh: me.sbHits || 0, fc: me.fishCount || 0, sc: stampCount(), bd: !!me.build }];
+  for (const [id, a] of avatars) rows.push({ id, name: a.name, color: a.color, sp: a.sp, x: a.pos.x, z: a.pos.z, st: a.st, sn: a.sn, rc: a.rc, co: a.co, bt: a.bt, it: a.it, sh: a.sh || 0, fc: a.fc || 0, sc: a.sc || 0, bd: !!a.bd });
   $('#peopleCount').textContent = rows.length + '명';
   for (const r of rows) {
     const li = document.createElement('li'); if (r.me) li.className = 'me';
     const em = document.createElement('span'); em.className = 'em'; em.textContent = SPECIES[r.sp] ? SPECIES[r.sp].emoji : '❄';
     const nm = document.createElement('span'); nm.className = 'nm';
     const b = document.createElement('b'); const dot = document.createElement('i'); dot.style.background = r.color; b.append(dot, document.createTextNode(r.name + (r.me ? ' (나)' : '')));
-    const sm = document.createElement('small'); sm.textContent = activityOf(r) + (r.sh ? ' · ❄' + r.sh : '') + (r.fc ? ' · 🐟' + r.fc : '');
+    const sm = document.createElement('small'); sm.textContent = activityOf(r) + (r.sc ? ' · 🏅' + r.sc : '') + (r.sh ? ' · ❄' + r.sh : '') + (r.fc ? ' · 🐟' + r.fc : '');
     nm.append(b, sm); li.append(em, nm);
     if (!r.me) { const go = document.createElement('button'); go.type = 'button'; go.textContent = '📍 같이 가기'; go.addEventListener('click', () => goToPeer(r.id)); li.appendChild(go); }
     else li.appendChild(document.createElement('span'));
@@ -2335,14 +2707,14 @@ function goToPeer(id) {
   const a = avatars.get(id); if (!a) return;
   if (me.state === 'lift' || me.state === 'queue') { notice('리프트에서는 이동할 수 없어요'); return; }
   if (a.st === 4 || a.st === 3) { notice(a.name + '님은 리프트에 있어서 갈 수 없어요. 정상에서 만나요!'); return; }
-  if (me.run) cancelRun(); if (me.rc) leaveRace();
+  if (me.run) cancelRun(); if (me.rc) leaveRace(); cancelBuild();
   const f = $('#fade'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
   const ang = a.h + Math.PI / 2;
   me.x = clamp(a.pos.x + Math.sin(ang) * 1.6, BOUNDS.minX, BOUNDS.maxX); me.z = clamp(a.pos.z + Math.cos(ang) * 1.6, BOUNDS.minZ, BOUNDS.maxZ);
   me.y = H(me.x, me.z); me.vx = me.vz = 0; me.air = false; me.state = 'ski'; me.heading = a.h;
   me.indoor = inCafe(me.x, me.z); cam.snap = true; cam.yawOff = 0;
   $('#people').hidden = true;
-  notice('📍 ' + a.name + '님 옆으로 왔어요!');
+  notice('📍 ' + a.name + '님 옆으로 왔어요!'); stamp('visit');
 }
 $('#peopleBtn').addEventListener('click', () => { const pp = $('#people'); pp.hidden = !pp.hidden; if (!pp.hidden) renderPeople(); });
 $('#peopleClose').addEventListener('click', () => { $('#people').hidden = true; });
@@ -2390,7 +2762,7 @@ $('#chatForm').addEventListener('submit', (e) => {
   e.preventDefault();
   const text = cleanText($('#chatInput').value, 60);
   if (text) {
-    me.chat = { i: ++me.chatSeq, t: text };
+    me.chat = { i: ++me.chatSeq, t: text }; stamp('chat');
     addChatLine(me.name, me.color, text);
     if (myAv) setBubble(myAv, text, 6000);
     sendPresence(performance.now(), true);
@@ -2429,7 +2801,7 @@ function syncPeers(peers) {
     seen.add(p.peer);
     const name = cleanName(pr.n) || '스키어', color = cleanColor(pr.c), sp = clamp(pr.a | 0, 0, SPECIES.length - 1);
     let a = avatars.get(p.peer), keep = null;
-    if (a && (a.name !== name || a.color !== color || a.sp !== sp)) { keep = { chatI: a.chatI, finI: a.finI, waveI: a.waveI, sbI: a.sbI, hbI: a.hbI, lgI: a.lgI, buI: a.buI }; scene.remove(a.av.root); disposeGroup(a.av.root); avatars.delete(p.peer); a = null; }
+    if (a && (a.name !== name || a.color !== color || a.sp !== sp)) { keep = { chatI: a.chatI, finI: a.finI, waveI: a.waveI, sbI: a.sbI, hbI: a.hbI, lgI: a.lgI, buI: a.buI }; scene.remove(a.av.root); disposeGroup(a.av.root); if (a.wip) scene.remove(a.wip.g); avatars.delete(p.peer); a = null; }
     const isNew = !a;
     if (!a) {
       const av = makeAnimal(sp, color); av.tag = makeTag(name, color); av.tag.position.y = 2.8; av.root.add(av.tag);
@@ -2478,10 +2850,11 @@ function syncPeers(peers) {
     }
     const hb = pr.hb;
     if (hb && typeof hb === 'object' && typeof hb.i === 'number') {
-      if (!isNew && a.hbI !== hb.i && hb.by === myId()) { me.sbHits = (me.sbHits || 0) + 1; sfx.hit(); const tn = performance.now(); a.hitN = tn - (a.hitAt || 0) < 900 ? (a.hitN || 0) + 1 : 1; a.hitAt = tn; clearTimeout(a.hitTimer); const an = a; a.hitTimer = setTimeout(() => notice('🎯 명중! ' + an.name + '님' + (an.hitN > 1 ? ' ×' + an.hitN : '') + ' ❄' + an.sn + '%'), 350); if (false) notice('🎯 명중! ' + a.name + '님 ❄' + a.sn + '%'); }
+      if (!isNew && a.hbI !== hb.i && hb.by === myId()) { me.sbHits = (me.sbHits || 0) + 1; sfx.hit(); stamp('hit'); bumpStat('hits', 1); const tn = performance.now(); a.hitN = tn - (a.hitAt || 0) < 900 ? (a.hitN || 0) + 1 : 1; a.hitAt = tn; clearTimeout(a.hitTimer); const an = a; a.hitTimer = setTimeout(() => notice('🎯 명중! ' + an.name + '님' + (an.hitN > 1 ? ' ×' + an.hitN : '') + ' ❄' + an.sn + '%'), 350); if (false) notice('🎯 명중! ' + a.name + '님 ❄' + a.sn + '%'); }
       a.hbI = hb.i;
     }
     a.sh = clamp(pr.sh | 0, 0, 99999);
+    a.sc = clamp(pr.sc | 0, 0, STAMPS.length); a.bd = validBd(pr.bd);
     a.bt = typeof pr.bt === 'number' ? clamp(pr.bt | 0, -1, POOLS.length - 1) : -1;
     const it = clamp(pr.it | 0, 0, 6); if (it !== a.it && it === 2) a.itT0 = performance.now(); a.it = it; a.ht = clamp(+pr.ht || 0, 0, 1);
     a.rc = validRace(pr.rc);
@@ -2497,7 +2870,7 @@ function syncPeers(peers) {
       a.finI = fn.i;
     }
   }
-  for (const [id, a] of avatars) if (!seen.has(id)) { notice(a.name + '님이 나갔어요'); scene.remove(a.av.root); disposeGroup(a.av.root); avatars.delete(id); }
+  for (const [id, a] of avatars) if (!seen.has(id)) { notice(a.name + '님이 나갔어요'); scene.remove(a.av.root); disposeGroup(a.av.root); if (a.wip) scene.remove(a.wip.g); avatars.delete(id); }
   if (playing) firstSync = false;
   if (net.room && net.room.connected()) setNet('online', Math.max(1, count));
   renderPlayers(); renderRecords();
@@ -2511,7 +2884,7 @@ function sendPresence(now, force) {
     s: me.air ? 1 : STATE_CODE[me.state], st: r2(me.steer), v: r2(Math.hypot(me.vx, me.vz)),
     ch: me.state === 'queue' || me.state === 'lift' ? me.chair : -1, se: me.seat,
     co: me.run ? me.run.c.id : '', b: me.best, f: me.fin, m: me.chat, w: me.waveSeq || 0,
-    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, jp: jumpPhase(), ja: Math.round(jumpPitch() * 100), jd: me.jumpBest || 0, jb: me.jb, jbs: me.jbs, it: me.item || 0, ht: Math.round((me.heat || 0) * 10) / 10, fc: me.fishCount || 0, fb: me.fishBest || 0, fl: me.lastFish || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0,
+    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, jp: jumpPhase(), ja: Math.round(jumpPitch() * 100), jd: me.jumpBest || 0, jb: me.jb, jbs: me.jbs, it: me.item || 0, ht: Math.round((me.heat || 0) * 10) / 10, fc: me.fishCount || 0, fb: me.fishBest || 0, fl: me.lastFish || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0, sc: stampCount(), bd: wipOf(me.build),
   };
   const key = JSON.stringify(pr);
   if (key === lastSent) return;
@@ -2541,11 +2914,14 @@ function makeWsRoom() {
         if (rtt >= 0 && rtt < net.rtt + 40) { net.rtt = Math.min(net.rtt, rtt); net.offset = m.now + rtt / 2 - Date.now(); }
         return;
       }
+      if (m.t === 'sm') { addSnowman(m.sm, !!m.mine, true); return; }
+      if (m.t === 'smdel') { if (typeof m.id === 'string') removeSnowman(m.id); return; }
       if (m.t === 'board') { if (Array.isArray(m.board)) { fishBoard.server = m.board.slice(0, 30); renderFishRank(); } return; }
       if (m.t === 'jboard') { if (Array.isArray(m.board)) { jumpBoard.server = m.board.slice(0, 30); renderFishRank(); } return; }
       if (m.t === 'hello') {
         if (Array.isArray(m.board)) fishBoard.server = m.board.slice(0, 30);
         if (Array.isArray(m.jboard)) jumpBoard.server = m.jboard.slice(0, 30);
+        if (Array.isArray(m.sm)) setSnowmen(m.sm.slice(0, 60));
         if (Array.isArray(m.history) && !chatHist.length) {
           for (const hmsg of m.history.slice(-50)) { const t = cleanText(hmsg.t, 60); if (t) chatHist.push({ name: cleanName(hmsg.n) || '스키어', color: cleanColor(hmsg.c), text: t, at: +hmsg.at || Date.now() }); }
           if (m.history.length) chatHist.push({ name: '', color: '', text: '— 여기까지 이전 대화예요 —', sys: true, at: Date.now() });
@@ -2561,7 +2937,7 @@ function makeWsRoom() {
     ws.onclose = () => { open = false; others.clear(); fire(); setNet('reconnecting'); setTimeout(dial, Math.min(10000, 1000 * Math.pow(2, retry++))); };
   }
   dial();
-  return { connected: () => open, fish: (n, sz) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'fish', n, s: sz })); }, jump: (n, d) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'jump', n, d })); }, presence: async (patch) => { mine = Object.assign({}, mine, patch); flush(); }, onPeers: (h) => { handlers.push(h); setTimeout(fire, 0); return () => {}; } };
+  return { connected: () => open, fish: (n, sz) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'fish', n, s: sz })); }, jump: (n, d) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'jump', n, d })); }, snowman: (d) => { if (open && ws.readyState === 1) ws.send(JSON.stringify(Object.assign({ t: 'snowman' }, d))); }, smdel: (id, k) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'smdel', id, k })); }, presence: async (patch) => { mine = Object.assign({}, mine, patch); flush(); }, onPeers: (h) => { handlers.push(h); setTimeout(fire, 0); return () => {}; } };
 }
 async function connect() {
   setNet('checking');
@@ -2593,7 +2969,13 @@ function updatePeers(dt, t) {
       if (a.pos.distanceTo(a.tpos) > 25) a.pos.copy(a.tpos); else a.pos.lerp(a.tpos, k);
       let d = a.th - a.h; d = Math.atan2(Math.sin(d), Math.cos(d)); a.h += d * k;
     }
-    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : a.st === 6 ? 'jump' : 'ski', jp: a.jp, ja: (a.ja || 0) / 100, walk: inWalkZone(a.pos.x, a.pos.z), heat: a.ht || 0, bath: a.bt >= 0, fish: a.fl, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
+    if (a.bd || a.wip) {
+      if (!a.wip) { a.wip = makeWip(); a.wipX = a.pos.x; a.wipZ = a.pos.z; a.wipRoll = 0; }
+      if (a.bd) { const mv = Math.hypot(a.pos.x - a.wipX, a.pos.z - a.wipZ); a.wipRoll += mv / a.bd.b; }
+      a.wipX = a.pos.x; a.wipZ = a.pos.z;
+      drawWip(a.wip, a.bd, a.pos.x, a.pos.z, a.h, a.wipRoll);
+    }
+    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : a.st === 6 ? 'jump' : 'ski', jp: a.jp, ja: (a.ja || 0) / 100, walk: inWalkZone(a.pos.x, a.pos.z) || !!a.bd, heat: a.ht || 0, bath: a.bt >= 0, fish: a.fl, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
     // someone standing where the camera is: hide them instead of drawing their insides (a big scarf ring)
     { const dx = camera.position.x - a.pos.x, dy = camera.position.y - (a.pos.y + 1.1), dz = camera.position.z - a.pos.z; a.av.root.visible = dx * dx + dy * dy + dz * dz > 2.6; }
   }
@@ -2606,7 +2988,7 @@ addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); openChat(); return; }
   keys[e.code] = true;
   if (e.code === 'KeyE' && !(dlg && dlg.choices.length)) { if (!useAction()) closeDialog(); }
-  if (e.code === 'Escape') closeDialog();
+  if (e.code === 'Escape') { closeDialog(); if (!$('#stamps').hidden) openStamps(false); }
   if (/^Digit[1-9]$/.test(e.code) && dlg) pick(+e.code.slice(5) - 1);
   if (e.code === 'KeyQ') toggleGear();
   if (e.code === 'KeyX') toggleSit();
@@ -2617,6 +2999,8 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyN') setNight(!night.on);
   if (e.code === 'KeyC') toggleFp();
   if (e.code === 'KeyR') goHome();
+  if (e.code === 'KeyB') startBuild();
+  if (e.code === 'KeyK') openStamps($('#stamps').hidden);
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
 });
 addEventListener('keyup', (e) => { keys[e.code] = false; });
@@ -2631,6 +3015,7 @@ function goHome() {
   me.jump = null;
   if (me.run) cancelRun();
   if (me.rc) leaveRace();
+  cancelBuild();
   me.state = 'ski'; me.x = (Math.random() - 0.5) * 24; me.z = 50; me.y = 0; me.vx = me.vz = 0; me.heading = 0; me.air = false;
   notice('베이스로 돌아왔어요');
 }
@@ -2663,7 +3048,7 @@ $('#actTalk').addEventListener('click', () => { if (!useAction()) notice('NPC나
 $('#actSit').addEventListener('click', toggleSit);
 $('#actWave').addEventListener('click', wave);
 $('#actMore').addEventListener('click', () => { const m = $('#more'); m.hidden = !m.hidden; $('#actMore').setAttribute('aria-pressed', String(!m.hidden)); renderPlayers(); renderRecords(); });
-const PANELS = ['#more', '#people', '#history', '#notice'];
+const PANELS = ['#more', '#people', '#history', '#notice', '#stamps'];
 let lastPanel = null;
 function syncPanels(changed) {
   if (changed && !changed.hidden && PANELS.includes('#' + changed.id)) {
@@ -2708,7 +3093,7 @@ function toggleSit() {
 }
 function wave() {
   if (!playing || !myAv) return;
-  me.waveSeq = (me.waveSeq || 0) + 1; myAv.waveT = 2; setBubble(myAv, '안녕~ 👋', 2500); sendPresence(performance.now(), true);
+  me.waveSeq = (me.waveSeq || 0) + 1; myAv.waveT = 2; stamp('wave'); setBubble(myAv, '안녕~ 👋', 2500); sendPresence(performance.now(), true);
 }
 function copyLink(btn) {
   const url = $('#link').value, label = btn.textContent;
@@ -2894,6 +3279,7 @@ function burstThrow() {
   me.bu = { i: me.buSeq, o: [r2(o.x), r2(o.y), r2(o.z)], v: [r2(v.x), r2(v.y), r2(v.z)], n, s: seed };
   if (myAv) myAv.throwT = 0.5;
   sfx.whoosh(); tone([300, 200], 0.15, 0.3, 'sawtooth'); centerMsg('💥 ×' + n, '눈덩이 폭탄!');
+  if (n >= 30) stamp('burst');
   sendPresence(performance.now(), true);
 }
 function throwBall() {
@@ -2938,7 +3324,7 @@ function gotHit(b) {
   me.snowIdle = 0;
   if (me.snowmanT <= 0) me.snow = Math.min(100, me.snow + 8);
   sfx.splat();
-  if (me.snow >= 100 && me.snowmanT <= 0) { me.snowmanT = 4; centerMsg('⛄ 눈사람!', nm + '님의 눈덩이에 꽁꽁 · 4초 뒤에 풀려요'); }
+  if (me.snow >= 100 && me.snowmanT <= 0) { me.snowmanT = 4; stamp('frozen'); centerMsg('⛄ 눈사람!', nm + '님의 눈덩이에 꽁꽁 · 4초 뒤에 풀려요'); }
   else {
     const tnow = performance.now(); me.hitN = tnow - (me.hitAt || 0) < 900 ? (me.hitN || 0) + 1 : 1; me.hitAt = tnow;
     clearTimeout(me.hitTimer);
@@ -2989,6 +3375,7 @@ function updateLogs(dt) {
           for (let k = 0; k < 25 && fire.emberPos; k++) { const j = (Math.random() * fire.emberV.length) | 0; fire.emberPos[j * 3 + 1] = 0.6 + Math.random() * 0.5; }
           emitSpray(FIRE.x, 0.8, FIRE.z, 0, 0, 8);
           if (me.indoor) { tone([180, 120], 0.12, 0.25, 'sawtooth'); for (let k = 0; k < 5; k++) tone([1600 + Math.random() * 1600], 0.03, 0.04, 'square', k * 0.05); }
+          if (L.owner === 'me') bumpStat('logs', 1);
           if (L.owner === 'me') { if (performance.now() - (fire.noteAt || 0) > 1500) { fire.noteAt = performance.now(); notice('🔥 장작을 넣었어요 · 모닥불이 커졌어요!'); } }
           else if (me.indoor) notice('🔥 ' + (who ? who.name : '누군가') + '님이 장작을 던졌어요 (조준 성공)');
           scene.remove(L.m); logsFly.splice(i, 1); continue;
@@ -3199,7 +3586,7 @@ function showRaceResults(ps) {
   const lines = fin.map((x, i) => (medals[i] || (i + 1) + '등') + ' ' + x.name + ' ' + fmtTime(x.rf.ms));
   if (dnf.length) lines.push('완주 못 함: ' + dnf.map((x) => x.name).join(', '));
   const myRank = fin.findIndex((x) => x.me);
-  if (myRank === 0 && fin.length > 1) sfx.finish();
+  if (myRank === 0 && fin.length > 1) { sfx.finish(); stamp('racewin'); }
   say(RACE_NPC, c.id + ' ' + c.name + ' 레이스 결과! ' + lines.join(' · '), [
     { label: '🏠 베이스로 돌아가기', fn: () => { leaveRace(); closeDialog(); goHome(); } },
     { label: '한 판 더! 같은 코스로 새 레이스', fn: () => { const cc = c; leaveRace(); hostRace(cc); } },
@@ -3208,6 +3595,7 @@ function showRaceResults(ps) {
   addChatLine('', '', '🏁 ' + c.id + ' 레이스 결과: ' + lines.join(' · '), true);
 }
 $('#actRace').addEventListener('click', raceMenu);
+$('#actBuild').addEventListener('click', startBuild);
 
 /* ================= ski jump ================= */
 const JUMP = { lipX: -60, z: 168, lipY: 80, K: 120, HS: 140, inrun: [], hill: [] };
@@ -3281,7 +3669,7 @@ function startJump() {
   if (me.run) cancelRun(); if (me.rc) leaveRace();
   closeDialog();
   const f = $('#fade'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
-  me.state = 'jump'; me.indoor = false; me.bath = -1; me.stump = -1; me.item = 0;
+  cancelBuild(); me.state = 'jump'; me.indoor = false; me.bath = -1; me.stump = -1; me.item = 0;
   me.jump = { phase: 'gate', s: 0, v: 0, x: JUMP.inrun[0].x, y: JUMP.inrun[0].y, vx: 0, vy: 0, up: 0, timing: '', teleAt: -9, t: 0, eHeld: true, hold: !!(me.jb && (!me.jb.t0 || netNow() < me.jb.t0)) };
   placeJumper(); cam.snap = true; cam.yawOff = 0;
   centerMsg('🎿 출발 게이트', (isTouch ? '[점프] 버튼' : 'Space') + '으로 출발!');
@@ -3383,6 +3771,7 @@ function landJump() {
   const timingPts = j.timing === 'perfect' ? 18 : j.timing === 'good' ? 14 : j.timing === 'ok' ? 10 : 6;
   const score = Math.max(0, Math.round((60 + (d - JUMP.K) * 2 + timingPts + (tele ? 12 : 4) - (fall ? 30 : 0)) * 10) / 10);
   emitSpray(me.x, me.y, me.z, 0, 0, 40); sfx.thud();
+  stamp('jump'); if (d >= JUMP.K && !fall) stamp('jumpk');
   if (d > (me.jumpBest || 0)) { me.jumpBest = d; store('ski.jump', String(d)); if (net.room && net.room.jump) net.room.jump(me.name, d); }
   if (me.jb && me.jb.t0 && netNow() >= me.jb.t0 && jbLive(me.jb) && !(me.jbs && me.jbs.id === me.jb.id)) { me.jbs = { id: me.jb.id, sc: score, d }; if (!jbAllDone()) notice('⚔️ 기록 완료! 다른 선수들을 기다려요'); }
   centerMsg(d.toFixed(1) + 'm', (fall ? '꽈당! ' : tele ? '텔레마크 착지! ' : '착지 · ') + score.toFixed(1) + '점' + (d >= JUMP.K ? ' · K점 돌파!' : ''));
@@ -3442,6 +3831,7 @@ function updateJB() {
     if (none.length) lines.push('기록 없음: ' + none.join(', '));
     say(npcs.coach, '⚔️ 점프 대결 결과! ' + lines.join(' · '), [{ label: '닫기', fn: closeDialog }]);
     addChatLine('', '', '⚔️ 점프 대결 결과: ' + lines.join(' · '), true);
+    if (ok.length > 1 && ok[0].me) stamp('jbwin');
     if (ok.length) { jumpBoard.last = '🥇 ' + ok[0].name + ' ' + ok[0].s.d.toFixed(1) + 'm'; renderFishRank(); }
     me.jb = null; me.jbs = null;
     // whoever is still waiting at the gate comes back down next to the coach
@@ -3478,6 +3868,11 @@ function updateStatus(sp) {
     sub = mates.length ? '같은 의자: ' + mates.join(', ') : 'Enter로 친구에게 말을 걸 수 있어요';
   } else if (me.state === 'queue') {
     chip = '대기'; title = '리프트 의자를 기다리는 중'; right = Math.max(0, Math.ceil(me.boardAt - nowS())) + '초'; sub = '노란 선에 서 있으면 의자가 뒤에서 태워 줘요';
+  } else if (me.build) {
+    const b = me.build, k = b.parts.length, cap = smCap(b.parts);
+    chip = '눈사람'; title = '⛄ ' + (k + 1) + '/3 ' + ['몸통', '가슴', '머리'][k];
+    right = '지름 ' + (b.ball * 2).toFixed(1) + 'm'; fill = clamp((b.ball - SM_START) / (cap - SM_START), 0, 1);
+    sub = (b.ball >= cap ? '최대 크기! ' : '') + (k === 0 ? '앞으로 걸어서 굴리고, 마음에 들면 ' : '몸통 앞까지 굴려 와서 ') + (isTouch ? '⛄ 버튼' : 'B') + '으로 ' + (k === 0 ? '내려놓기' : '올리기');
   } else if (me.raceHold && me.rc) {
     const c = courseById[me.rc.co];
     chip = '레이스'; title = '🏁 ' + c.id + ' ' + c.name + (me.rc.t0 ? ' 곧 출발!' : ' 레이스 대기실'); right = !me.rc.t0 ? '' : Math.max(0, Math.ceil((me.rc.t0 - netNow()) / 1000)) + '초';
@@ -3597,7 +3992,8 @@ function updateCamera(dt) {
   if (!cam.drag) cam.yawOff *= Math.exp(-dt * 0.8);
   const yaw = me.heading + cam.yawOff;
   const indoor = !!me.indoor;
-  const d = me.state === 'lift' ? 6.5 : indoor ? 5.2 : cam.dist, up = me.state === 'lift' ? 2.6 : indoor ? 3.9 : 2.9 + cam.dist * 0.12;
+  // rolling a snowball: lift the camera so the ball in front shows over the head
+  const d = me.state === 'lift' ? 6.5 : indoor ? 5.2 : cam.dist + (me.build ? 1 : 0), up = me.state === 'lift' ? 2.6 : indoor ? 3.9 : 2.9 + cam.dist * 0.12 + (me.build ? 1.2 : 0);
   camPos.set(me.x + Math.sin(yaw) * d, me.y + up, me.z + Math.cos(yaw) * d);
   if (indoor) { camPos.x = clamp(camPos.x, CAFE.x0 + 0.5, CAFE.x1 - 0.5); camPos.z = clamp(camPos.z, CAFE.z0 + 0.5, CAFE.z1 - 0.5); camPos.y = Math.min(camPos.y, CAFE.h - 0.6); }
   if (myAv && myAv.tag) myAv.tag.visible = !indoor;
@@ -3640,7 +4036,15 @@ function frame(now) {
     updateRun(dt);
     updateRace();
     if (night.light) night.light.position.set(me.x, me.y + 3.2, me.z);
-    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: inWalkZone(me.x, me.z), heat: me.heat || 0, bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting, fish: me.lastFish, jp: jumpPhase(), ja: jumpPitch() });
+    if (me.build) {
+      const b = me.build;
+      // teleported (home, friend, snowcat) or left skiing: drop the snowball
+      if (me.state !== 'ski' || me.run || me.rc || Math.hypot(me.x - b.lx, me.z - b.lz) > 6) cancelBuild('⛄ 눈사람 만들기를 그만뒀어요');
+      else { b.lx = me.x; b.lz = me.z; }
+    }
+    drawWip(myWip, wipOf(me.build), me.x, me.z, me.heading, me.build ? me.build.roll : 0);
+    $('#buildLb').textContent = me.build ? ['몸통', '가슴', '머리'][me.build.parts.length] + ' 놓기' : '눈사람';
+    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: inWalkZone(me.x, me.z) || !!me.build, heat: me.heat || 0, bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting, fish: me.lastFish, jp: jumpPhase(), ja: jumpPitch() });
     // prompt + guide
     const ptxt = promptText();
     const pr = $('#prompt');
@@ -3657,7 +4061,7 @@ function frame(now) {
     if (me.itemT > 0) {
       me.itemT -= dt;
       if (me.itemT <= 0) {
-        if (me.item === 2) { me.item = 4; me.itemT = 3; notice('🍡 노릇노릇 구워졌어요! 냠냠'); if (myAv) setBubble(myAv, '냠냠 🍡 맛있다!', 3000); sfx.pop(); }
+        if (me.item === 2) { me.item = 4; me.itemT = 3; stamp('marsh'); notice('🍡 노릇노릇 구워졌어요! 냠냠'); if (myAv) setBubble(myAv, '냠냠 🍡 맛있다!', 3000); sfx.pop(); }
         else { if (me.item === 1 || me.item === 3) notice(me.item === 3 ? '☕ 커피를 다 마셨어요' : '☕ 핫초코를 다 마셨어요'); me.item = 0; }
       }
     }
@@ -3672,7 +4076,7 @@ function frame(now) {
     if (me.bath >= 0 && POOLS[me.bath]) {
       const P = POOLS[me.bath], tRed = Math.max(4, 20 - ((P.deg || 40) - 40) * 0.5);
       me.heat = Math.min(1, (me.heat || 0) + dt / tRed);
-      if (me.heat >= 0.7 && !me.heatNoted) { me.heatNoted = true; if (myAv) setBubble(myAv, '앗 뜨거워~ 🥵', 3000); notice('♨ 몸이 빨갛게 달아올랐어요! 잠깐 나와서 식혀요'); }
+      if (me.heat >= 0.7 && !me.heatNoted) { me.heatNoted = true; stamp('hot'); if (myAv) setBubble(myAv, '앗 뜨거워~ 🥵', 3000); notice('♨ 몸이 빨갛게 달아올랐어요! 잠깐 나와서 식혀요'); }
     } else { me.heat = Math.max(0, (me.heat || 0) - dt / 10); if (me.heat < 0.3) me.heatNoted = false; }
     const wantBoost = (keys.ShiftLeft || keys.ShiftRight || keys._boost) && me.state === 'ski' && !inWalkZone(me.x, me.z) && me.snowmanT <= 0 && !me.raceHold;
     if (wantBoost && (me.boosting ? me.boost > 0 : me.boost > 15)) { me.boosting = true; me.boost = Math.max(0, me.boost - 28 * dt); }
@@ -3701,6 +4105,7 @@ function frame(now) {
     if (hudT <= 0) {
       hudT = 0.1;
       $('#spd').textContent = Math.round(sp * 3.6);
+      if (sp * 3.6 >= 100 && me.state === 'ski') stamp('speed');
       $('#placeChip').textContent = placeName(STATE_CODE[me.state], me.x, me.z, me.run && me.run.c.id);
       $('#placeIcon').textContent = me.state === 'lift' || me.state === 'queue' ? '🚡' : me.run ? '⛷' : me.z < -240 ? '⛰' : inCafe(me.x, me.z) ? '☕' : inOnsen(me.x, me.z) ? '♨' : inPond(me.x, me.z) ? '🎣' : me.z > 0 ? '🏠' : '🌲';
       updateStatus(sp);
