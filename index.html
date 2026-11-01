@@ -515,8 +515,12 @@ const BOUNDS = { minX: -270, maxX: 268, minZ: -282, maxZ: 145 };
 const G = { minX: -330, maxX: 320, minZ: -340, maxZ: 180, step: 2 };
 G.nx = Math.round((G.maxX - G.minX) / G.step) + 1; G.nz = Math.round((G.maxZ - G.minZ) / G.step) + 1;
 G.h = new Float32Array(G.nx * G.nz); G.groom = new Float32Array(G.nx * G.nz); G.edge = new Int8Array(G.nx * G.nz).fill(-1);
+// sled park (눈썰매장): a gentle hill west of the base, four lanes running down toward the base (+x)
+const SLED = { xTop: -146, xBot: -96, xEnd: -70, lanes: [32, 39, 46, 53], laneW: 7, carpetZ: 61, hutX: -84, hutZ: 72, h: 15 };
+const SLED_LAMPS = [[-140, 25], [-120, 25], [-100, 25], [-140, 66], [-120, 66], [-100, 66], [-80, 66]];
 function rawH(x, z) {
   let h = SUMMIT * sstep(Z_FOOT, Z_TOPEDGE, z);
+  h += SLED.h * sstep(-94, -146, x) * sstep(14, 26, z) * (1 - sstep(66, 80, z));
   if (x < -140) {
     // a ridge separates the main mountain from the long-course valley in the west
     h += Math.max(0, 1 - Math.abs(x + 172) / 18) * 34;
@@ -669,6 +673,7 @@ function buildTrees() {
     if (groomAt(x, z) > 0.02) continue;
     if (Math.abs(x) < 13 && z > -275 && z < 50) continue;
     if (z > -10 && z < 98 && Math.abs(x) < 80) continue;
+    if (x > -170 && x < -60 && z > 8 && z < 84) continue; // sled park
     if (z >= 98 && z < 152 && x > 8 && x < 90) continue;
     if (z > 90 && z < 146 && x > -66 && x <= 8) continue;
     if (z < -238 && z > -276 && Math.abs(x) < 140) continue;
@@ -1184,7 +1189,8 @@ function buildOnsen() {
   for (const x of [38, 45, 52]) { mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.8, 4), lam(0x222222), x, 4.4, 108); const pl = mesh(new THREE.SphereGeometry(0.38, 12, 10), new THREE.MeshBasicMaterial({ color: 0xff5a3c }), x, 3.75, 108, scene, false); pl.scale.set(1, 1.25, 1); LANTERN_GLOW.push([x, 3.75, 108]); }
   // far snowy volcano you can see from the pools
   const fuji = new THREE.Group(); fuji.position.set(40, -12, 560); scene.add(fuji);
-  const fm2 = (c) => new THREE.MeshLambertMaterial({ color: c, fog: false });
+  // no depth writes: it is far away, and the night aurora may glow in front of it
+  const fm2 = (c) => new THREE.MeshLambertMaterial({ color: c, fog: false, depthWrite: false });
   const body = new THREE.Mesh(new THREE.CylinderGeometry(70, 290, 230, 40, 1, true), fm2(0x7b8fb3)); body.position.y = 115; fuji.add(body);
   const capM = fm2(0xf7fbff);
   const cap = new THREE.Mesh(new THREE.CylinderGeometry(70, 150, 90, 40, 1, true), capM); cap.position.y = 185; fuji.add(cap);
@@ -1797,7 +1803,7 @@ function walkStep(dt) {
 }
 function poseAvatar(av, o) {
   // o: {x,y,z,heading,steer,speed,air,state,yaw?}
-  av.root.position.set(o.x, o.y - (o.bath ? 1.0 : 0), o.z);
+  av.root.position.set(o.x, o.y - (o.bath ? 1.0 : 0) + (o.state === 'sled' ? 0.42 : 0), o.z);
   { const ht = o.heat || 0, tn = performance.now() / 1000;
     av.heatMat.opacity = Math.min(0.5, ht * 0.55);
     av.puffs.forEach((pf, k) => {
@@ -1807,12 +1813,15 @@ function poseAvatar(av, o) {
       pf.scale.setScalar(0.3 + ph * 0.6); pf.material.opacity = (1 - ph) * 0.75 * Math.min(1, (ht - 0.65) * 3);
     });
   }
-  av.root.rotation.y = o.heading;
+  // a tube spins slowly while it slides
+  av.root.rotation.y = o.heading + (o.state === 'sled' && o.sl === 1 ? (av.spin = (av.spin || 0) + (o.speed > 1.5 ? 0.025 : 0)) : 0);
   if (av.wobT > 0) { av.wobT -= 1 / 60; av.tilt.rotation.z = Math.sin(performance.now() / 45) * 0.5 * av.wobT; }
   else if (o.walk) { const b = Math.min(1, o.speed / 3); av.tilt.rotation.z = Math.sin(performance.now() / 120) * 0.09 * b; }
   else { const lean = o.state === 'crash' ? 1.35 : clamp(-o.steer * 0.32 * Math.min(1, o.speed / 8), -0.45, 0.45); av.tilt.rotation.z += (lean - av.tilt.rotation.z) * 0.2; }
   av.skis.visible = av.poles.visible = !o.walk && av.gear === 0; av.board.visible = !o.walk && av.gear === 1;
-  av.rider.rotation.y = av.gear === 1 && !o.walk ? -1.25 : 0;
+  { const sledOn = o.state === 'sled'; if (sledOn) av.skis.visible = av.poles.visible = av.board.visible = false;
+    if (sledOn || av.rideG) { const rg = rideMesh(av); rg.visible = sledOn; rg.userData.tube.visible = o.sl !== 2; rg.userData.sled.visible = o.sl === 2; } }
+  av.rider.rotation.y = av.gear === 1 && !o.walk && o.state !== 'sled' ? -1.25 : 0;
   const snow = o.snow || 0, isSnowman = snow >= 100;
   for (let k = 0; k < 4; k++) for (const m of av.snowLv[k]) m.visible = !isSnowman && snow >= (k + 1) * 20;
   av.snowman.visible = isSnowman; av.rider.visible = !isSnowman;
@@ -1837,11 +1846,11 @@ function poseAvatar(av, o) {
     const sd = i < 2 ? -1 : 1, th = -sd * 0.34 * av.vk; c.rotation.y = th;
     if (i % 2) { c.position.x = sd * 0.17 - 0.88 * Math.sin(th); c.position.z = -0.1 - 0.88 * Math.cos(th); }
   });
-  const crouch = jp === 'c' ? 0.34 : jp === 'g' || jp === 'i' ? 0.04 : jp === 'l' ? 0.2 : jp === 'f' ? 0 : o.state === 'lift' || o.state === 'queue' || o.state === 'sit' ? 0 : o.boost ? 0.26 : Math.min(0.14, o.speed * 0.006);
+  const crouch = jp === 'c' ? 0.34 : jp === 'g' || jp === 'i' ? 0.04 : jp === 'l' ? 0.2 : jp === 'f' ? 0 : o.state === 'lift' || o.state === 'queue' || o.state === 'sit' || o.state === 'sled' ? 0 : o.boost ? 0.26 : Math.min(0.14, o.speed * 0.006);
   av.rider.scale.y = 1 - crouch;
-  const ry = o.state === 'lift' ? -0.08 : o.state === 'sit' ? -0.38 : 0;
+  const ry = o.state === 'lift' ? -0.08 : o.state === 'sit' || o.state === 'sled' ? -0.38 : 0;
   av.rider.position.y += (ry - av.rider.position.y) * 0.2;
-  const up = o.air ? 1.3 : o.state === 'sit' ? 0.9 : 0.45, upR = o.item ? 0.25 : up;
+  const up = o.air ? 1.3 : o.state === 'sit' ? 0.9 : o.state === 'sled' ? 1.1 : 0.45, upR = o.item ? 0.25 : up;
   if (!jp && !bp) av.armL.rotation.z += (-up - av.armL.rotation.z) * 0.2;
   if (av.throwT > 0) { av.throwT -= 1 / 60; av.armR.rotation.z = 0.45 + 2.5 * Math.max(0, av.throwT / 0.35); }
   else if (av.waveT > 0) { av.waveT -= 1 / 60; av.armR.rotation.z = 2.5 + Math.sin(performance.now() / 90) * 0.45; }
@@ -2124,6 +2133,7 @@ function holdNote() {
 }
 function useAction() {
   if (me.build) { placeBall(); return true; }
+  if (me.sled) { if (me.sled.phase === 'top') { me.x = SLED.xTop - 3; leaveSled('🛷 썰매에서 내렸어요'); } return true; }
   if (me.fishing && me.state === 'sit') { reelIn(); return true; }
   { const hi = nearHole(); if (hi >= 0) { startFishing(hi); return true; } }
   if (me.raceHold && me.rc && !me.rc.t0 && me.rc.hid === myId()) { startRaceNow(); return true; }
@@ -2135,6 +2145,7 @@ function useAction() {
   return false;
 }
 function promptText() {
+  if (me.sled) return me.sled.phase === 'top' ? '🛷 ' + (isTouch ? '[점프]' : 'W·Space') + '로 출발! · 내리기' : me.sled.phase === 'carpet' ? '🛷 무빙워크로 올라가는 중…' : '';
   if (me.build) {
     const b = me.build, part = ['몸통', '가슴', '머리'][b.parts.length], min = b.parts.length ? 0.3 : 0.4;
     return b.ball < min ? '⛄ ' + part + ' 굴리는 중 · 앞으로 걸어서 키워요' + (b.parts.length === 0 && b.walked < 1.5 ? ' (한 번 더 누르면 그만두기)' : '') : '⛄ ' + part + ' 내려놓기' + (isTouch ? '' : ' (B)') + (b.parts.length ? ' · 몸통 앞에서' : '');
@@ -2143,7 +2154,7 @@ function promptText() {
   if (nearHole() >= 0) return '🎣 빙어 낚시하기';
   if (me.raceHold && me.rc && !me.rc.t0) return me.rc.hid === myId() ? '🏁 모두 모였으면 출발!' : '';
   const n = nearNpc();
-  if (n) return n.name + (n.id === 'coco' ? '에게 말 걸기 · 리프트 타기' : n.id === 'bear' ? '에게 핫초코·커피 주문하기' : n.id === 'coach' ? '에게 스키점프 하기' : '에게 길 물어보기');
+  if (n) return n.name + (n.id === 'coco' ? '에게 말 걸기 · 리프트 타기' : n.id === 'bear' ? '에게 핫초코·커피 주문하기' : n.id === 'coach' ? '에게 스키점프 하기' : n.id === 'otter' ? '에게 튜브·썰매 빌리기' : '에게 길 물어보기');
   { const sm0 = nearSnowman(); if (sm0) return '⛄ ' + sm0.n + '님의 눈사람' + (SM.mine.has(sm0.id) ? ' · 치우기' : ' · 말 걸기'); }
   if (me.state === 'sit' && me.stump >= 0) return me.item === 2 || me.item === 4 ? '' : '마시멜로 굽기 · 움직이면 일어나요';
   if (nearStump() >= 0) return '통나무 의자에 앉기';
@@ -2156,7 +2167,7 @@ function nearNpc() {
 }
 function interact() {
   const n = nearNpc(); if (!n) return;
-  if (n.id === 'coco') talkCoco(); else if (n.id === 'bear') talkBear(); else if (n.id === 'coach') talkCoach(); else talkBu();
+  if (n.id === 'coco') talkCoco(); else if (n.id === 'bear') talkBear(); else if (n.id === 'coach') talkCoach(); else if (n.id === 'otter') talkOtter(); else talkBu();
 }
 
 /* ---------- guide arrow ---------- */
@@ -2190,10 +2201,11 @@ function placeName(st, x, z, co) {
   if (x === me.x && z === me.z ? me.indoor : inCafe(x, z)) return '☕ 산장 카페';
   if (inOnsen(x, z)) return '♨ 눈꽃 온천';
   if (inPond(x, z)) return '🎣 빙어 낚시터';
+  if (st === 7 || inSledPark(x, z)) return '🛷 눈썰매장';
   if (z > 0) return '베이스';
   return '슬로프';
 }
-const STATE_CODE = { ski: 0, crash: 2, queue: 3, lift: 4, sit: 5, jump: 6 };
+const STATE_CODE = { ski: 0, crash: 2, queue: 3, lift: 4, sit: 5, jump: 6, sled: 7 };
 function renderPlayers() {
   const ul = $('#players'); ul.textContent = '';
   const rows = [{ name: me.name, color: me.color, sp: me.sp, sh: me.sbHits || 0, fc: me.fishCount || 0, place: placeName(STATE_CODE[me.state], me.x, me.z, me.run && me.run.c.id), me: true }];
@@ -2329,6 +2341,7 @@ function buildMinimap() {
     const [lx, ly] = mmXY(-226, 128); g.fillStyle = '#9b5de5'; g.fillText('🌌 롱', lx + 34, ly); }
   { const [px, py] = mmXY(POND.x, POND.z); g.fillStyle = '#cdeaf6'; g.beginPath(); g.arc(px, py, POND.r / (MM.maxX - MM.minX) * off.width, 0, 7); g.fill(); g.fillStyle = '#1b2a4a'; g.fillText('낚시', px, py + 5); }
   const [rx, ry] = mmXY(222, 46); g.fillStyle = '#ff7a1a'; g.fillText('🏁 레이스', rx, ry);
+  { const [s0x, s0y] = mmXY(SLED.xTop, SLED.lanes[0] - 3.5), [s1x, s1y] = mmXY(SLED.xEnd, SLED.lanes[3] + 3.5); g.fillStyle = '#bfe3ff'; g.fillRect(s0x, s0y, s1x - s0x, s1y - s0y); g.fillStyle = '#1b2a4a'; g.fillText('🛷 썰매', (s0x + s1x) / 2, s1y + 16); }
   MM.bg = off;
 }
 function drawMinimap() {
@@ -2342,12 +2355,13 @@ function drawMinimap() {
 
 /* ================= chat ================= */
 /* ================= notices ================= */
-const NOTICE_VER = '2026-11-01-g';
+const NOTICE_VER = '2026-11-01-h';
 const NOTICES = [
+  { date: '11월 1일', title: '🛷 눈썰매장 · 🌙 더 예뻐진 밤', items: ['베이스 서쪽 언덕에 눈썰매장이 생겼어요! 🦦 수달에게 말을 걸어 튜브나 썰매를 빌려요.', '무빙워크가 꼭대기까지 데려다줘요. W·Space(휴대폰은 [점프])로 출발, A·D로 살짝 방향을 틀어요. 스키를 못 타도 OK!', '🍩 튜브는 빙글빙글 돌고, 🛷 썰매는 조금 더 빠르고 방향을 잘 틀어요.', '밤하늘에 🌌 오로라가 춤추고(밤에 3초쯤 가만히 서 있으면 하늘을 올려다봐요), 별똥별이 떨어지고, 베이스의 큰 트리와 꼬마전구가 반짝여요. 길마다 등불이 켜지고 리프트 기둥엔 빨간 불빛이 깜빡여요.', '새 도장: 🛷 첫 썰매 · 🍩 같이 미끄럼 · 🎢 썰매장 단골'] },
   { date: '11월 1일', title: '⛄ 눈사람이 더 크고 귀여워졌어요', items: ['눈덩이를 더 크게 굴릴 수 있어요. 끝까지 키우면 키 8m 가까운 왕 눈사람!', '반짝이는 눈, 발그레한 볼, 벙어리장갑, 털모자·귀마개·리본을 달고 살랑살랑 흔들려요.', '눈사람은 만든 지 20분이 지나면 스르르 녹아서 사라져요. 말을 걸면 남은 시간을 알려 줘요.', '🏔 왕 눈사람 도장은 이제 키 6m가 기준이에요.'] },
   { date: '11월 1일', title: '🌤 날씨가 바뀌어요 · 🎆 불꽃놀이', items: ['4분마다 날씨가 바뀌어요: ☀ 맑음 · 🌨 눈 · 🌬 눈보라 · 🌇 노을. 모두 같은 날씨를 봐요.', '눈보라 때는 앞이 잘 안 보이고 눈이 옆으로 날려요. 레이스가 더 어려워져요!', '6분마다 약 40초 동안 산 쪽 하늘에서 불꽃놀이가 터져요. 모두 같은 순간에 같은 불꽃을 봐요. 🌙 밤 모드로 보면 더 예뻐요.', '다음 불꽃놀이까지 남은 시간은 ⋯ 더 보기에서 볼 수 있어요. 새 도장: 🌬 눈보라 질주 · 🎆 불꽃 구경'] },
   { date: '11월 1일', title: '🎖 칭호 달기', items: ['🏅 도장판에서 받은 도장의 [🎖 칭호로 달기]를 누르면 이름표 위에 금색 칭호가 붙어요. 예: 🕊 K점 돌파', '친구들 화면에도 보이고, 👥 참가자 목록에도 나와요.', '다른 도장으로 바꾸거나 [떼기]로 뗄 수 있어요. 다음에 들어와도 그대로예요.'] },
-  { date: '11월 1일', title: '🏅 도장 깨기 · ⛄ 눈사람 만들기', items: ['오른쪽 위 🏅 버튼(또는 K)을 누르면 도장판이 열려요. 코스 완주, 빙어, 온천, 눈싸움… 37개 도장을 모아 보세요!', '눈밭에서 B(휴대폰은 ⛄ 눈사람 버튼)를 누르면 눈덩이를 굴려요. 앞으로 걸을수록 커져요.', '몸통 → 가슴 → 머리 순서로 B를 눌러 쌓으면 눈사람 완성! 다 같이 볼 수 있게 스키장에 남아요.', '슬로프·리프트 길·카페·온천에는 만들 수 없어요. 내 눈사람은 한 사람당 3개까지, E로 말 걸면 치울 수 있어요.'] },
+  { date: '11월 1일', title: '🏅 도장 깨기 · ⛄ 눈사람 만들기', items: ['오른쪽 위 🏅 버튼(또는 K)을 누르면 도장판이 열려요. 코스 완주, 빙어, 온천, 눈싸움… 40개 도장을 모아 보세요!', '눈밭에서 B(휴대폰은 ⛄ 눈사람 버튼)를 누르면 눈덩이를 굴려요. 앞으로 걸을수록 커져요.', '몸통 → 가슴 → 머리 순서로 B를 눌러 쌓으면 눈사람 완성! 다 같이 볼 수 있게 스키장에 남아요.', '슬로프·리프트 길·카페·온천에는 만들 수 없어요. 내 눈사람은 한 사람당 3개까지, E로 말 걸면 치울 수 있어요.'] },
   { date: '11월 1일', title: '🎿 스키점프 · ⚔️ 점프 대결', items: ['빙어 낚시터 옆 🦅 점프 코치 수리에게 말을 걸면 스키점프를 할 수 있어요.', '게이트에서 Space로 출발 → 도약대 끝에서 Space! → 날 때 W를 누르고 있으면 V자 자세 → 착지 직전 Space로 텔레마크 보너스.', '점프 대결을 열면 2분 30초 동안 가장 좋은 점수로 순위를 겨뤄요.', '휴대폰에서 캐릭터가 사라지던 문제를 고쳤어요.', '마실 때 컵을 얼굴 앞으로 가져가요. 부딪힌 물체에 맞는 안내가 떠요.'] },
   { date: '11월 1일', title: '♨ 온천 새단장 · ⛄ 눈사람 이동', items: ['냉탕이 없어지고 탕마다 온도가 10℃씩 달라졌어요: 노을탕 40℃ · 유자탕 50℃ · 큰 노천탕 60℃ · 나무탕 70℃', '유자가 둥둥, 꽃잎이 동동, 대나무 물줄기와 나무 바가지가 생겼어요.', '탕에 오래 있으면 얼굴이 빨개지고 머리에서 김이 나요. 뜨거운 탕일수록 빨리!', '인사하면 “안녕~ 👋” 말풍선이 떠요.', '눈사람이 돼도 천천히 깡총깡총 움직일 수 있어요.'] },
   { date: '10월 31일', title: '💥 눈덩이 게이지 · 몰아 던지기', items: ['오른쪽 아래 ❄ 게이지에 눈덩이가 최대 30개까지 모여요.', 'V 키(또는 게이지/💥 한방 버튼)를 누르면 모아 둔 눈덩이를 부채꼴로 한 번에 던져요.', 'F를 누르고 있으면 지금처럼 한 발씩 연사해요.', '레이스 출발 대기 중에는 움직이거나 앉을 수 없어요.'] },
@@ -2408,6 +2422,9 @@ const STAMPS = [
   { id: 'chat', ic: '💬', name: '첫 마디', desc: '채팅으로 말 남기기' },
   { id: 'wave', ic: '👋', name: '안녕~', desc: '친구에게 인사하기 (G)' },
   { id: 'visit', ic: '📍', name: '같이 가기', desc: '👥 탭에서 친구 옆으로 이동' },
+  { id: 'sled', ic: '🛷', name: '첫 썰매', desc: '눈썰매장에서 한 번 내려오기' },
+  { id: 'sledpal', ic: '🍩', name: '같이 미끄럼', desc: '친구와 동시에 썰매 타기' },
+  { id: 'sled10', ic: '🎢', name: '썰매장 단골', desc: '썰매 10번 타기', stat: 'sled', goal: 10 },
   { id: 'sm', ic: '⛄', name: '눈사람 만들기', desc: '눈덩이를 굴려 눈사람 완성 (B)' },
   { id: 'smbig', ic: '🏔', name: '왕 눈사람', desc: '키 6m 넘는 눈사람 만들기' },
   { id: 'sm3', ic: '☃', name: '눈사람 가족', desc: '눈사람 3개 만들기', stat: 'sm', goal: 3 },
@@ -2624,6 +2641,7 @@ function smOnline() { return net.mode === 'ws' && net.room && net.room.connected
 function buildBlock(x, z, r) {
   if (x < BOUNDS.minX + 3 || x > BOUNDS.maxX - 3 || z < BOUNDS.minZ + 3 || z > BOUNDS.maxZ - 3) return '여기는 너무 끝이에요';
   if (inWalkZone(x, z) || inWall(x, z)) return '여기는 눈이 없어요 · 눈밭에서 만들어요';
+  if (inSledPark(x, z)) return '🛷 썰매장에는 만들 수 없어요 · 썰매 타는 친구가 부딪혀요';
   if (Math.abs(x) < 9 && z > -266 && z < 42) return '🚡 리프트 길에는 만들 수 없어요';
   for (const c of COURSES) {
     if (x < c.box[0] || x > c.box[1] || z < c.box[2] || z > c.box[3]) continue;
@@ -2759,6 +2777,7 @@ function validBd(v) {
 function activityOf(o) {
   if ((o.sn || 0) >= 100) return '⛄ 눈사람이 됐어요';
   if (o.bd) return '⛄ 눈사람 만드는 중';
+  if (o.st === 7) return '🛷 썰매 타는 중';
   if (o.st === 4) return '🚡 리프트 타는 중';
   if (o.st === 3) return '🚡 리프트 기다리는 중';
   if (o.rc) return '🏁 ' + o.rc.co + ' 레이스 중';
@@ -2896,7 +2915,7 @@ function syncPeers(peers) {
     }
     a.tpos.fromArray(pr.p);
     a.th = typeof pr.h === 'number' && isFinite(pr.h) ? pr.h : a.th;
-    a.st = clamp(pr.s | 0, 0, 6); a.jp = typeof pr.jp === 'string' && /^[cfgli]$/.test(pr.jp) ? pr.jp : ''; a.ja = clamp(+pr.ja || 0, -120, 120); a.jd = clamp(+pr.jd || 0, 0, 200); a.jb = validJB(pr.jb); a.jbs = pr.jbs && typeof pr.jbs === 'object' && typeof pr.jbs.id === 'string' ? { id: pr.jbs.id, sc: clamp(+pr.jbs.sc || 0, 0, 400), d: clamp(+pr.jbs.d || 0, 0, 200) } : null; a.ch = typeof pr.ch === 'number' ? clamp(pr.ch | 0, -1, LIFT.count - 1) : -1; a.se = clamp(pr.se | 0, 0, 3);
+    a.st = clamp(pr.s | 0, 0, 7); a.sl = pr.sl === 2 ? 2 : pr.sl === 1 ? 1 : 0; a.jp = typeof pr.jp === 'string' && /^[cfgli]$/.test(pr.jp) ? pr.jp : ''; a.ja = clamp(+pr.ja || 0, -120, 120); a.jd = clamp(+pr.jd || 0, 0, 200); a.jb = validJB(pr.jb); a.jbs = pr.jbs && typeof pr.jbs === 'object' && typeof pr.jbs.id === 'string' ? { id: pr.jbs.id, sc: clamp(+pr.jbs.sc || 0, 0, 400), d: clamp(+pr.jbs.d || 0, 0, 200) } : null; a.ch = typeof pr.ch === 'number' ? clamp(pr.ch | 0, -1, LIFT.count - 1) : -1; a.se = clamp(pr.se | 0, 0, 3);
     a.steer = clamp(+pr.st || 0, -1, 1); a.spd = clamp(+pr.v || 0, 0, 40); a.air = pr.s === 1;
     setGear(a.av, pr.g === 1 ? 1 : 0);
     a.co = typeof pr.co === 'string' && courseById[pr.co] ? pr.co : '';
@@ -2969,7 +2988,7 @@ function sendPresence(now, force) {
     s: me.air ? 1 : STATE_CODE[me.state], st: r2(me.steer), v: r2(Math.hypot(me.vx, me.vz)),
     ch: me.state === 'queue' || me.state === 'lift' ? me.chair : -1, se: me.seat,
     co: me.run ? me.run.c.id : '', b: me.best, f: me.fin, m: me.chat, w: me.waveSeq || 0,
-    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, jp: jumpPhase(), ja: Math.round(jumpPitch() * 100), jd: me.jumpBest || 0, jb: me.jb, jbs: me.jbs, it: me.item || 0, ht: Math.round((me.heat || 0) * 10) / 10, fc: me.fishCount || 0, fb: me.fishBest || 0, fl: me.lastFish || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0, sc: stampCount(), tt: stampState.title, bd: wipOf(me.build),
+    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, jp: jumpPhase(), ja: Math.round(jumpPitch() * 100), jd: me.jumpBest || 0, jb: me.jb, jbs: me.jbs, it: me.item || 0, ht: Math.round((me.heat || 0) * 10) / 10, fc: me.fishCount || 0, fb: me.fishBest || 0, fl: me.lastFish || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0, sc: stampCount(), tt: stampState.title, bd: wipOf(me.build), sl: me.sled ? me.sled.kind : 0,
   };
   const key = JSON.stringify(pr);
   if (key === lastSent) return;
@@ -3060,7 +3079,7 @@ function updatePeers(dt, t) {
       a.wipX = a.pos.x; a.wipZ = a.pos.z;
       drawWip(a.wip, a.bd, a.pos.x, a.pos.z, a.h, a.wipRoll);
     }
-    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : a.st === 6 ? 'jump' : 'ski', jp: a.jp, ja: (a.ja || 0) / 100, walk: inWalkZone(a.pos.x, a.pos.z) || !!a.bd, heat: a.ht || 0, bath: a.bt >= 0, fish: a.fl, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
+    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : a.st === 6 ? 'jump' : a.st === 7 ? 'sled' : 'ski', sl: a.sl, jp: a.jp, ja: (a.ja || 0) / 100, walk: inWalkZone(a.pos.x, a.pos.z) || !!a.bd, heat: a.ht || 0, bath: a.bt >= 0, fish: a.fl, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
     // someone standing where the camera is: hide them instead of drawing their insides (a big scarf ring)
     { const dx = camera.position.x - a.pos.x, dy = camera.position.y - (a.pos.y + 1.1), dz = camera.position.z - a.pos.z; a.av.root.visible = dx * dx + dy * dy + dz * dz > 2.6; }
   }
@@ -3097,7 +3116,7 @@ function toggleGear() {
 function updateGearChip() { $('#gearChip').textContent = me.gear ? '🏂 스노보드' : '⛷ 스키'; }
 function goHome() {
   if (me.state === 'lift' || me.state === 'queue') { notice('리프트에서는 이동할 수 없어요'); return; }
-  me.jump = null;
+  me.jump = null; me.sled = null;
   if (me.run) cancelRun();
   if (me.rc) leaveRace();
   cancelBuild();
@@ -3171,6 +3190,7 @@ $('#soundBtn').addEventListener('click', () => {
 $('#prompt').addEventListener('click', useAction);
 function toggleSit() {
   if (me.raceHold) { holdNote(); return; }
+  if (me.state === 'sled') return;
   if (me.state === 'sit') { me.state = 'ski'; me.stump = -1; return; }
   const st = nearStump(); if (st >= 0) { sitStump(st); return; }
   if (me.state !== 'ski' || me.air || Math.hypot(me.vx, me.vz) > 2) { notice('멈춘 상태에서 앉을 수 있어요'); return; }
@@ -3254,6 +3274,7 @@ function buildNight() {
     const ix = k % G.nx, iz = Math.floor(k / G.nx), x = G.minX + ix * G.step, z = G.minZ + iz * G.step;
     let l = G.groom[k] * 0.26;
     if (z > -4 && z < 96 && Math.abs(x) < 90) l = Math.max(l, 0.2 * (1 - sstep(60, 90, Math.abs(x))));
+    if (x > -152 && x < -64 && z > 24 && z < 68) l = Math.max(l, 0.24);
     if (Math.abs(x) < 9 && z > LIFT.zTop - 8 && z < LIFT.zBot + 8) l = Math.max(l, 0.14);
     if (z < -238 && z > -276 && Math.abs(x) < 110) l = Math.max(l, 0.16);
     col[k * 3] = l; col[k * 3 + 1] = l * 0.9; col[k * 3 + 2] = l * 0.72;
@@ -3268,7 +3289,7 @@ function buildNight() {
     const [x, z] = c.s[i], [dx, dz] = c.dir[i], side = (Math.floor(i / 9) % 2) ? 1 : -1, off = c.width / 2 + 1.8;
     spots.push([x + dz * off * side, z - dx * off * side]);
   }
-  for (const [x, z] of [[-30, 8], [-10, 12], [10, 12], [30, 8], [-45, 40], [45, 40], [-22, 66], [22, 66], [0, 76]]) spots.push([x, z]);
+  for (const [x, z] of [[-30, 8], [-10, 12], [10, 12], [30, 8], [-45, 40], [45, 40], [-22, 66], [22, 66], [0, 76], ...SLED_LAMPS]) spots.push([x, z]);
   for (let x = -100; x <= 100; x += 25) spots.push([x, -266]);
   const poles = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.08, 0.1, 5, 6), lam(0x3a4250), spots.length);
   const heads = new THREE.InstancedMesh(new THREE.SphereGeometry(0.28, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffe2a8 }), spots.length);
@@ -3442,6 +3463,261 @@ function renderWxInfo() {
   const t = netNow(), m = WX.m || weatherMix(t), i = Math.floor((t - FW_AT) / FW_EVERY), rel = t - fwShowStart(i);
   $('#wxNow').textContent = '지금 ' + m.cur.ic + ' ' + m.cur.name + ' · ' + mmss((m.slot + 1) * WX_SLOT - t) + ' 뒤 날씨가 바뀔 수 있어요';
   $('#fwNext').textContent = rel >= 0 && rel < FW_LEN ? '🎆 지금 불꽃놀이 중! 산 쪽 하늘을 보세요' : '🎆 다음 불꽃놀이 ' + mmss(fwShowStart(i + 1) - t) + ' 뒤' + (night.on ? '' : ' (밤 모드 추천)');
+}
+
+
+/* ================= sled park (눈썰매장) ================= */
+// A gentle hill on the west side of the base (see rawH): four lanes falling east, a magic carpet up the side.
+function inSledPark(x, z) { return x > SLED.xTop - 8 && x < SLED.xEnd + 4 && z > SLED.lanes[0] - 6 && z < SLED.carpetZ + 5; }
+function laneOf(z) { let best = 0; SLED.lanes.forEach((lz, i) => { if (Math.abs(z - lz) < Math.abs(z - SLED.lanes[best])) best = i; }); return best; }
+const sledFx = { carpetTex: null };
+function buildSled() {
+  const snowM = lam(0xf4f8fd), wood = lam(0x9a6a3c), laneCols = [0xff4f6d, 0x2f7de1, 0x2fb36d, 0xffc53d];
+  // snow berms between the lanes
+  const walls = [SLED.lanes[0] - SLED.laneW / 2, ...SLED.lanes.map((z) => z + SLED.laneW / 2)], pts = [];
+  for (const wz of walls) for (let x = SLED.xTop + 1; x <= SLED.xEnd - 2; x += 1.6) pts.push([x, wz]);
+  const berm = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 6), snowM, pts.length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new V3(), p = new V3();
+  pts.forEach(([x, z], i) => { p.set(x, H(x, z) + 0.05, z); sc.set(1.15, 0.5, 0.55); m4.compose(p, q, sc); berm.setMatrixAt(i, m4); });
+  berm.receiveShadow = true; berm.castShadow = true; scene.add(berm);
+  // start gates at the top: two posts and a colored banner per lane
+  SLED.lanes.forEach((lz, i) => {
+    const x = SLED.xTop + 0.5, y = H(x, lz);
+    for (const s of [-1, 1]) { mesh(new THREE.CylinderGeometry(0.09, 0.09, 2.6, 6), lam(0xeeeeee), x, y + 1.3, lz + s * (SLED.laneW / 2 - 0.4)); }
+    const ban = textPlane([String(i + 1)], SLED.laneW - 0.8, 0.8, '#' + laneCols[i].toString(16).padStart(6, '0'), '#ffffff', { size: 190 });
+    ban.position.set(x, y + 2.3, lz); ban.rotation.y = Math.PI / 2; scene.add(ban);
+  });
+  { const x = SLED.xTop - 11, z = (SLED.lanes[0] + SLED.lanes[3]) / 2, y = H(x, z); /* behind the camera of riders waiting at the gate */ const sg = textPlane(['🛷 출발!', '튜브 · 썰매'], 9, 2.6, '#1b2a4a', '#ffffff'); sg.position.set(x, y + 4.2, z); sg.rotation.y = -Math.PI / 2; scene.add(sg); for (const s of [-1, 1]) mesh(new THREE.CylinderGeometry(0.15, 0.15, 4.2, 6), wood, x, y + 2.1, z + s * 4.2); }
+  // hay bales at the end of the runout
+  for (let z = SLED.lanes[0] - 3; z <= SLED.lanes[3] + 3; z += 2.4) { const b = mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.4, 10), lam(0xe0b860), SLED.xEnd + 1.2, H(SLED.xEnd, z) + 0.6, z); b.rotation.x = Math.PI / 2; addObstacle(SLED.xEnd + 1.2, z, 0.75, 'post'); }
+  // magic carpet: a moving belt that follows the hill, with rails
+  sledFx.carpetTex = canvasTex(64, 64, (g, w, h) => { g.fillStyle = '#4a5878'; g.fillRect(0, 0, w, h); g.fillStyle = '#5f6f94'; for (let k = 0; k < 4; k++) g.fillRect(k * 16, 0, 7, h); }, [1, 1]);
+  const n = 40, x0 = SLED.xEnd - 22, x1 = SLED.xTop - 2, cz = SLED.carpetZ, pos = [], uv = [], idx = [];
+  for (let k = 0; k <= n; k++) { const x = x0 + (x1 - x0) * k / n; for (const s of [-0.8, 0.8]) { pos.push(x, H(x, cz + s) + 0.1, cz + s); uv.push(k * 1.5, s > 0 ? 1 : 0); } if (k) { const a = (k - 1) * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } }
+  const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); cg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); cg.setIndex(idx); cg.computeVertexNormals();
+  const carpet = new THREE.Mesh(cg, new THREE.MeshLambertMaterial({ map: sledFx.carpetTex, side: THREE.DoubleSide })); carpet.receiveShadow = true; scene.add(carpet);
+  for (const s of [-1.05, 1.05]) for (let k = 0; k < n; k += 2) {
+    const xa = x0 + (x1 - x0) * k / n, xb = x0 + (x1 - x0) * (k + 2) / n, ya = H(xa, cz + s) + 0.85, yb = H(xb, cz + s) + 0.85, L = Math.hypot(xb - xa, yb - ya);
+    const rail = mesh(new THREE.BoxGeometry(L, 0.08, 0.08), lam(0xffc53d), (xa + xb) / 2, (ya + yb) / 2, cz + s, scene, false); rail.rotation.z = Math.atan2(yb - ya, xb - xa);
+    mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.85, 5), lam(0x9aa6b8), xa, ya - 0.42, cz + s, scene, false);
+  }
+  // rental hut at the bottom with a stack of tubes
+  const hx = SLED.hutX, hz = SLED.hutZ, hy = H(hx, hz);
+  mesh(new THREE.BoxGeometry(6, 3.2, 4), wood, hx, hy + 1.6, hz); addObstacle(hx, hz, 3.0, 'building');
+  const roof = mesh(new THREE.BoxGeometry(6.8, 0.5, 4.8), lam(0xffffff), hx, hy + 3.45, hz); void roof;
+  const hs = textPlane(['🛷 눈썰매장'], 6, 1.2, '#ff4f6d', '#ffffff', { size: 150 }); hs.position.set(hx + 3.05, hy + 2.4, hz); hs.rotation.y = Math.PI / 2; scene.add(hs);
+  for (let k = 0; k < 6; k++) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.28, 10, 18), lam(laneCols[k % 4])); t.rotation.x = Math.PI / 2; t.position.set(hx + 4.2, hy + 0.3 + k * 0.5, hz - 2.4); t.castShadow = true; scene.add(t); }
+  // the otter who lends tubes and sleds
+  const ot = makeAnimal(4, '#2f7de1'); setGear(ot, 0); ot.skis.visible = ot.poles.visible = false;
+  const ox = SLED.hutX + 4.6, oz = SLED.hutZ + 1.5; ot.root.position.set(ox, H(ox, oz), oz); ot.root.rotation.y = -Math.PI / 2;
+  const tag = makeNpcTag('수달', '썰매장 지기', '#2f7de1'); tag.position.y = 2.95; ot.root.add(tag);
+  npcs.otter = { id: 'otter', name: '수달 썰매지기', face: '🦦', x: ox, z: oz, r: 4.5, root: ot.root, bubble: null, bubbleY: 4.0 };
+  addObstacle(ox, oz, 0.8, 'npc:수달 썰매지기');
+}
+function talkOtter() {
+  setBubble(npcs.otter, '썰매 타러 왔어요?', 2500);
+  say(npcs.otter, '어서 와요! 눈썰매장 수달이에요 🦦 스키를 못 타도 괜찮아요. 무빙워크를 타고 올라가서 쭉 미끄러져 내려오면 돼요. 뭘 타 볼래요?', [
+    { label: '🍩 튜브 (빙글빙글 돌아요)', fn: () => startSled(1) },
+    { label: '🛷 썰매 (조금 더 빠르고 방향을 잘 틀어요)', fn: () => startSled(2) },
+    { label: '괜찮아요', fn: () => say(npcs.otter, '언제든 놀러 와요~', [], 2500) },
+  ]);
+}
+function startSled(kind) {
+  closeDialog();
+  if (me.state !== 'ski' || me.run || me.rc || me.jump || me.snowmanT > 0) { notice('지금은 썰매를 탈 수 없어요'); return; }
+  cancelBuild(); me.item = 0;
+  me.state = 'sled'; me.sled = { kind, phase: 'carpet', lane: -1, v: 0, off: 0, t: 0, max: 0, pal: false };
+  me.x = SLED.xEnd - 21; me.z = SLED.carpetZ; me.y = H(me.x, me.z); me.vx = me.vz = 0; me.heading = Math.PI / 2; cam.yawOff = 0;
+  sfx.pop(); notice((kind === 1 ? '🍩 튜브' : '🛷 썰매') + '를 빌렸어요! 무빙워크가 위로 데려다줘요');
+  sendPresence(performance.now(), true);
+}
+function leaveSled(msg) { me.state = 'ski'; me.sled = null; me.vx = me.vz = 0; if (msg) notice(msg); sendPresence(performance.now(), true); }
+function stepSled(dt) {
+  const S = me.sled; if (!S) { me.state = 'ski'; return; }
+  S.t += dt;
+  if (S.phase === 'carpet') {
+    me.x -= 5.5 * dt; me.z += (SLED.carpetZ - me.z) * Math.min(1, dt * 5); me.y = H(me.x, me.z) + 0.1; me.heading = Math.PI / 2; me.vx = -5.5; me.vz = 0;
+    if (me.x <= SLED.xTop - 1) {
+      // pick the emptiest lane at the top
+      const busy = SLED.lanes.map(() => 0);
+      for (const [, a] of avatars) if (a.st === 7 && a.pos.x < SLED.xTop + 6) busy[laneOf(a.pos.z)]++;
+      const free = Math.min(...busy), opts = busy.map((b, i) => (b === free ? i : -1)).filter((i) => i >= 0);
+      S.lane = opts[Math.floor(Math.random() * opts.length)]; S.phase = 'top'; S.t = 0; S.off = 0;
+      me.x = SLED.xTop + 0.2; me.z = SLED.lanes[S.lane]; me.heading = -Math.PI / 2; me.vx = 0; cam.snap = true; cam.yawOff = 0;
+      centerMsg('🛷 ' + (S.lane + 1) + '번 레인', (isTouch ? '[점프]' : 'W 또는 Space') + '로 출발! · 8초 뒤 자동 출발');
+    }
+    return;
+  }
+  me.y = H(me.x, me.z);
+  if (S.phase === 'top') {
+    me.vx = me.vz = 0;
+    const go = keys.KeyW || keys.ArrowUp || keys.Space || keys._jump || stick.y < -0.5;
+    if (go || S.t > 8) { S.phase = 'ride'; S.v = 2.8; S.t = 0; sfx.whoosh(); if (myAv) setBubble(myAv, S.kind === 1 ? '꺄~ 🍩' : '출발~ 🛷', 2000); }
+    return;
+  }
+  // ride: slide along the lane (+x), steer a little inside it
+  const x = me.x, z = me.z, slope = (H(x - 0.5, z) - H(x + 0.5, z));
+  const runout = x > SLED.xBot + 2, mu = runout ? 2.4 : 0.5, drag = S.kind === 2 ? 0.016 : 0.02;
+  S.v += (9.8 * slope * 0.92 - mu - drag * S.v * S.v) * dt;
+  if (S.v < 0) S.v = 0;
+  const steer = clamp(((keys.KeyD || keys.ArrowRight) ? 1 : 0) - ((keys.KeyA || keys.ArrowLeft) ? 1 : 0) + stick.x, -1, 1);
+  const lim = SLED.laneW / 2 - 1.0, lat = (S.kind === 2 ? 3.2 : 1.8) * steer + (S.kind === 1 ? Math.sin(S.t * 1.7) * 0.6 : 0);
+  // heading -PI/2 faces +x, so "right" is +z
+  S.off = clamp(S.off + lat * dt, -lim, lim);
+  me.x += S.v * dt; me.z = SLED.lanes[S.lane] + S.off; me.y = H(me.x, me.z);
+  me.vx = S.v; me.vz = 0; me.heading = -Math.PI / 2; me.steer = steer;
+  S.max = Math.max(S.max, S.v);
+  if (S.v > 4 && Math.random() < dt * 14) emitSpray(me.x - 0.6, me.y, me.z + (Math.random() - 0.5) * 1.2, S.v * 0.2, 0, 2);
+  if (!S.pal) for (const [, a] of avatars) if (a.st === 7 && a.spd > 2 && a.pos.x > SLED.xTop + 2) { S.pal = true; break; }
+  if (me.x >= SLED.xEnd - 0.5 || (runout && S.v < 0.25)) {
+    if (me.x > SLED.xEnd - 0.5) me.x = SLED.xEnd - 0.5;
+    const kmh = Math.round(S.max * 3.6);
+    centerMsg('🛷 도착!', '최고 시속 ' + kmh + 'km · 한 번 더 타려면 수달에게 말 걸기');
+    stamp('sled'); if (S.pal) stamp('sledpal'); bumpStat('sled', 1);
+    if (myAv) setBubble(myAv, kmh >= 40 ? '엄청 빨라! 😆' : '재밌다~ 😊', 2500);
+    leaveSled();
+  }
+}
+// tube/sled under an avatar (made the first time it is needed)
+function rideMesh(av) {
+  if (av.rideG) return av.rideG;
+  const g = new THREE.Group(); av.root.add(g); av.rideG = g;
+  const cols = [0xff4f6d, 0x2f7de1, 0x2fb36d, 0xffc53d, 0x9b5de5];
+  const tube = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.3, 10, 20), lam(cols[Math.floor(av.ph * 7) % cols.length] || cols[0])); tube.rotation.x = Math.PI / 2; tube.position.y = 0.3; tube.castShadow = true; g.add(tube); g.userData.tube = tube;
+  const sled = new THREE.Group(); g.add(sled); g.userData.sled = sled;
+  mesh(new THREE.BoxGeometry(0.75, 0.1, 1.6), lam(0xd6303a), 0, 0.32, 0, sled);
+  const curl = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.05, 6, 10, Math.PI), lam(0xd6303a)); curl.rotation.y = Math.PI / 2; curl.position.set(0, 0.6, -0.8); sled.add(curl);
+  for (const s of [-0.32, 0.32]) mesh(new THREE.BoxGeometry(0.05, 0.08, 1.7), lam(0x3a3a44), s, 0.18, 0, sled);
+  return g;
+}
+
+/* ================= night atmosphere (야간 분위기) ================= */
+// aurora over the mountain, a big lit tree, string lights, path lanterns, warm light pools,
+// shooting stars and blinking lift lights; most of it only shows at night
+const nx = { aurora: null, auroraMat: null, bulbs: null, bulbCols: null, bulbGlow: null, nightOnly: [], pools: null, liftLights: null, shoot: null, shootT: 8, chimeT: 20 };
+function buildNightExtras() {
+  // aurora: curtains low in the sky all around, between the resort and the far peaks; they follow the camera like the stars
+  nx.auroraMat = new THREE.ShaderMaterial({
+    uniforms: { t: { value: 0 }, k: { value: 0 } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform float t; uniform float k; varying vec2 vUv; void main() { float x = vUv.x, y = vUv.y;'
+      + ' float curtain = 0.5 + 0.5 * sin(x * 31.0 + t * 0.35 + sin(x * 7.0 - t * 0.21) * 2.4);'
+      + ' float rays = 0.55 + 0.45 * sin(x * 140.0 + sin(x * 13.0 + t * 0.5) * 4.0);'
+      + ' float body = smoothstep(0.0, 0.16, y) * (1.0 - smoothstep(0.3, 1.0, y));'
+      + ' float edge = smoothstep(0.0, 0.12, x) * (1.0 - smoothstep(0.88, 1.0, x));'
+      + ' vec3 c = mix(vec3(0.2, 1.0, 0.55), vec3(0.62, 0.36, 1.0), smoothstep(0.25, 0.95, y));'
+      + ' float a = body * curtain * rays * edge * k; gl_FragColor = vec4(c * a * 0.75, 1.0); }',
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  });
+  nx.aurora = new THREE.Group();
+  [[0, 0.0, 760, 210], [Math.PI, 1.7, 700, 200], [Math.PI / 2, 3.1, 620, 190], [-Math.PI / 2, 4.4, 640, 195]].forEach(([yaw, ph, w, h]) => {
+    const geo = new THREE.PlaneGeometry(w, h, 90, 1), pa = geo.attributes.position;
+    for (let i = 0; i < pa.count; i++) { const x = pa.getX(i); pa.setZ(i, Math.sin(x * 0.009 + ph) * 45 + Math.sin(x * 0.021 + ph * 2) * 12); }
+    const m = new THREE.Mesh(geo, nx.auroraMat), g = new THREE.Group(); m.position.set(0, 112, -330); m.frustumCulled = false; g.add(m); g.rotation.y = yaw; nx.aurora.add(g);
+  });
+  nx.aurora.visible = false; scene.add(nx.aurora);
+
+  // twinkling bulbs: one instanced mesh for the big tree and all string lights
+  const bulbs = [], bulbPal = [0xff4f6d, 0xffc53d, 0x2fb36d, 0x2f7de1, 0xff8a2a, 0xb06cff];
+  const addBulb = (x, y, z, k) => bulbs.push([x, y, z, bulbPal[k % bulbPal.length]]);
+  // big decorated tree at the base
+  const TX = 62, TZ = 36, ty = H(TX, TZ);
+  mesh(new THREE.CylinderGeometry(0.45, 0.6, 2, 8), lam(0x6b4a2b), TX, ty + 1, TZ);
+  [[4.2, 3.6, 2.6], [3.4, 3.2, 4.6], [2.6, 2.8, 6.4], [1.7, 2.4, 8.0]].forEach(([r, h, y]) => {
+    mesh(new THREE.ConeGeometry(r, h, 10), lam(0x2a6141), TX, ty + y, TZ);
+    mesh(new THREE.ConeGeometry(r * 0.55, h * 0.35, 10), lam(0xffffff), TX, ty + y + h * 0.36, TZ);
+  });
+  addObstacle(TX, TZ, 1.6, 'tree');
+  for (let k = 0; k < 110; k++) { const f = k / 110, yy = 1.6 + f * 7.6, r = 4.1 * (1 - f * 0.86) + 0.25, a = f * Math.PI * 2 * 6; addBulb(TX + Math.cos(a) * r, ty + yy, TZ + Math.sin(a) * r, k); }
+  { const star = new THREE.Shape(); for (let k = 0; k < 10; k++) { const a = Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? 0.32 : 0.75; if (k) star.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); else star.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+    const st = new THREE.Mesh(new THREE.ExtrudeGeometry(star, { depth: 0.18, bevelEnabled: false }), new THREE.MeshBasicMaterial({ color: 0xffd34d })); st.position.set(TX, ty + 10.0, TZ - 0.09); scene.add(st); nx.star = st;
+    const sg = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffe08a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); sg.scale.set(5, 5, 1); sg.position.set(TX, ty + 10.1, TZ); scene.add(sg); nx.nightOnly.push(sg); }
+  // string lights: hanging garlands between points
+  const garland = (a, b, sag, n, k0) => { for (let k = 0; k <= n; k++) { const f = k / n; addBulb(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f - Math.sin(f * Math.PI) * sag, a[2] + (b[2] - a[2]) * f, k + k0); } };
+  { const y = H(0, 84); garland([-14, y + 5.6, 84], [14, y + 5.6, 84], 1.4, 34, 0); }
+  garland([CAFE.x0 + 0.4, 4.6, CAFE.z0 - 0.6], [CAFE.x1 - 0.4, 4.6, CAFE.z0 - 0.6], 0.5, 36, 3);
+  { const hx = SLED.hutX, hz = SLED.hutZ, hy = H(hx, hz); garland([hx + 3.3, hy + 3.2, hz - 2.3], [hx + 3.3, hy + 3.2, hz + 2.3], 0.35, 10, 1); }
+  { const y0 = H(-LIFT.gap - 4, LIFT.zBot), y1 = H(LIFT.gap + 4, LIFT.zBot); garland([-4, y0 + 4.6, LIFT.zBot - 3.6], [4, y1 + 4.6, LIFT.zBot - 3.6], 0.5, 14, 2); }
+  nx.bulbs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.13, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }), bulbs.length);
+  nx.bulbCols = []; const m4 = new THREE.Matrix4(), cc = new THREE.Color(), gp = new Float32Array(bulbs.length * 3), gc = new Float32Array(bulbs.length * 3);
+  bulbs.forEach(([x, y, z, c], i) => { m4.makeTranslation(x, y, z); nx.bulbs.setMatrixAt(i, m4); cc.setHex(c); nx.bulbs.setColorAt(i, cc); nx.bulbCols.push(cc.clone()); gp[i * 3] = x; gp[i * 3 + 1] = y; gp[i * 3 + 2] = z; gc[i * 3] = cc.r; gc[i * 3 + 1] = cc.g; gc[i * 3 + 2] = cc.b; });
+  scene.add(nx.bulbs);
+  const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(gp, 3)); bg.setAttribute('color', new THREE.BufferAttribute(gc, 3));
+  nx.bulbGlow = new THREE.Points(bg, new THREE.PointsMaterial({ size: 1.1, map: glowTex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); scene.add(nx.bulbGlow); nx.nightOnly.push(nx.bulbGlow);
+
+  // lanterns along the paths from the base to the cafe, the pond and the sled park
+  const lan = [];
+  const path = (a, b, step) => { const L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.floor(L / step), dx = (b[0] - a[0]) / L, dz = (b[1] - a[1]) / L; for (let k = 1; k < n; k++) for (const s of [-1.8, 1.8]) lan.push([a[0] + dx * k * step - dz * s, a[1] + dz * k * step + dx * s]); };
+  path([12, 46], [42, 52], 6); path([-12, 78], [-30, 95], 6); path([-14, 46], [-64, 46], 7);
+  const posts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.07, 0.09, 0.9, 6), lam(0x3a4250), lan.length), heads = new THREE.InstancedMesh(new THREE.BoxGeometry(0.28, 0.3, 0.28), new THREE.MeshBasicMaterial({ color: 0xffd28a }), lan.length), lp = new Float32Array(lan.length * 3);
+  lan.forEach(([x, z], i) => { const y = H(x, z); m4.makeTranslation(x, y + 0.45, z); posts.setMatrixAt(i, m4); m4.makeTranslation(x, y + 1.02, z); heads.setMatrixAt(i, m4); lp[i * 3] = x; lp[i * 3 + 1] = y + 1.02; lp[i * 3 + 2] = z; });
+  scene.add(posts, heads);
+  const lgeo = new THREE.BufferGeometry(); lgeo.setAttribute('position', new THREE.BufferAttribute(lp, 3));
+  const lglow = new THREE.Points(lgeo, new THREE.PointsMaterial({ size: 2.4, map: glowTex, color: 0xffcf88, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); scene.add(lglow); nx.nightOnly.push(lglow);
+
+  // warm pools of light on the snow under the base lamps and the lanterns
+  const spots = [[-30, 8], [-10, 12], [10, 12], [30, 8], [-45, 40], [45, 40], [-22, 66], [22, 66], [0, 76], ...SLED_LAMPS].map(([x, z]) => [x, z, 6]).concat(lan.filter((_, i) => i % 2 === 0).map(([x, z]) => [x, z, 2.4]));
+  const poolGeo = new THREE.PlaneGeometry(1, 1), poolMat = new THREE.MeshBasicMaterial({ map: glowTex, color: 0xffb35c, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+  nx.pools = new THREE.InstancedMesh(poolGeo, poolMat, spots.length);
+  const qq = new THREE.Quaternion().setFromAxisAngle(new V3(1, 0, 0), -Math.PI / 2), pp = new V3(), ss = new V3();
+  spots.forEach(([x, z, r], i) => { pp.set(x, H(x, z) + 0.08, z); ss.set(r * 2, r * 2, 1); m4.compose(pp, qq, ss); nx.pools.setMatrixAt(i, m4); });
+  nx.pools.renderOrder = 2; scene.add(nx.pools); nx.nightOnly.push(nx.pools);
+
+  // red aviation lights on the lift towers, blinking
+  const tl = [];
+  for (let z = LIFT.zBot - 14; z > LIFT.zTop + 10; z -= 24) for (const s of [-1, 1]) tl.push(s * (LIFT.gap + 0.6), cableY(z) + 0.5, z);
+  const tg = new THREE.BufferGeometry(); tg.setAttribute('position', new THREE.Float32BufferAttribute(tl, 3));
+  nx.liftLights = new THREE.Points(tg, new THREE.PointsMaterial({ size: 2.2, map: glowTex, color: 0xff3344, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); scene.add(nx.liftLights); nx.nightOnly.push(nx.liftLights);
+
+  // shooting star: a bright head and a fading tail
+  const sgeo = new THREE.BufferGeometry(); sgeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0], 3)); sgeo.setAttribute('color', new THREE.Float32BufferAttribute([1, 1, 1, 0, 0, 0], 3));
+  nx.shoot = new THREE.Line(sgeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  nx.shoot.frustumCulled = false; nx.shoot.visible = false; scene.add(nx.shoot);
+  nx.shootHead = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); nx.shootHead.scale.set(9, 9, 1); nx.shootHead.visible = false; scene.add(nx.shootHead);
+  for (const o of nx.nightOnly) o.visible = false;
+}
+const nxC = new THREE.Color();
+function updateNightExtras(dt) {
+  if (!nx.bulbs) return;
+  const on = night.on, t = performance.now() / 1000, storm = WX.m ? WX.m.storm : 0, sky = on && storm < 0.5 && !me.indoor;
+  for (const o of nx.nightOnly) o.visible = on;
+  // bulbs twinkle at night, stay plain coloured by day
+  if (on || nx.bulbsLit) {
+    for (let i = 0; i < nx.bulbCols.length; i++) { const k = on ? 0.45 + 0.55 * Math.max(0, Math.sin(t * 2.2 + i * 1.7)) : 1; nxC.copy(nx.bulbCols[i]).multiplyScalar(k); nx.bulbs.setColorAt(i, nxC); }
+    nx.bulbs.instanceColor.needsUpdate = true; nx.bulbsLit = on;
+  }
+  if (nx.star) nx.star.rotation.y = Math.sin(t * 0.6) * 0.5;
+  if (on) nx.liftLights.material.opacity = (t % 1.6) < 0.5 ? 1 : 0.12;
+  // aurora breathes slowly
+  nx.aurora.visible = sky;
+  if (sky) { nx.auroraMat.uniforms.t.value = t; nx.auroraMat.uniforms.k.value = (0.55 + 0.45 * Math.sin(t * 0.07)) * (1 - storm * 2); nx.aurora.position.set(camera.position.x, camera.position.y, camera.position.z); }
+  // shooting stars every so often
+  if (sky) {
+    nx.shootT -= dt;
+    if (nx.shootT <= 0 && !nx.shooting) {
+      nx.shootT = 14 + Math.random() * 22;
+      const az = -Math.PI / 2 + (Math.random() - 0.5) * 1.6, el = 0.35 + Math.random() * 0.35, R = 520;
+      const p0 = new V3(Math.cos(az) * Math.cos(el) * R, Math.sin(el) * R, Math.sin(az) * Math.cos(el) * R);
+      const dir = new V3(Math.random() - 0.5, -0.35 - Math.random() * 0.3, (Math.random() - 0.5) * 0.4).normalize();
+      nx.shooting = { p0, dir, t: 0, len: 0.9 + Math.random() * 0.5 };
+    }
+    if (nx.shooting) {
+      const s = nx.shooting; s.t += dt;
+      const f = s.t / s.len, c = camera.position, head = s.p0.clone().addScaledVector(s.dir, f * 260).add(c), tail = head.clone().addScaledVector(s.dir, -70 * Math.min(1, f * 3));
+      const pa = nx.shoot.geometry.attributes.position; pa.setXYZ(0, head.x, head.y, head.z); pa.setXYZ(1, tail.x, tail.y, tail.z); pa.needsUpdate = true;
+      nx.shoot.visible = nx.shootHead.visible = f < 1; nx.shootHead.position.copy(head); nx.shootHead.material.opacity = 1 - f;
+      if (f >= 1) { nx.shooting = null; if (playing && Math.random() < 0.35) notice('🌠 별똥별이 떨어졌어요! 소원 빌었어요?'); }
+    }
+  } else { nx.shoot.visible = nx.shootHead.visible = false; nx.shooting = null; }
+  // a soft music-box tune now and then on quiet nights
+  if (on && playing && !me.indoor && storm < 0.5) {
+    nx.chimeT -= dt;
+    if (nx.chimeT <= 0) {
+      nx.chimeT = 40 + Math.random() * 30;
+      const scale = [784, 880, 988, 1175, 1319, 1568], notes = [];
+      let k = Math.floor(Math.random() * 3); for (let i = 0; i < 6; i++) { notes.push(scale[k]); k = clamp(k + (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 2)), 0, scale.length - 1); }
+      notes.forEach((f, i) => tone([f], 0.022, 1.1, 'sine', i * 0.42 + (i === 5 ? 0.25 : 0)));
+    }
+  }
 }
 
 // keep the game from zooming on phones and tablets (pinch, double-tap, ctrl+wheel)
@@ -4225,9 +4501,15 @@ function updateCamera(dt) {
     if (me.z >= CAFE.z1) camPos.z = CAFE.z1 + 0.6; else if (me.z <= CAFE.z0) camPos.z = CAFE.z0 - 0.6; else if (me.x <= CAFE.x0) camPos.x = CAFE.x0 - 0.6; else camPos.x = CAFE.x1 + 0.6;
     camPos.y = Math.max(camPos.y, me.y + 3.2);
   }
+  // standing still on a clear night: slowly look up at the sky (aurora, stars)
+  { const still = Math.hypot(me.vx, me.vz) < 0.3 && !keys.KeyW && !keys.KeyA && !keys.KeyS && !keys.KeyD && !keys.ArrowUp && !keys.ArrowDown && !keys.ArrowLeft && !keys.ArrowRight && Math.hypot(stick.x, stick.y) < 0.2;
+    cam.idleT = still ? (cam.idleT || 0) + dt : 0;
+    const want = night.on && !indoor && !dlg && (me.state === 'ski' || me.state === 'sit') && cam.idleT > 3 && !(WX.m && WX.m.storm > 0.5) ? 1 : 0;
+    cam.sky = (cam.sky || 0) + (want - (cam.sky || 0)) * Math.min(1, dt * (want ? 0.7 : 5));
+    camPos.y -= cam.sky * 1.2; }
   const gy = H(camPos.x, camPos.z) + 1.0; if (camPos.y < gy) camPos.y = gy;
   if (cam.snap) { camera.position.copy(camPos); cam.snap = false; } else camera.position.lerp(camPos, 1 - Math.exp(-dt * 7));
-  camera.lookAt(camTarget.x - Math.sin(yaw) * 3, camTarget.y + 0.4, camTarget.z - Math.cos(yaw) * 3);
+  camera.lookAt(camTarget.x - Math.sin(yaw) * 3, camTarget.y + 0.4 + (cam.sky || 0) * 6, camTarget.z - Math.cos(yaw) * 3);
 }
 function frame(now) {
   requestAnimationFrame(frame);
@@ -4253,7 +4535,9 @@ function frame(now) {
     if (document.body.classList.contains('dlg-open')) { stick.x = stick.y = 0; }
     for (const k of ['x', 'z', 'y', 'vx', 'vz', 'vy', 'heading', 'steer']) if (!isFinite(me[k])) me[k] = k === 'y' ? H(me.x || 0, me.z || 0) : (k === 'x' ? 0 : k === 'z' ? 50 : 0);
     if (myAv) for (const o3 of [myAv.tilt.rotation, myAv.rider.position, myAv.rider.scale, myAv.armR.rotation, myAv.armL.rotation, myAv.headG.rotation]) for (const k of ['x', 'y', 'z']) if (!isFinite(o3[k])) o3[k] = o3 === myAv.rider.scale ? 1 : 0;
+    if (me.sled && me.state !== 'sled') me.sled = null; // teleported away (home, friend, snowcat)
     if (me.state === 'ski' || me.state === 'crash') stepSki(dt);
+    else if (me.state === 'sled') stepSled(dt);
     else if (me.state === 'jump') stepJump(dt);
     updateLift(dt);
     updateRun(dt);
@@ -4267,7 +4551,7 @@ function frame(now) {
     }
     drawWip(myWip, wipOf(me.build), me.x, me.z, me.heading, me.build ? me.build.roll : 0);
     $('#buildLb').textContent = me.build ? ['몸통', '가슴', '머리'][me.build.parts.length] + ' 놓기' : '눈사람';
-    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: inWalkZone(me.x, me.z) || !!me.build, heat: me.heat || 0, bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting, fish: me.lastFish, jp: jumpPhase(), ja: jumpPitch() });
+    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: inWalkZone(me.x, me.z) || !!me.build, sl: me.sled ? me.sled.kind : 0, heat: me.heat || 0, bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting, fish: me.lastFish, jp: jumpPhase(), ja: jumpPitch() });
     // prompt + guide
     const ptxt = promptText();
     const pr = $('#prompt');
@@ -4323,7 +4607,7 @@ function frame(now) {
     } else guideArrow.visible = false;
     sun.position.set(me.x + SUN_OFF.x, me.y + SUN_OFF.y, me.z + SUN_OFF.z); sun.target.position.set(me.x, me.y, me.z);
     const sp = Math.hypot(me.vx, me.vz);
-    if (windGain) { windGain.gain.value = (me.state === 'ski' && !inWalkZone(me.x, me.z) ? clamp(sp / 26, 0, 1) * 0.22 : 0.01) + (WX.m && !me.indoor ? WX.m.storm * 0.12 : 0); hissGain.gain.value = me.state === 'ski' && !me.air ? clamp(sp / 20, 0, 1) * (me.brake ? 0.12 : 0.04) : 0; }
+    if (windGain) { windGain.gain.value = (me.state === 'ski' && !inWalkZone(me.x, me.z) ? clamp(sp / 26, 0, 1) * 0.22 : 0.01) + (WX.m && !me.indoor ? WX.m.storm * 0.12 : 0); hissGain.gain.value = (me.state === 'ski' || (me.sled && me.sled.phase === 'ride')) && !me.air ? clamp(sp / 20, 0, 1) * (me.brake ? 0.12 : 0.04) : 0; }
     hudT -= dt;
     if (hudT <= 0) {
       hudT = 0.1;
@@ -4331,7 +4615,7 @@ function frame(now) {
       if (!$('#more').hidden) renderWxInfo();
       if (sp * 3.6 >= 100 && me.state === 'ski') stamp('speed');
       $('#placeChip').textContent = placeName(STATE_CODE[me.state], me.x, me.z, me.run && me.run.c.id);
-      $('#placeIcon').textContent = me.state === 'lift' || me.state === 'queue' ? '🚡' : me.run ? '⛷' : me.z < -240 ? '⛰' : inCafe(me.x, me.z) ? '☕' : inOnsen(me.x, me.z) ? '♨' : inPond(me.x, me.z) ? '🎣' : me.z > 0 ? '🏠' : '🌲';
+      $('#placeIcon').textContent = me.state === 'lift' || me.state === 'queue' ? '🚡' : me.run ? '⛷' : me.z < -240 ? '⛰' : inCafe(me.x, me.z) ? '☕' : inOnsen(me.x, me.z) ? '♨' : inPond(me.x, me.z) ? '🎣' : me.state === 'sled' || inSledPark(me.x, me.z) ? '🛷' : me.z > 0 ? '🏠' : '🌲';
       updateStatus(sp);
       drawMinimap();
     }
@@ -4342,6 +4626,8 @@ function frame(now) {
   updateWeather();
   updateFireworks(dt);
   updateSnowmen();
+  updateNightExtras(dt);
+  if (sledFx.carpetTex) sledFx.carpetTex.offset.x -= dt * 4.7;
   updateWarmPlaces(dt, now);
   if (night.stars) { night.stars.position.copy(camera.position); night.moon.position.set(camera.position.x - 180, camera.position.y + 240, camera.position.z - 380); }
   updateFx(dt);
@@ -4353,7 +4639,7 @@ void playersT;
 
 (async function boot() {
   try { await Promise.race([Promise.all([document.fonts.load('60px Jua'), document.fonts.load('40px "Noto Sans KR"')]), new Promise((r) => setTimeout(r, 1500))]); } catch (e) {}
-  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildCafe(); buildSmoke(); buildOnsen(); buildPond(); buildJump(); buildNpcs(); buildJumpBoard(); buildFpView(); buildMinimap(); buildNight(); buildCafeGlow();
+  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildCafe(); buildSmoke(); buildOnsen(); buildPond(); buildJump(); buildNpcs(); buildSled(); buildJumpBoard(); buildFpView(); buildMinimap(); buildNight(); buildNightExtras(); buildCafeGlow();
   const sn = store('ski.night'), hr = new Date().getHours();
   setNight(sn === '1' || (sn === null && (hr >= 18 || hr < 6)));
   rebuildMine();
