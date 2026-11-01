@@ -1404,6 +1404,21 @@ function makeTag(text, color, isMe) {
     g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2 + (isMe ? 26 : 10), 50);
   }, 2.2);
 }
+// NPC tag: name in a dark pill with a colored role ribbon above it
+function makeNpcTag(name, role, color) {
+  return spriteFromCanvas(512, 168, (g, w) => {
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '700 32px "Noto Sans KR", sans-serif';
+    const rw = Math.min(w - 40, g.measureText(role).width + 44);
+    g.fillStyle = color; rr(g, (w - rw) / 2, 4, rw, 50, 25); g.fill();
+    g.fillStyle = '#ffffff'; g.fillText(role, w / 2, 30);
+    g.font = '800 50px "Noto Sans KR", sans-serif';
+    const nw = Math.min(w - 16, g.measureText(name).width + 70);
+    g.fillStyle = 'rgba(27,42,74,0.86)'; rr(g, (w - nw) / 2, 62, nw, 76, 38); g.fill();
+    g.strokeStyle = color; g.lineWidth = 5; g.stroke();
+    g.fillStyle = '#ffffff'; g.fillText(name, w / 2, 101);
+  }, 2.9);
+}
 function wrapLines(g, text, maxW) {
   const out = []; let cur = '';
   for (const ch of text) { if (g.measureText(cur + ch).width > maxW && cur) { out.push(cur); cur = ch; } else cur += ch; }
@@ -1458,18 +1473,19 @@ function makeNpc(kind) {
   return { root, bubble: null, bubbleY: 3.1 };
 }
 function buildNpcs() {
-  npcs.coco = Object.assign(makeNpc('coco'), { id: 'coco', name: '코코', face: '🦭', x: -7, z: LIFT.zBot - 2 });
-  npcs.coach = Object.assign(makeNpc('bu'), { id: 'coach', name: '점프 코치 수리', face: '🦅', x: -74, z: 88 });
-  npcs.bu = Object.assign(makeNpc('bu'), { id: 'bu', name: '부엉', face: '🦉', x: -8, z: LIFT.zTop + 5 });
+  npcs.coco = Object.assign(makeNpc('coco'), { id: 'coco', name: '코코', face: '🦭', x: -7, z: LIFT.zBot - 2, tagName: '코코', role: '리프트 안내원', tagColor: '#ffc53d' });
+  npcs.coach = Object.assign(makeNpc('bu'), { id: 'coach', name: '점프 코치 수리', face: '🦅', x: -74, z: 88, tagName: '수리', role: '점프 코치', tagColor: '#e5484d' });
+  npcs.bu = Object.assign(makeNpc('bu'), { id: 'bu', name: '부엉', face: '🦉', x: -8, z: LIFT.zTop + 5, tagName: '부엉', role: '정상 안내원', tagColor: '#2f7de1' });
   for (const n of Object.values(npcs)) {
     n.root.position.set(n.x, H(n.x, n.z), n.z);
     n.root.rotation.y = n.id === 'coco' ? Math.PI * 0.8 : -Math.PI * 0.2;
     addObstacle(n.x, n.z, 0.8, 'npc:' + n.name);
+    const t = makeNpcTag(n.tagName, n.role, n.tagColor); t.position.y = 3.05; n.root.add(t); n.bubbleY = 4.1;
   }
   const bear = makeAnimal(1, '#ff8a2a'); setGear(bear, 0); bear.skis.visible = bear.poles.visible = false;
   bear.root.position.set(36, 0, 72.3);
-  const tag = makeTag('곰 사장', '#ff8a2a'); tag.position.y = 2.8; bear.root.add(tag);
-  npcs.bear = { id: 'bear', name: '곰 사장', face: '🐻‍❄️', x: 36, z: 70.2, r: 3.2, root: bear.root, bubble: null, bubbleY: 3.5 };
+  const tag = makeNpcTag('곰 사장', '카페 사장님', '#ff8a2a'); tag.position.y = 2.95; bear.root.add(tag);
+  npcs.bear = { id: 'bear', name: '곰 사장', face: '🐻‍❄️', x: 36, z: 70.2, r: 3.2, root: bear.root, bubble: null, bubbleY: 4.0 };
 }
 
 /* ================= effects ================= */
@@ -1733,23 +1749,39 @@ function poseAvatar(av, o) {
   if (av.mug.visible) { av.cupMat.color.setHex(o.item === 3 ? 0x2f3e5c : 0xffffff); av.drinkMat.color.setHex(o.item === 3 ? 0x2a1608 : 0x6b3a1e); }
   if (o.item === 2) av.marsh.material.color.setRGB(1, 0.95 - 0.35 * (o.roast || 0), 0.86 - 0.6 * (o.roast || 0));
   if (o.item === 4) av.marsh.material.color.setRGB(0.85, 0.55, 0.25);
-  for (const o3 of [av.tilt.rotation, av.rider.position, av.armR.rotation, av.armL.rotation]) for (const k of ['x', 'y', 'z']) if (!isFinite(o3[k])) o3[k] = 0;
+  for (const o3 of [av.tilt.rotation, av.rider.rotation, av.rider.position, av.armR.rotation, av.armL.rotation]) for (const k of ['x', 'y', 'z']) if (!isFinite(o3[k])) o3[k] = 0;
   if (!isFinite(av.rider.scale.y)) av.rider.scale.y = 1;
-  av.tilt.rotation.x += ((o.jp === 'f' ? -0.75 : 0) - av.tilt.rotation.x) * 0.15;
-  const crouch = o.jp === 'c' ? 0.28 : o.state === 'lift' || o.state === 'queue' || o.state === 'sit' ? 0 : o.boost ? 0.26 : Math.min(0.14, o.speed * 0.006);
+  const jp = isSnowman ? '' : o.jp || '';
+  av.tilt.rotation.x += ((jp ? o.ja || 0 : 0) - av.tilt.rotation.x) * (jp ? 0.3 : 0.15);
+  av.rider.rotation.x += ((jp === 'c' ? -0.62 : jp === 'f' ? -1.1 : jp === 'g' ? -0.3 : jp === 'l' ? -0.22 : 0) - av.rider.rotation.x) * 0.2;
+  if (jp) { av.poles.visible = av.board.visible = false; av.skis.visible = true; av.rider.rotation.y = 0; }
+  // V-style skis in flight: tips spread apart
+  av.vk = (av.vk || 0) + ((jp === 'f' ? 1 : 0) - (av.vk || 0)) * 0.15;
+  av.skis.children.forEach((c, i) => {
+    const sd = i < 2 ? -1 : 1, th = -sd * 0.34 * av.vk; c.rotation.y = th;
+    if (i % 2) { c.position.x = sd * 0.17 - 0.88 * Math.sin(th); c.position.z = -0.1 - 0.88 * Math.cos(th); }
+  });
+  const crouch = jp === 'c' ? 0.3 : jp === 'g' ? 0.15 : jp === 'l' ? 0.2 : jp === 'f' ? 0 : o.state === 'lift' || o.state === 'queue' || o.state === 'sit' ? 0 : o.boost ? 0.26 : Math.min(0.14, o.speed * 0.006);
   av.rider.scale.y = 1 - crouch;
   const ry = o.state === 'lift' ? -0.08 : o.state === 'sit' ? -0.38 : 0;
   av.rider.position.y += (ry - av.rider.position.y) * 0.2;
   const up = o.air ? 1.3 : o.state === 'sit' ? 0.9 : 0.45, upR = o.item ? 0.25 : up;
-  av.armL.rotation.z += (-up - av.armL.rotation.z) * 0.2;
+  if (!jp) av.armL.rotation.z += (-up - av.armL.rotation.z) * 0.2;
   if (av.throwT > 0) { av.throwT -= 1 / 60; av.armR.rotation.z = 0.45 + 2.5 * Math.max(0, av.throwT / 0.35); }
   else if (av.waveT > 0) { av.waveT -= 1 / 60; av.armR.rotation.z = 2.5 + Math.sin(performance.now() / 90) * 0.45; }
-  else av.armR.rotation.z += (upR - av.armR.rotation.z) * 0.2;
+  else if (!jp) av.armR.rotation.z += (upR - av.armR.rotation.z) * 0.2;
   // sip every few seconds; take bites of a toasted marshmallow
   const tnow = performance.now() / 1000;
   let ax = o.item ? 0.9 : 0, hx = 0;
   if (o.item === 1 || o.item === 3) { const ph = (tnow + av.ph) % 4; if (ph < 1.4) { const k = Math.sin(ph / 1.4 * Math.PI); ax = 0.9 + 1.6 * k; av.armR.rotation.z = 0.25 - 0.75 * k; hx = -0.22 * k; } }
   if (o.item === 4) { const k = 0.6 + 0.4 * Math.sin(tnow * 3); ax = 2.0 + 0.4 * k; av.armR.rotation.z = -0.35; hx = Math.sin(tnow * 14) * 0.06 - 0.1; }
+  if (jp) {
+    // in-run tuck: arms back along the body; flight: arms close at the sides, face up; landing: arms out for balance
+    ax = jp === 'c' ? -1.0 : jp === 'f' ? -0.45 : jp === 'g' ? 0.35 : 0; hx = jp === 'c' ? 0.5 : jp === 'f' ? 0.8 : jp === 'g' ? 0.15 : 0;
+    const az = jp === 'c' ? 0.22 : jp === 'f' ? 0.2 : jp === 'l' ? 1.15 : 0.45;
+    av.armL.rotation.z += (-az - av.armL.rotation.z) * 0.25; av.armR.rotation.z += (az - av.armR.rotation.z) * 0.25;
+    av.armL.rotation.x += (ax - av.armL.rotation.x) * 0.25;
+  } else av.armL.rotation.x += (0 - av.armL.rotation.x) * 0.25;
   av.armR.rotation.x += (ax - av.armR.rotation.x) * 0.25;
   av.headG.rotation.x += (hx - av.headG.rotation.x) * 0.3;
   if (o.state === 'lift') { av.skis.rotation.x = 0.25; av.board.rotation.x = 0.25; } else { av.skis.rotation.x = 0; av.board.rotation.x = 0; }
@@ -2420,7 +2452,7 @@ function sendPresence(now, force) {
     s: me.air ? 1 : STATE_CODE[me.state], st: r2(me.steer), v: r2(Math.hypot(me.vx, me.vz)),
     ch: me.state === 'queue' || me.state === 'lift' ? me.chair : -1, se: me.seat,
     co: me.run ? me.run.c.id : '', b: me.best, f: me.fin, m: me.chat, w: me.waveSeq || 0,
-    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, jp: me.state === 'jump' ? (me.jump && me.jump.phase === 'flight' ? 'f' : 'c') : '', jd: me.jumpBest || 0, jb: me.jb, jbs: me.jbs, it: me.item || 0, ht: Math.round((me.heat || 0) * 10) / 10, fc: me.fishCount || 0, fb: me.fishBest || 0, fl: me.lastFish || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0,
+    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, jp: jumpPhase(), ja: Math.round(jumpPitch() * 100), jd: me.jumpBest || 0, jb: me.jb, jbs: me.jbs, it: me.item || 0, ht: Math.round((me.heat || 0) * 10) / 10, fc: me.fishCount || 0, fb: me.fishBest || 0, fl: me.lastFish || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0,
   };
   const key = JSON.stringify(pr);
   if (key === lastSent) return;
@@ -2500,7 +2532,7 @@ function updatePeers(dt, t) {
       if (a.pos.distanceTo(a.tpos) > 25) a.pos.copy(a.tpos); else a.pos.lerp(a.tpos, k);
       let d = a.th - a.h; d = Math.atan2(Math.sin(d), Math.cos(d)); a.h += d * k;
     }
-    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : a.st === 6 ? 'jump' : 'ski', jp: a.jp, walk: inWalkZone(a.pos.x, a.pos.z), heat: a.ht || 0, bath: a.bt >= 0, fish: a.fl, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
+    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : a.st === 6 ? 'jump' : 'ski', jp: a.jp, ja: (a.ja || 0) / 100, walk: inWalkZone(a.pos.x, a.pos.z), heat: a.ht || 0, bath: a.bt >= 0, fish: a.fl, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
   }
 }
 
@@ -3114,8 +3146,8 @@ $('#actRace').addEventListener('click', raceMenu);
 /* ================= ski jump ================= */
 const JUMP = { lipX: -60, z: 168, lipY: 80, K: 100, HS: 120, inrun: [], hill: [] };
 (function () {
-  // in-run (local x right, y up, lip at 0,0): straight 35° then a curve flattening to -11° at the lip
-  const P0 = [-58, 37.5], P1 = [-10, 3.9], C = [-6.13, 1.19], L = [0, 0], pts = [];
+  // in-run (local x right, y up, lip at 0,0): straight 35°, then a curve that bottoms out and kicks up +5° at the lip
+  const P0 = [-64.8, 37.5], P1 = [-18.19, 4.86], C = [-10, -0.875], L = [0, 0], pts = [];
   for (let i = 0; i <= 40; i++) { const t = i / 40; pts.push([P0[0] + (P1[0] - P0[0]) * t, P0[1] + (P1[1] - P0[1]) * t]); }
   for (let i = 1; i <= 20; i++) { const t = i / 20, u = 1 - t; pts.push([u * u * P1[0] + 2 * u * t * C[0] + t * t * L[0], u * u * P1[1] + 2 * u * t * C[1] + t * t * L[1]]); }
   let sAcc = 0; JUMP.inrun = pts.map((p, i) => { if (i) sAcc += Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]); return { x: p[0], y: p[1], s: sAcc }; });
@@ -3146,7 +3178,18 @@ function buildJump() {
     const p = JUMP.inrun[i - 1], q = JUMP.inrun[i], len = Math.hypot(q.x - p.x, q.y - p.y);
     const seg = mesh(new THREE.BoxGeometry(len + 0.05, 0.4, 3.2), lam(0xdfe9f5), (p.x + q.x) / 2, (p.y + q.y) / 2 - 0.2, 0, g); seg.rotation.z = Math.atan2(q.y - p.y, q.x - p.x);
     if (i % 6 === 0) for (const zz of [-1.4, 1.4]) { const hgt = (p.y + JUMP.lipY) + 0.5; mesh(new THREE.BoxGeometry(0.45, hgt, 0.45), steel, p.x, p.y - hgt / 2 - 0.3, zz, g); }
-    if (i % 3 === 0) for (const zz of [-1.7, 1.7]) mesh(new THREE.BoxGeometry(len, 0.6, 0.08), lam(0xff7a1a), (p.x + q.x) / 2, (p.y + q.y) / 2 + 0.2, zz, g).rotation.z = Math.atan2(q.y - p.y, q.x - p.x);
+    if (i % 3 === 0 && q.x < -16) for (const zz of [-1.7, 1.7]) mesh(new THREE.BoxGeometry(len, 0.6, 0.08), lam(0xff7a1a), (p.x + q.x) / 2, (p.y + q.y) / 2 + 0.2, zz, g).rotation.z = Math.atan2(q.y - p.y, q.x - p.x);
+  }
+  // take-off table like a kicker: snow wedge under it, red banners on both sides, red lip edge and flags
+  { const tp = JUMP.inrun.filter((p) => p.x >= -16), tk = new THREE.Shape();
+    tk.moveTo(tp[0].x, -JUMP.lipY - 2); for (const p of tp) tk.lineTo(p.x, p.y - 0.3); tk.lineTo(0, -JUMP.lipY - 2); tk.closePath();
+    const tg = new THREE.ExtrudeGeometry(tk, { depth: 4.6, bevelEnabled: false, steps: 1 }); tg.translate(0, 0, -2.3);
+    const wedge = new THREE.Mesh(tg, snowM); wedge.receiveShadow = true; wedge.castShadow = true; g.add(wedge);
+    for (let i = 1; i < tp.length; i++) { const p = tp[i - 1], q = tp[i], len = Math.hypot(q.x - p.x, q.y - p.y);
+      for (const zz of [-2.25, 2.25]) mesh(new THREE.BoxGeometry(len + 0.04, 0.8, 0.1), red, (p.x + q.x) / 2, (p.y + q.y) / 2 + 0.1, zz, g, false).rotation.z = Math.atan2(q.y - p.y, q.x - p.x); }
+    for (const zz of [-2.33, 2.33]) { const bn = textPlane(['도약! TAKE OFF'], 6, 0.72, '#e5484d', '#ffffff'); bn.position.set(-6, inrunAt(JUMP.inrunLen - 6).y + 0.1, zz * 1.02); g.add(bn); }
+    mesh(new THREE.BoxGeometry(0.4, 0.45, 4.7), red, -0.2, -0.12, 0, g);
+    for (const zz of [-3.2, 3.2]) { mesh(new THREE.CylinderGeometry(0.08, 0.08, 7, 6), steel, -0.3, 0.3, zz, g); const fl = mesh(new THREE.BoxGeometry(1.5, 0.9, 0.05), red, -0.8, 3.4, zz, g); void fl; }
   }
   const top = JUMP.inrun[0];
   mesh(new THREE.BoxGeometry(5, 3.2, 5), lam(0x1b2a4a), top.x - 2.5, top.y + 1.4, 0, g);
@@ -3172,6 +3215,13 @@ function startJump() {
   placeJumper(); cam.snap = true; cam.yawOff = 0;
   centerMsg('🎿 출발 게이트', (isTouch ? '[점프] 버튼' : 'Space') + '으로 출발!');
 }
+function jumpPitch() {
+  const j = me.jump; if (!j) return 0;
+  if (j.phase === 'flight') return clamp(Math.atan2(j.vy, j.vx) + 0.45, -0.4, 0.25);
+  if (j.phase === 'landed') return Math.atan2(hillAt(j.x + 0.5) - hillAt(j.x - 0.5), 1);
+  const a = inrunAt(Math.max(0, j.s - 0.6)), b = inrunAt(j.s + 0.6); return Math.atan2(b.y - a.y, (b.x - a.x) || 1);
+}
+function jumpPhase() { const j = me.jump; return me.state !== 'jump' || !j ? '' : j.phase === 'flight' ? 'f' : j.phase === 'landed' ? 'l' : j.phase === 'gate' ? 'g' : 'c'; }
 function placeJumper() { const j = me.jump, [wx, wy] = jumpWorld(j.x, j.y); me.x = wx; me.y = wy; me.z = JUMP.z; me.heading = -Math.PI / 2; me.vx = me.vz = 0; me.air = j.phase === 'flight'; }
 function stepJump(dt) {
   const j = me.jump; if (!j) { me.state = 'ski'; return; }
@@ -3179,7 +3229,7 @@ function stepJump(dt) {
   const crouch = keys.ShiftLeft || keys.ShiftRight || keys._boost;
   if (j.phase === 'gate') { if (edge) { j.phase = 'inrun'; sfx.beep(true); } placeJumper(); return; }
   if (j.phase === 'inrun') {
-    const eff = crouch ? 0.96 : 0.92;
+    const eff = crouch ? 0.68 : 0.64;
     const p0 = JUMP.inrun[0];
     const cur = inrunAt(j.s);
     j.v = Math.sqrt(Math.max(0, 2 * 9.8 * (p0.y - cur.y) * eff));
@@ -3190,7 +3240,7 @@ function stepJump(dt) {
       centerMsg(j.timing === 'perfect' ? '완벽!' : j.timing === 'good' ? '좋아요!' : '괜찮아요', '도약 타이밍'); sfx.pop();
     }
     if (left <= 0) {
-      const a = -11 * Math.PI / 180, v = j.v;
+      const a = 5 * Math.PI / 180, v = j.v;
       j.phase = 'flight'; j.x = 0; j.y = 0; j.vx = v * Math.cos(a); j.vy = v * Math.sin(a) + j.up;
       if (!j.timing) centerMsg('앗, 타이밍을 놓쳤어요', '도약대 끝에서 ' + (isTouch ? '[점프]' : 'Space'));
     } else { const p = inrunAt(j.s); j.x = p.x; j.y = p.y; }
@@ -3360,9 +3410,9 @@ function updateCamera(dt) {
   if (me.state === 'jump' && me.jump) {
     const side = me.jump.phase === 'flight' || me.jump.phase === 'landed';
     // in-run: above and to the side of the deck (never under it); flight: wide side view
-    if (side) camPos.set(me.x - 4, me.y + 12, me.z + 27); else camPos.set(me.x - 2, me.y + 6.5, me.z + 9);
+    if (side) camPos.set(me.x - 3, me.y + 5.5, me.z + 15); else camPos.set(me.x - 2, me.y + 6.5, me.z + 9);
     if (cam.snap) { camera.position.copy(camPos); cam.snap = false; } else camera.position.lerp(camPos, 1 - Math.exp(-dt * (side ? 5 : 8)));
-    camera.lookAt(me.x + (side ? 6 : 5), me.y + (side ? -1 : -0.5), me.z); return;
+    camera.lookAt(me.x + (side ? 4 : 5), me.y + (side ? -1 : -0.5), me.z); return;
   }
   if (!cam.drag) cam.yawOff *= Math.exp(-dt * 0.8);
   const yaw = me.heading + cam.yawOff;
@@ -3410,7 +3460,7 @@ function frame(now) {
     updateRun(dt);
     updateRace();
     if (night.light) night.light.position.set(me.x, me.y + 3.2, me.z);
-    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: inWalkZone(me.x, me.z), heat: me.heat || 0, bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting, fish: me.lastFish, jp: me.state === 'jump' ? (me.jump && me.jump.phase === 'flight' ? 'f' : 'c') : '' });
+    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: inWalkZone(me.x, me.z), heat: me.heat || 0, bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting, fish: me.lastFish, jp: jumpPhase(), ja: jumpPitch() });
     // prompt + guide
     const ptxt = promptText();
     const pr = $('#prompt');
