@@ -96,7 +96,8 @@ h1 em { font-style: normal; color: var(--berry); }
 #center .big { font-family: var(--font-display); font-size: clamp(40px, 10vw, 72px); color: #fff; text-shadow: 0 3px 0 rgba(27,42,74,0.7), 0 0 18px rgba(27,42,74,0.4); white-space: nowrap; }
 #center .sub { font-weight: 700; font-size: 15px; background: rgba(38,44,58,0.45); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 999px; padding: 5px 14px; }
 .bottom { left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); width: min(500px, calc(100% - 24px)); display: grid; gap: 8px; justify-items: center; }
-#status { width: 100%; padding: 10px 14px; display: grid; gap: 6px; box-sizing: border-box; }
+/* status card sits on the left, out of the way of the character in the middle */
+#status { left: calc(12px + env(safe-area-inset-left, 0px)); bottom: calc(96px + env(safe-area-inset-bottom, 0px)); width: min(300px, calc(50% - 270px)); min-width: 240px; padding: 10px 14px; display: grid; gap: 6px; box-sizing: border-box; }
 #status .row { display: flex; align-items: center; gap: 8px; }
 #stChip { font-size: 11.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: rgba(255,255,255,0.22); }
 #stTitle { font-weight: 900; font-size: 15px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 6px; align-items: center; }
@@ -126,7 +127,7 @@ h1 em { font-style: normal; color: var(--berry); }
 #chatForm { width: 100%; display: flex; gap: 6px; pointer-events: auto; }
 #chatInput { flex: 1; min-width: 0; font: inherit; font-size: 15px; padding: 9px 14px; border-radius: 14px; border: 0; background: rgba(255,255,255,0.95); color: var(--ink); -webkit-user-select: text; user-select: text; }
 #chatForm button { border: 0; border-radius: 14px; background: var(--ink); color: #fff; padding: 0 16px; font-weight: 700; }
-#chatLog { left: calc(12px + env(safe-area-inset-left, 0px)); bottom: calc(90px + env(safe-area-inset-bottom, 0px)); width: min(300px, calc(50% - 270px)); min-width: 220px; display: grid; gap: 3px; align-content: end; max-height: 200px; overflow: hidden; }
+#chatLog { left: calc(12px + env(safe-area-inset-left, 0px)); bottom: calc(212px + env(safe-area-inset-bottom, 0px)); width: min(300px, calc(50% - 270px)); min-width: 220px; display: grid; gap: 3px; align-content: end; max-height: 200px; overflow: hidden; }
 #chatLog div { background: rgba(38,44,58,0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: #fff; border-radius: 12px; padding: 4px 10px; font-size: 13px; width: fit-content; max-width: 100%; overflow-wrap: anywhere; transition: opacity 0.6s; }
 #chatLog div b { margin-right: 6px; }
 #chatLog div.sys { opacity: 0.8; font-size: 12px; }
@@ -305,6 +306,11 @@ body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touc
   <div id="hint" class="glass">A·D로 방향, W로 밀고, 화면을 끌어 둘러봐요 · 리프트 앞 코코에게 말을 걸어 보세요</div>
   <div id="feed"></div>
   <div id="center"></div>
+  <div id="status" class="glass">
+    <div class="row"><span id="stChip">멈춤</span><span id="stTitle">베이스</span><span id="stRight"></span></div>
+    <div class="bar"><div id="stFill"></div></div>
+    <div id="stSub">지금 1명이 함께 타고 있어요</div>
+  </div>
   <div id="chatLog"></div>
   <button type="button" id="histBtn">📜 대화 기록</button>
   <div id="history" class="glass" hidden><div class="phead"><b>📜 이전 대화</b><button type="button" class="pclose" id="histClose" aria-label="닫기">✕</button></div><ol id="histList"></ol></div>
@@ -338,11 +344,6 @@ body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touc
     <button id="prompt" type="button" hidden></button>
     <div id="dialog" class="glass" hidden><button type="button" id="dlgClose" aria-label="대화창 닫기">✕</button><div class="who"><span id="dlgFace"></span><span id="dlgName"></span></div><p id="dlgText"></p><div id="dlgChoices"></div></div>
     <form id="chatForm" hidden><input id="chatInput" maxlength="60" autocomplete="off" placeholder="친구에게 할 말을 입력하고 Enter"><button type="submit">보내기</button></form>
-    <div id="status" class="glass">
-      <div class="row"><span id="stChip">멈춤</span><span id="stTitle">베이스</span><span id="stRight"></span></div>
-      <div class="bar"><div id="stFill"></div></div>
-      <div id="stSub">지금 1명이 함께 타고 있어요</div>
-    </div>
     <div id="actions" class="glass">
       <button type="button" id="actTalk"><span class="ic">🚡</span><span class="lb">말 걸기</span></button>
       <button type="button" id="actGear"><span class="ic">🎿</span><span class="lb">스키/보드</span></button>
