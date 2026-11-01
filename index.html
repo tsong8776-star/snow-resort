@@ -168,6 +168,7 @@ body.is-touch #histBtn { bottom: auto; top: calc(236px + env(safe-area-inset-top
 body.is-touch #history { bottom: auto; top: calc(120px + env(safe-area-inset-top, 0px)); max-height: 45vh; }
 #more { right: calc(12px + env(safe-area-inset-right, 0px)); bottom: calc(96px + env(safe-area-inset-bottom, 0px)); width: 250px; padding: 12px; display: grid; gap: 12px; pointer-events: auto; max-height: calc(100% - 200px); overflow-y: auto; }
 #more h3 { margin: 0 0 6px; font-size: 12px; opacity: 0.85; }
+#more .wxinfo { margin: 0 0 3px; font-size: 12px; line-height: 1.5; }
 #players, #records { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
 #players li { display: grid; grid-template-columns: 10px 20px 1fr; gap: 6px; align-items: center; font-size: 13px; }
 #players .sw { width: 10px; height: 10px; border-radius: 50%; }
@@ -318,7 +319,7 @@ body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touc
 <div id="hud" hidden>
   <div class="hud-tl glass">
     <span id="placeIcon">🏠</span>
-    <span class="txt"><span id="placeChip">베이스</span><small><span id="spd">0</span> km/h · <span id="gearChip">⛷ 스키</span><span id="snowTxt"></span><span id="boostTxt"></span></small></span>
+    <span class="txt"><span id="placeChip">베이스</span><small><span id="spd">0</span> km/h · <span id="gearChip">⛷ 스키</span><span id="wxTxt"></span><span id="snowTxt"></span><span id="boostTxt"></span></small></span>
   </div>
   <div class="hud-tr">
     <div class="pill glass">
@@ -354,6 +355,7 @@ body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touc
     <div><h3>코스 최고 기록</h3><ul id="records"></ul></div>
     <div><h3>🐟 빙어 랭킹 (길이)</h3><ol id="fishRank"></ol></div>
     <div><h3>🎿 스키점프 최장 비거리</h3><ol id="jumpRank" class="rankList"></ol></div>
+    <div><h3>🌤 날씨 · 🎆 불꽃놀이</h3><p class="wxinfo" id="wxNow"></p><p class="wxinfo" id="fwNext"></p></div>
     <div><h3>⚙️ 설정</h3>
       <div class="setrow" id="setRow">
         <button type="button" id="setNotice">📢 공지</button>
@@ -1208,8 +1210,8 @@ function updateWarmPlaces(dt, now) {
   for (const pl of cafe.pendants) pl.intensity = ik * (2.3 + Math.sin(now / 900) * 0.05);
   if (cafe.glow) cafe.glow.material.opacity = Math.max(ik, night.on ? 0.6 : 0);
   if (night.base) {
-    hemi.intensity = night.base.hemi + (0.22 - night.base.hemi) * ik;
-    sun.intensity = night.base.sun * (1 - ik);
+    hemi.intensity = night.base.hemi * WX.light + (0.22 - night.base.hemi * WX.light) * ik;
+    sun.intensity = night.base.sun * WX.light * (1 - ik);
     renderer.toneMappingExposure = night.base.exp + (1.15 - night.base.exp) * ik;
   }
   if (fire.ember) {
@@ -1581,10 +1583,10 @@ function emitSpray(x, y, z, vx, vz, n) {
   }
 }
 function updateFx(dt) {
-  const c = camera.position;
-  for (let i = 0; i < SNOW_N; i++) {
-    let y = snowPos[i * 3 + 1] - dt * 2.2; if (y < 0) y += 40; snowPos[i * 3 + 1] = y;
-    snowPos[i * 3] += Math.sin(y * 0.3 + i) * dt * 0.4;
+  const c = camera.position, wm = WX.m, fall = wm ? wm.fall : 2.2, wind = wm ? wm.wind : 0, nShow = Math.min(SNOW_N, snowGeo.drawRange.count);
+  for (let i = 0; i < nShow; i++) {
+    let y = snowPos[i * 3 + 1] - dt * fall * (0.8 + (i % 5) * 0.1); if (y < 0) y += 40; snowPos[i * 3 + 1] = y;
+    let x = snowPos[i * 3] + Math.sin(y * 0.3 + i) * dt * 0.4 + wind * dt; if (x > 45) x -= 90; snowPos[i * 3] = x;
   }
   snow.position.set(c.x, c.y - 15, c.z);
   snowGeo.attributes.position.needsUpdate = true;
@@ -1923,6 +1925,7 @@ function updateRun(dt) {
     me.fin = { i: ++me.finSeq, co: c.id, ms: Math.round(ms) };
     if (r.race) stamp('racefin'); else stamp('c' + c.id);
     if (night.on) stamp('night');
+    if (WX.m && WX.m.storm > 0.5) stamp('storm');
     sfx.finish(); centerMsg(fmtTime(ms), c.id + ' ' + c.name + ' 완주!' + (pen >= 100 ? ' · 패널티 +' + (pen / 1000).toFixed(1) + '초' : '') + (isBest ? ' · 내 최고 기록' : ''));
     renderRecords();
   }
@@ -2339,10 +2342,11 @@ function drawMinimap() {
 
 /* ================= chat ================= */
 /* ================= notices ================= */
-const NOTICE_VER = '2026-11-01-e';
+const NOTICE_VER = '2026-11-01-f';
 const NOTICES = [
+  { date: '11월 1일', title: '🌤 날씨가 바뀌어요 · 🎆 불꽃놀이', items: ['4분마다 날씨가 바뀌어요: ☀ 맑음 · 🌨 눈 · 🌬 눈보라 · 🌇 노을. 모두 같은 날씨를 봐요.', '눈보라 때는 앞이 잘 안 보이고 눈이 옆으로 날려요. 레이스가 더 어려워져요!', '6분마다 약 40초 동안 산 쪽 하늘에서 불꽃놀이가 터져요. 모두 같은 순간에 같은 불꽃을 봐요. 🌙 밤 모드로 보면 더 예뻐요.', '다음 불꽃놀이까지 남은 시간은 ⋯ 더 보기에서 볼 수 있어요. 새 도장: 🌬 눈보라 질주 · 🎆 불꽃 구경'] },
   { date: '11월 1일', title: '🎖 칭호 달기', items: ['🏅 도장판에서 받은 도장의 [🎖 칭호로 달기]를 누르면 이름표 위에 금색 칭호가 붙어요. 예: 🕊 K점 돌파', '친구들 화면에도 보이고, 👥 참가자 목록에도 나와요.', '다른 도장으로 바꾸거나 [떼기]로 뗄 수 있어요. 다음에 들어와도 그대로예요.'] },
-  { date: '11월 1일', title: '🏅 도장 깨기 · ⛄ 눈사람 만들기', items: ['오른쪽 위 🏅 버튼(또는 K)을 누르면 도장판이 열려요. 코스 완주, 빙어, 온천, 눈싸움… 35개 도장을 모아 보세요!', '눈밭에서 B(휴대폰은 ⛄ 눈사람 버튼)를 누르면 눈덩이를 굴려요. 앞으로 걸을수록 커져요.', '몸통 → 가슴 → 머리 순서로 B를 눌러 쌓으면 눈사람 완성! 다 같이 볼 수 있게 스키장에 남아요.', '슬로프·리프트 길·카페·온천에는 만들 수 없어요. 내 눈사람은 한 사람당 3개까지, E로 말 걸면 치울 수 있어요.'] },
+  { date: '11월 1일', title: '🏅 도장 깨기 · ⛄ 눈사람 만들기', items: ['오른쪽 위 🏅 버튼(또는 K)을 누르면 도장판이 열려요. 코스 완주, 빙어, 온천, 눈싸움… 37개 도장을 모아 보세요!', '눈밭에서 B(휴대폰은 ⛄ 눈사람 버튼)를 누르면 눈덩이를 굴려요. 앞으로 걸을수록 커져요.', '몸통 → 가슴 → 머리 순서로 B를 눌러 쌓으면 눈사람 완성! 다 같이 볼 수 있게 스키장에 남아요.', '슬로프·리프트 길·카페·온천에는 만들 수 없어요. 내 눈사람은 한 사람당 3개까지, E로 말 걸면 치울 수 있어요.'] },
   { date: '11월 1일', title: '🎿 스키점프 · ⚔️ 점프 대결', items: ['빙어 낚시터 옆 🦅 점프 코치 수리에게 말을 걸면 스키점프를 할 수 있어요.', '게이트에서 Space로 출발 → 도약대 끝에서 Space! → 날 때 W를 누르고 있으면 V자 자세 → 착지 직전 Space로 텔레마크 보너스.', '점프 대결을 열면 2분 30초 동안 가장 좋은 점수로 순위를 겨뤄요.', '휴대폰에서 캐릭터가 사라지던 문제를 고쳤어요.', '마실 때 컵을 얼굴 앞으로 가져가요. 부딪힌 물체에 맞는 안내가 떠요.'] },
   { date: '11월 1일', title: '♨ 온천 새단장 · ⛄ 눈사람 이동', items: ['냉탕이 없어지고 탕마다 온도가 10℃씩 달라졌어요: 노을탕 40℃ · 유자탕 50℃ · 큰 노천탕 60℃ · 나무탕 70℃', '유자가 둥둥, 꽃잎이 동동, 대나무 물줄기와 나무 바가지가 생겼어요.', '탕에 오래 있으면 얼굴이 빨개지고 머리에서 김이 나요. 뜨거운 탕일수록 빨리!', '인사하면 “안녕~ 👋” 말풍선이 떠요.', '눈사람이 돼도 천천히 깡총깡총 움직일 수 있어요.'] },
   { date: '10월 31일', title: '💥 눈덩이 게이지 · 몰아 던지기', items: ['오른쪽 아래 ❄ 게이지에 눈덩이가 최대 30개까지 모여요.', 'V 키(또는 게이지/💥 한방 버튼)를 누르면 모아 둔 눈덩이를 부채꼴로 한 번에 던져요.', 'F를 누르고 있으면 지금처럼 한 발씩 연사해요.', '레이스 출발 대기 중에는 움직이거나 앉을 수 없어요.'] },
@@ -2380,6 +2384,8 @@ const STAMPS = [
   { id: 'cL', ic: '🌌', name: '은하수 완주', desc: 'L 롱 코스 완주' },
   { id: 'allc', ic: '🏆', name: '전 코스 정복', desc: 'A·B·C·D·L 코스 모두 완주' },
   { id: 'night', ic: '🌙', name: '밤 스키', desc: '밤에 코스 하나 완주' },
+  { id: 'storm', ic: '🌬', name: '눈보라 질주', desc: '눈보라 속에서 코스 완주' },
+  { id: 'fireworks', ic: '🎆', name: '불꽃 구경', desc: '밤 모드로 불꽃놀이 구경하기' },
   { id: 'speed', ic: '🚀', name: '스피드광', desc: '시속 100km 넘기기 (부스트!)' },
   { id: 'racefin', ic: '🏁', name: '레이스 완주', desc: '레이스에서 골인하기' },
   { id: 'racewin', ic: '🥇', name: '레이스 우승', desc: '2명 이상 레이스에서 1등' },
@@ -3268,6 +3274,144 @@ function setNight(on) {
   const b = $('#nightBtn'); b.textContent = on ? '☀' : '🌙'; b.setAttribute('aria-label', on ? '낮으로 바꾸기' : '밤 스키 켜기');
   store('ski.night', on ? '1' : '0');
 }
+
+/* ================= weather (날씨) & fireworks (불꽃놀이) ================= */
+// Both follow the server clock, so everyone sees the same sky and the same bursts at the same moment.
+const WX_SLOT = 240000, WX_FADE = 20000;
+const WEATHERS = [
+  { id: 'clear', ic: '☀', name: '맑음', w: 30, snow: 0.06, fall: 1.4, wind: 0, size: 0.3, near: 1.3, far: 1.4, light: 1.08, msg: '☀ 날씨가 맑아졌어요! 멀리까지 잘 보여요' },
+  { id: 'snow', ic: '🌨', name: '눈', w: 35, snow: 0.55, fall: 2.2, wind: 0.4, size: 0.35, near: 1, far: 1, light: 1, msg: '🌨 눈이 보슬보슬 내리기 시작했어요' },
+  { id: 'storm', ic: '🌬', name: '눈보라', w: 15, snow: 1, fall: 7, wind: 11, size: 0.5, near: 0.1, far: 0.28, light: 0.78, msg: '🌬 눈보라가 몰아쳐요! 앞이 잘 안 보이니 조심해요' },
+  { id: 'dusk', ic: '🌇', name: '노을', w: 20, snow: 0.08, fall: 1.4, wind: 0.2, size: 0.3, near: 1.1, far: 1.2, light: 0.95, msg: '🌇 하늘이 노을빛으로 물들어요' },
+];
+function weatherOfSlot(slot) {
+  const r = mulberry32(Math.imul(slot, 2654435761) ^ 0x2f6b1d)() * 100;
+  let acc = 0; for (const w of WEATHERS) { acc += w.w; if (r < acc) return w; }
+  return WEATHERS[1];
+}
+function weatherMix(t) {
+  const slot = Math.floor(t / WX_SLOT), cur = weatherOfSlot(slot), prev = weatherOfSlot(slot - 1);
+  const k = prev === cur ? 1 : clamp((t - slot * WX_SLOT) / WX_FADE, 0, 1), m = { cur, slot, k };
+  for (const key of ['snow', 'fall', 'wind', 'size', 'near', 'far', 'light']) m[key] = prev[key] + (cur[key] - prev[key]) * k;
+  m.storm = (cur.id === 'storm' ? k : 0) + (prev.id === 'storm' ? 1 - k : 0);
+  m.dusk = (cur.id === 'dusk' ? k : 0) + (prev.id === 'dusk' ? 1 - k : 0);
+  return m;
+}
+const WX = { slot: -1, cur: null, m: null, light: 1 };
+const duskBg = canvasTex(4, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#4d5fa8'); gr.addColorStop(0.45, '#c98aa8'); gr.addColorStop(0.75, '#f6a77c'); gr.addColorStop(1, '#ffd9a6'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+const FOG_DAY = new THREE.Color(0xdcecfb), FOG_NIGHT = new THREE.Color(0x0e1730), FOG_STORM_D = new THREE.Color(0xe6ecf3), FOG_STORM_N = new THREE.Color(0x2a3450), FOG_DUSK = new THREE.Color(0xf2c2a8);
+const SUN_DAY = new THREE.Color(0xfff4e2), SUN_DUSK = new THREE.Color(0xffa06a), stormBg = new THREE.Color();
+function updateWeather() {
+  const m = weatherMix(netNow());
+  if (m.slot !== WX.slot) {
+    if (WX.cur && m.cur !== WX.cur && playing) { notice(m.cur.msg); addChatLine('', '', m.cur.msg, true); }
+    WX.slot = m.slot; WX.cur = m.cur;
+  }
+  WX.m = m; WX.light = m.light;
+  snowGeo.setDrawRange(0, Math.round(SNOW_N * m.snow)); snow.material.size = m.size;
+  const n = night.on, dusk = n ? 0 : m.dusk * (1 - m.storm), fc = scene.fog.color;
+  fc.copy(n ? FOG_NIGHT : FOG_DAY).lerp(n ? FOG_STORM_N : FOG_STORM_D, m.storm).lerp(FOG_DUSK, dusk);
+  scene.fog.near = (n ? 60 : 120) * m.near; scene.fog.far = (n ? 320 : 420) * m.far;
+  if (m.storm > 0.5) { stormBg.copy(fc); scene.background = stormBg; } else scene.background = n ? nightBg : dusk > 0.5 ? duskBg : dayBg;
+  if (!n) sun.color.copy(SUN_DAY).lerp(SUN_DUSK, dusk);
+  if (night.stars) { const sky = n && m.storm < 0.5; night.stars.visible = sky; night.moon.visible = sky; }
+  if (playing && ($('#wxTxt').dataset.id || '') !== m.cur.id) { $('#wxTxt').dataset.id = m.cur.id; $('#wxTxt').textContent = ' · ' + m.cur.ic + ' ' + m.cur.name; }
+}
+
+const FW_EVERY = 360000, FW_AT = 300000, FW_LEN = 42000; // a 42 s show in the last minute of every 6 minutes
+const FW_N = isTouch ? 1500 : 2800;
+const fw = { pos: new Float32Array(FW_N * 3).fill(-999), col: new Float32Array(FW_N * 3), alpha: new Float32Array(FW_N), base: new Float32Array(FW_N * 3), vel: new Float32Array(FW_N * 3), life: new Float32Array(FW_N), max: new Float32Array(FW_N), grav: new Float32Array(FW_N), twk: new Uint8Array(FW_N), idx: 0, rockets: [], show: null, list: [], next: 0, warned: -1, started: -1, watchT: 0 };
+const fwGeo = new THREE.BufferGeometry();
+fwGeo.setAttribute('position', new THREE.BufferAttribute(fw.pos, 3)); fwGeo.setAttribute('tint', new THREE.BufferAttribute(fw.col, 3)); fwGeo.setAttribute('alpha', new THREE.BufferAttribute(fw.alpha, 1));
+// sparks with their own transparency, so colours stay vivid even in front of bright snow
+const fwMat = new THREE.ShaderMaterial({
+  uniforms: { map: { value: flakeTex }, size: { value: 3.2 }, scale: { value: 400 } },
+  vertexShader: 'attribute vec3 tint; attribute float alpha; uniform float size; uniform float scale; varying vec3 vC; varying float vA; void main() { vC = tint; vA = alpha; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = size * scale / -mv.z; gl_Position = projectionMatrix * mv; }',
+  fragmentShader: 'uniform sampler2D map; varying vec3 vC; varying float vA; void main() { float a = texture2D(map, gl_PointCoord).a * vA; if (a < 0.01) discard; gl_FragColor = vec4(vC, a); }',
+  transparent: true, depthWrite: false,
+});
+const fwPoints = new THREE.Points(fwGeo, fwMat);
+fwPoints.frustumCulled = false; scene.add(fwPoints);
+function fwShowStart(i) { return i * FW_EVERY + FW_AT; }
+// the burst plan of show i: same numbers on every screen
+function fwPlan(i) {
+  const rng = mulberry32(Math.imul(i, 7349) + 11), list = [];
+  const mk = (t, big) => { const x = -70 + rng() * 140, z = -35 - rng() * 40; return { t, x, z, y: H(x, z) + 18 + rng() * 16, hue: rng(), hue2: rng(), kind: Math.floor(rng() * 3), n: big ? 120 : 80 + Math.floor(rng() * 40) }; };
+  let t = 1800;
+  while (t < FW_LEN - 7000) { list.push(mk(t)); if (rng() < 0.3) list.push(mk(t + 180)); t += 600 + rng() * 1400; }
+  for (let k = 0; k < 9; k++) list.push(mk(FW_LEN - 5200 + k * 260, true));
+  return list.sort((a, b) => a.t - b.t);
+}
+function fwSpark(x, y, z, vx, vy, vz, r, g, b, life, grav, twk) {
+  const i = fw.idx = (fw.idx + 1) % FW_N, j = i * 3;
+  fw.pos[j] = x; fw.pos[j + 1] = y; fw.pos[j + 2] = z; fw.vel[j] = vx; fw.vel[j + 1] = vy; fw.vel[j + 2] = vz;
+  fw.base[j] = r; fw.base[j + 1] = g; fw.base[j + 2] = b; fw.life[i] = fw.max[i] = life; fw.grav[i] = grav; fw.twk[i] = twk ? 1 : 0;
+}
+const fwC1 = new THREE.Color(), fwC2 = new THREE.Color();
+function fwBurst(b) {
+  const scale = isTouch ? 0.65 : 1, n = Math.round(b.n * scale);
+  fwC1.setHSL(b.hue, 1, 0.55); fwC2.setHSL(b.hue2, 1, 0.6);
+  for (let k = 0; k < n; k++) {
+    let dx, dy, dz;
+    if (b.kind === 1) { const a = k / n * Math.PI * 2; dx = Math.cos(a); dy = Math.sin(a) * 0.35; dz = Math.sin(a); }
+    else { dy = Math.random() * 2 - 1; const a = Math.random() * Math.PI * 2, r = Math.sqrt(1 - dy * dy); dx = Math.cos(a) * r; dz = Math.sin(a) * r; }
+    const willow = b.kind === 2, sp = (willow ? 15 : 21) * (0.85 + Math.random() * 0.3), c = k % 3 === 0 ? fwC2 : fwC1;
+    fwSpark(b.x, b.y, b.z, dx * sp, dy * sp + 2, dz * sp, willow ? 1 : c.r, willow ? 0.78 : c.g, willow ? 0.35 : c.b, willow ? 3.0 + Math.random() : 1.6 + Math.random() * 0.6, willow ? 7 : 4, willow || k % 4 === 0);
+  }
+  // sound reaches you a bit later, like real fireworks
+  const d = Math.hypot(camera.position.x - b.x, camera.position.y - b.y, camera.position.z - b.z), vol = clamp(1.3 - d / 260, 0.08, 1), late = d / 340;
+  tone([70, 48], 0.32 * vol, 0.7, 'sine', late);
+  for (let k = 0; k < 4; k++) tone([1800 + Math.random() * 1500], 0.02 * vol, 0.05, 'square', late + 0.35 + k * 0.09 + Math.random() * 0.05);
+}
+function updateFireworks(dt) {
+  const t = netNow(), i = Math.floor((t - FW_AT) / FW_EVERY), rel = t - fwShowStart(i);
+  const nextIn = fwShowStart(i + 1) - t;
+  if (playing && nextIn < 20000 && fw.warned !== i + 1) { fw.warned = i + 1; notice('🎆 20초 뒤 불꽃놀이가 시작돼요!' + (night.on ? ' 산 쪽 하늘을 보세요' : ' 🌙 밤 모드로 보면 더 예뻐요')); }
+  if (rel >= 0 && rel < FW_LEN) {
+    if (fw.show !== i) {
+      fw.show = i; fw.list = fwPlan(i); fw.next = 0;
+      while (fw.next < fw.list.length && fw.list[fw.next].t < rel - 1500) fw.next++; // joined mid-show: skip what already went off
+      if (playing && fw.started !== i && rel < 5000) { fw.started = i; addChatLine('', '', '🎆 불꽃놀이가 시작됐어요! 산 쪽 하늘을 보세요', true); }
+    }
+    while (fw.next < fw.list.length && fw.list[fw.next].t - 1200 <= rel) {
+      const b = fw.list[fw.next++], left = (b.t - rel) / 1000;
+      if (left <= 0) fwBurst(b);
+      else { const y0 = H(b.x, b.z) + 2; fw.rockets.push({ b, y0, t0: performance.now() / 1000, dur: left, y: y0 }); tone([300, 520], 0.03, 0.5, 'triangle'); }
+    }
+    // watched for a few seconds at night: stamp (real time, so slow phones count the same)
+    if (playing && night.on && !me.indoor) { if (!fw.watchT) fw.watchT = performance.now(); else if (performance.now() - fw.watchT > 6000) stamp('fireworks'); } else fw.watchT = 0;
+  }
+  const now = performance.now() / 1000;
+  for (let k = fw.rockets.length - 1; k >= 0; k--) {
+    const r = fw.rockets[k], f = clamp((now - r.t0) / r.dur, 0, 1), e = 1 - (1 - f) * (1 - f);
+    const y = r.y0 + (r.b.y - r.y0) * e;
+    fwSpark(r.b.x + (Math.random() - 0.5) * 0.3, y, r.b.z, 0, -2, 0, 1, 0.75, 0.4, 0.45, 2, false);
+    if (f >= 1) { fwBurst(r.b); fw.rockets.splice(k, 1); }
+  }
+  let any = false;
+  for (let p = 0; p < FW_N; p++) {
+    if (fw.life[p] <= 0) continue;
+    const j = p * 3; fw.life[p] -= dt;
+    if (fw.life[p] <= 0) { fw.pos[j + 1] = -999; fw.alpha[p] = 0; continue; }
+    any = true;
+    const drag = Math.exp(-1.7 * dt);
+    fw.vel[j] *= drag; fw.vel[j + 2] *= drag; fw.vel[j + 1] = fw.vel[j + 1] * drag - fw.grav[p] * dt;
+    fw.pos[j] += fw.vel[j] * dt; fw.pos[j + 1] += fw.vel[j + 1] * dt; fw.pos[j + 2] += fw.vel[j + 2] * dt;
+    const f = fw.life[p] / fw.max[p], hot = Math.max(0, f - 0.75) * 2; // fresh sparks start white-hot
+    let a = Math.min(1, f * 1.6); if (fw.twk[p]) a *= 0.5 + Math.random() * 0.5;
+    fw.alpha[p] = a;
+    fw.col[j] = fw.base[j] + (1 - fw.base[j]) * hot; fw.col[j + 1] = fw.base[j + 1] + (1 - fw.base[j + 1]) * hot; fw.col[j + 2] = fw.base[j + 2] + (1 - fw.base[j + 2]) * hot;
+  }
+  fwPoints.visible = any || fw.rockets.length > 0;
+  if (fwPoints.visible) { fwMat.uniforms.scale.value = cvs.height / 2; fwGeo.attributes.position.needsUpdate = true; fwGeo.attributes.tint.needsUpdate = true; fwGeo.attributes.alpha.needsUpdate = true; }
+}
+function mmss(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + '분 ' + String(s % 60).padStart(2, '0') + '초'; }
+function renderWxInfo() {
+  const t = netNow(), m = WX.m || weatherMix(t), i = Math.floor((t - FW_AT) / FW_EVERY), rel = t - fwShowStart(i);
+  $('#wxNow').textContent = '지금 ' + m.cur.ic + ' ' + m.cur.name + ' · ' + mmss((m.slot + 1) * WX_SLOT - t) + ' 뒤 날씨가 바뀔 수 있어요';
+  $('#fwNext').textContent = rel >= 0 && rel < FW_LEN ? '🎆 지금 불꽃놀이 중! 산 쪽 하늘을 보세요' : '🎆 다음 불꽃놀이 ' + mmss(fwShowStart(i + 1) - t) + ' 뒤' + (night.on ? '' : ' (밤 모드 추천)');
+}
+
 // keep the game from zooming on phones and tablets (pinch, double-tap, ctrl+wheel)
 for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
 document.addEventListener('touchmove', (e) => { if (e.touches.length > 1 || (e.scale && e.scale !== 1)) e.preventDefault(); }, { passive: false });
@@ -4147,11 +4291,12 @@ function frame(now) {
     } else guideArrow.visible = false;
     sun.position.set(me.x + SUN_OFF.x, me.y + SUN_OFF.y, me.z + SUN_OFF.z); sun.target.position.set(me.x, me.y, me.z);
     const sp = Math.hypot(me.vx, me.vz);
-    if (windGain) { windGain.gain.value = me.state === 'ski' && !inWalkZone(me.x, me.z) ? clamp(sp / 26, 0, 1) * 0.22 : 0.01; hissGain.gain.value = me.state === 'ski' && !me.air ? clamp(sp / 20, 0, 1) * (me.brake ? 0.12 : 0.04) : 0; }
+    if (windGain) { windGain.gain.value = (me.state === 'ski' && !inWalkZone(me.x, me.z) ? clamp(sp / 26, 0, 1) * 0.22 : 0.01) + (WX.m && !me.indoor ? WX.m.storm * 0.12 : 0); hissGain.gain.value = me.state === 'ski' && !me.air ? clamp(sp / 20, 0, 1) * (me.brake ? 0.12 : 0.04) : 0; }
     hudT -= dt;
     if (hudT <= 0) {
       hudT = 0.1;
       $('#spd').textContent = Math.round(sp * 3.6);
+      if (!$('#more').hidden) renderWxInfo();
       if (sp * 3.6 >= 100 && me.state === 'ski') stamp('speed');
       $('#placeChip').textContent = placeName(STATE_CODE[me.state], me.x, me.z, me.run && me.run.c.id);
       $('#placeIcon').textContent = me.state === 'lift' || me.state === 'queue' ? '🚡' : me.run ? '⛷' : me.z < -240 ? '⛰' : inCafe(me.x, me.z) ? '☕' : inOnsen(me.x, me.z) ? '♨' : inPond(me.x, me.z) ? '🎣' : me.z > 0 ? '🏠' : '🌲';
@@ -4162,6 +4307,8 @@ function frame(now) {
   }
   updatePeers(dt, t);
   updateBalls(dt);
+  updateWeather();
+  updateFireworks(dt);
   updateWarmPlaces(dt, now);
   if (night.stars) { night.stars.position.copy(camera.position); night.moon.position.set(camera.position.x - 180, camera.position.y + 240, camera.position.z - 380); }
   updateFx(dt);
