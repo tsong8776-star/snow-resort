@@ -27,6 +27,7 @@ const players = new Map(); // id -> { ws, presence }
 const history = []; // 최근 대화 50개 (늦게 온 사람도 볼 수 있게)
 const fishBoard = []; // 빙어 길이 순위 (사람마다 최고 기록 하나)
 const jumpBoard = []; // 스키점프 비거리 순위 (사람마다 최고 기록 하나)
+const sledBoard = []; // 썰매 점수 순위 (사람마다 최고 기록 하나)
 const snowmen = []; // 플레이어가 만든 눈사람 (전체 최대 40개, 한 사람당 최대 3개)
 const SNOWMAN_MAX = 40, SNOWMAN_PER_PLAYER = 3;
 const SNOWMAN_LIFE = Number(process.env.SNOWMAN_LIFE_MS) || 20 * 60 * 1000; // 눈사람이 녹기까지 걸리는 시간
@@ -53,7 +54,7 @@ wss.on('connection', (ws) => {
   const me = { ws, presence: {}, budget: 60, last: Date.now() };
   players.set(id, me);
 
-  send(ws, { t: 'hello', id, now: Date.now(), history, board: fishBoard, jboard: jumpBoard, sm: snowmen.map(pubSnowman), peers: [...players].filter(([k]) => k !== id).map(([k, v]) => ({ id: k, presence: v.presence })) });
+  send(ws, { t: 'hello', id, now: Date.now(), history, board: fishBoard, jboard: jumpBoard, sboard: sledBoard, sm: snowmen.map(pubSnowman), peers: [...players].filter(([k]) => k !== id).map(([k, v]) => ({ id: k, presence: v.presence })) });
   broadcast({ t: 'join', id }, id);
 
   ws.isAlive = true;
@@ -85,6 +86,14 @@ wss.on('connection', (ws) => {
       if (cur) { if (d <= cur.d) return; cur.d = d; cur.at = Date.now(); } else jumpBoard.push({ n, d, at: Date.now() });
       jumpBoard.sort((a, b) => b.d - a.d); jumpBoard.length = Math.min(jumpBoard.length, 30);
       broadcast({ t: 'jboard', board: jumpBoard });
+      return;
+    }
+    if (m && m.t === 'sled' && typeof m.s === 'number' && m.s > 0 && m.s <= 30000) {
+      const n = clean(m.n, 10) || '스키어', sc = Math.round(m.s);
+      const cur = sledBoard.find((e) => e.n === n);
+      if (cur) { if (sc <= cur.s) return; cur.s = sc; cur.at = Date.now(); } else sledBoard.push({ n, s: sc, at: Date.now() });
+      sledBoard.sort((a, b) => b.s - a.s); sledBoard.length = Math.min(sledBoard.length, 30);
+      broadcast({ t: 'sboard', board: sledBoard });
       return;
     }
     if (m && m.t === 'snowman') {

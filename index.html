@@ -155,6 +155,10 @@ h1 em { font-style: normal; color: var(--berry); }
 #noticeList article { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 10px 12px; }
 #noticeList h4 { margin: 0 0 4px; font-size: 14.5px; } #noticeList time { font-size: 11px; opacity: 0.7; }
 #noticeList ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.7; }
+#sledRank { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+#sledRank li { display: grid; grid-template-columns: 26px auto 1fr; gap: 6px; align-items: center; font-size: 13px; }
+#sledRank .t { font-family: var(--font-display); font-size: 16px; }
+#sledRank .who { opacity: 0.85; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #jumpRank { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
 #jumpRank li { display: grid; grid-template-columns: 26px auto 1fr; gap: 6px; align-items: center; font-size: 13px; }
 #jumpRank .t { font-family: var(--font-display); font-size: 16px; }
@@ -355,6 +359,7 @@ body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touc
     <div><h3>코스 최고 기록</h3><ul id="records"></ul></div>
     <div><h3>🐟 빙어 랭킹 (길이)</h3><ol id="fishRank"></ol></div>
     <div><h3>🎿 스키점프 최장 비거리</h3><ol id="jumpRank" class="rankList"></ol></div>
+    <div><h3>🛷 썰매 점수</h3><ol id="sledRank" class="rankList"></ol></div>
     <div><h3>🌤 날씨 · 🎆 불꽃놀이</h3><p class="wxinfo" id="wxNow"></p><p class="wxinfo" id="fwNext"></p></div>
     <div><h3>⚙️ 설정</h3>
       <div class="setrow" id="setRow">
@@ -521,6 +526,8 @@ const SLED_LAMPS = [[-140, 25], [-120, 25], [-100, 25], [-140, 66], [-120, 66], 
 function rawH(x, z) {
   let h = SUMMIT * sstep(Z_FOOT, Z_TOPEDGE, z);
   h += SLED.h * sstep(-94, -146, x) * sstep(14, 26, z) * (1 - sstep(66, 80, z));
+  // four rollers on the sled lanes to fly off
+  { const u = (x + 138) / 9; if (u > 0 && u < 4) h += 0.8 * (0.5 - 0.5 * Math.cos(u * 2 * Math.PI)) * sstep(27, 30, z) * (1 - sstep(55, 58, z)); }
   if (x < -140) {
     // a ridge separates the main mountain from the long-course valley in the west
     h += Math.max(0, 1 - Math.abs(x + 172) / 18) * 34;
@@ -1042,7 +1049,7 @@ function inOnsen(x, z) { return x > ONSEN.x0 && x < ONSEN.x1 && z > ONSEN.z0 - 1
 const POND = { x: -36, z: 118, r: 22 };
 const HOLES = [];
 function inPond(x, z) { return Math.hypot(x - POND.x, z - POND.z) < POND.r + 3; }
-function inWalkZone(x, z) { return inCafe(x, z) || inOnsen(x, z) || inPond(x, z); }
+function inWalkZone(x, z) { return inCafe(x, z) || inOnsen(x, z) || inPond(x, z) || inSledPark(x, z); }
 function buildPond() {
   const P = POND;
   const ice = new THREE.Mesh(new THREE.CircleGeometry(P.r, 56), new THREE.MeshPhongMaterial({ shininess: 120, map: canvasTex(256, 256, (g, w, h) => {
@@ -1589,7 +1596,7 @@ function emitSpray(x, y, z, vx, vz, n) {
   }
 }
 function updateFx(dt) {
-  const c = camera.position, wm = WX.m, fall = wm ? wm.fall : 2.2, wind = wm ? wm.wind : 0, nShow = Math.min(SNOW_N, snowGeo.drawRange.count);
+  const c = camera.position, wm = WX.m, fall = (wm ? wm.fall : 2.2) * (night.on ? 0.7 : 1), wind = wm ? wm.wind : 0, nShow = Math.min(SNOW_N, snowGeo.drawRange.count);
   for (let i = 0; i < nShow; i++) {
     let y = snowPos[i * 3 + 1] - dt * fall * (0.8 + (i % 5) * 0.1); if (y < 0) y += 40; snowPos[i * 3 + 1] = y;
     let x = snowPos[i * 3] + Math.sin(y * 0.3 + i) * dt * 0.4 + wind * dt; if (x > 45) x -= 90; snowPos[i * 3] = x;
@@ -2355,13 +2362,14 @@ function drawMinimap() {
 
 /* ================= chat ================= */
 /* ================= notices ================= */
-const NOTICE_VER = '2026-11-01-h';
+const NOTICE_VER = '2026-11-02-a';
 const NOTICES = [
+  { date: '11월 2일', title: '🛷 썰매장 새단장 · 🌙 밤하늘', items: ['눈썰매장에 울타리가 생겨서, 안에서는 걷기와 썰매만 할 수 있어요(스키·눈싸움·눈사람 ✕). 입구는 동쪽이에요.', '레인에 ⭐ 별 9개와 🍬 황금 사탕이 있어요! A·D로 피해 다니며 모으고, 둔덕에서 높이 날면 점수가 올라가요.', '내려오면 점수(별·사탕·최고 속도·공중 시간)가 나오고, 렌털 오두막 옆 점수판과 ⋯ 더 보기에서 순위를 볼 수 있어요.', '친구가 꼭대기에서 기다리고 있으면 3·2·1 카운트다운으로 같이 출발해서 경주해요. 무빙워크도 더 빨라졌어요.', '밤하늘에 크고 작은 별이 반짝이고 은하수가 흘러요. 분화구가 보이는 달이 떠 있고, 밤에는 늘 눈이 소복소복 내려요.', '새 도장: 🏁 썰매 경주 1등 · 🌟 별 수집가'] },
   { date: '11월 1일', title: '🛷 눈썰매장 · 🌙 더 예뻐진 밤', items: ['베이스 서쪽 언덕에 눈썰매장이 생겼어요! 🦦 수달에게 말을 걸어 튜브나 썰매를 빌려요.', '무빙워크가 꼭대기까지 데려다줘요. W·Space(휴대폰은 [점프])로 출발, A·D로 살짝 방향을 틀어요. 스키를 못 타도 OK!', '🍩 튜브는 빙글빙글 돌고, 🛷 썰매는 조금 더 빠르고 방향을 잘 틀어요.', '밤하늘에 🌌 오로라가 춤추고(밤에 3초쯤 가만히 서 있으면 하늘을 올려다봐요), 별똥별이 떨어지고, 베이스의 큰 트리와 꼬마전구가 반짝여요. 길마다 등불이 켜지고 리프트 기둥엔 빨간 불빛이 깜빡여요.', '새 도장: 🛷 첫 썰매 · 🍩 같이 미끄럼 · 🎢 썰매장 단골'] },
   { date: '11월 1일', title: '⛄ 눈사람이 더 크고 귀여워졌어요', items: ['눈덩이를 더 크게 굴릴 수 있어요. 끝까지 키우면 키 8m 가까운 왕 눈사람!', '반짝이는 눈, 발그레한 볼, 벙어리장갑, 털모자·귀마개·리본을 달고 살랑살랑 흔들려요.', '눈사람은 만든 지 20분이 지나면 스르르 녹아서 사라져요. 말을 걸면 남은 시간을 알려 줘요.', '🏔 왕 눈사람 도장은 이제 키 6m가 기준이에요.'] },
   { date: '11월 1일', title: '🌤 날씨가 바뀌어요 · 🎆 불꽃놀이', items: ['4분마다 날씨가 바뀌어요: ☀ 맑음 · 🌨 눈 · 🌬 눈보라 · 🌇 노을. 모두 같은 날씨를 봐요.', '눈보라 때는 앞이 잘 안 보이고 눈이 옆으로 날려요. 레이스가 더 어려워져요!', '6분마다 약 40초 동안 산 쪽 하늘에서 불꽃놀이가 터져요. 모두 같은 순간에 같은 불꽃을 봐요. 🌙 밤 모드로 보면 더 예뻐요.', '다음 불꽃놀이까지 남은 시간은 ⋯ 더 보기에서 볼 수 있어요. 새 도장: 🌬 눈보라 질주 · 🎆 불꽃 구경'] },
   { date: '11월 1일', title: '🎖 칭호 달기', items: ['🏅 도장판에서 받은 도장의 [🎖 칭호로 달기]를 누르면 이름표 위에 금색 칭호가 붙어요. 예: 🕊 K점 돌파', '친구들 화면에도 보이고, 👥 참가자 목록에도 나와요.', '다른 도장으로 바꾸거나 [떼기]로 뗄 수 있어요. 다음에 들어와도 그대로예요.'] },
-  { date: '11월 1일', title: '🏅 도장 깨기 · ⛄ 눈사람 만들기', items: ['오른쪽 위 🏅 버튼(또는 K)을 누르면 도장판이 열려요. 코스 완주, 빙어, 온천, 눈싸움… 40개 도장을 모아 보세요!', '눈밭에서 B(휴대폰은 ⛄ 눈사람 버튼)를 누르면 눈덩이를 굴려요. 앞으로 걸을수록 커져요.', '몸통 → 가슴 → 머리 순서로 B를 눌러 쌓으면 눈사람 완성! 다 같이 볼 수 있게 스키장에 남아요.', '슬로프·리프트 길·카페·온천에는 만들 수 없어요. 내 눈사람은 한 사람당 3개까지, E로 말 걸면 치울 수 있어요.'] },
+  { date: '11월 1일', title: '🏅 도장 깨기 · ⛄ 눈사람 만들기', items: ['오른쪽 위 🏅 버튼(또는 K)을 누르면 도장판이 열려요. 코스 완주, 빙어, 온천, 눈싸움… 42개 도장을 모아 보세요!', '눈밭에서 B(휴대폰은 ⛄ 눈사람 버튼)를 누르면 눈덩이를 굴려요. 앞으로 걸을수록 커져요.', '몸통 → 가슴 → 머리 순서로 B를 눌러 쌓으면 눈사람 완성! 다 같이 볼 수 있게 스키장에 남아요.', '슬로프·리프트 길·카페·온천에는 만들 수 없어요. 내 눈사람은 한 사람당 3개까지, E로 말 걸면 치울 수 있어요.'] },
   { date: '11월 1일', title: '🎿 스키점프 · ⚔️ 점프 대결', items: ['빙어 낚시터 옆 🦅 점프 코치 수리에게 말을 걸면 스키점프를 할 수 있어요.', '게이트에서 Space로 출발 → 도약대 끝에서 Space! → 날 때 W를 누르고 있으면 V자 자세 → 착지 직전 Space로 텔레마크 보너스.', '점프 대결을 열면 2분 30초 동안 가장 좋은 점수로 순위를 겨뤄요.', '휴대폰에서 캐릭터가 사라지던 문제를 고쳤어요.', '마실 때 컵을 얼굴 앞으로 가져가요. 부딪힌 물체에 맞는 안내가 떠요.'] },
   { date: '11월 1일', title: '♨ 온천 새단장 · ⛄ 눈사람 이동', items: ['냉탕이 없어지고 탕마다 온도가 10℃씩 달라졌어요: 노을탕 40℃ · 유자탕 50℃ · 큰 노천탕 60℃ · 나무탕 70℃', '유자가 둥둥, 꽃잎이 동동, 대나무 물줄기와 나무 바가지가 생겼어요.', '탕에 오래 있으면 얼굴이 빨개지고 머리에서 김이 나요. 뜨거운 탕일수록 빨리!', '인사하면 “안녕~ 👋” 말풍선이 떠요.', '눈사람이 돼도 천천히 깡총깡총 움직일 수 있어요.'] },
   { date: '10월 31일', title: '💥 눈덩이 게이지 · 몰아 던지기', items: ['오른쪽 아래 ❄ 게이지에 눈덩이가 최대 30개까지 모여요.', 'V 키(또는 게이지/💥 한방 버튼)를 누르면 모아 둔 눈덩이를 부채꼴로 한 번에 던져요.', 'F를 누르고 있으면 지금처럼 한 발씩 연사해요.', '레이스 출발 대기 중에는 움직이거나 앉을 수 없어요.'] },
@@ -2425,6 +2433,8 @@ const STAMPS = [
   { id: 'sled', ic: '🛷', name: '첫 썰매', desc: '눈썰매장에서 한 번 내려오기' },
   { id: 'sledpal', ic: '🍩', name: '같이 미끄럼', desc: '친구와 동시에 썰매 타기' },
   { id: 'sled10', ic: '🎢', name: '썰매장 단골', desc: '썰매 10번 타기', stat: 'sled', goal: 10 },
+  { id: 'sledwin', ic: '🏁', name: '썰매 경주 1등', desc: '친구와 같이 출발해서 1등으로 도착' },
+  { id: 'sledstar', ic: '🌟', name: '별 수집가', desc: '한 번에 레인의 ⭐ 별 9개 모두 모으기' },
   { id: 'sm', ic: '⛄', name: '눈사람 만들기', desc: '눈덩이를 굴려 눈사람 완성 (B)' },
   { id: 'smbig', ic: '🏔', name: '왕 눈사람', desc: '키 6m 넘는 눈사람 만들기' },
   { id: 'sm3', ic: '☃', name: '눈사람 가족', desc: '눈사람 3개 만들기', stat: 'sm', goal: 3 },
@@ -2915,7 +2925,9 @@ function syncPeers(peers) {
     }
     a.tpos.fromArray(pr.p);
     a.th = typeof pr.h === 'number' && isFinite(pr.h) ? pr.h : a.th;
-    a.st = clamp(pr.s | 0, 0, 7); a.sl = pr.sl === 2 ? 2 : pr.sl === 1 ? 1 : 0; a.jp = typeof pr.jp === 'string' && /^[cfgli]$/.test(pr.jp) ? pr.jp : ''; a.ja = clamp(+pr.ja || 0, -120, 120); a.jd = clamp(+pr.jd || 0, 0, 200); a.jb = validJB(pr.jb); a.jbs = pr.jbs && typeof pr.jbs === 'object' && typeof pr.jbs.id === 'string' ? { id: pr.jbs.id, sc: clamp(+pr.jbs.sc || 0, 0, 400), d: clamp(+pr.jbs.d || 0, 0, 200) } : null; a.ch = typeof pr.ch === 'number' ? clamp(pr.ch | 0, -1, LIFT.count - 1) : -1; a.se = clamp(pr.se | 0, 0, 3);
+    a.st = clamp(pr.s | 0, 0, 7); a.sl = pr.sl === 2 ? 2 : pr.sl === 1 ? 1 : 0;
+    a.sg = typeof pr.sg === 'number' && isFinite(pr.sg) ? pr.sg : 0; a.sk = clamp(pr.sk | 0, 0, 30000);
+    a.sf = pr.sf && typeof pr.sf === 'object' && typeof pr.sf.sg === 'number' && typeof pr.sf.ms === 'number' ? { sg: pr.sf.sg, ms: pr.sf.ms } : null; a.jp = typeof pr.jp === 'string' && /^[cfgli]$/.test(pr.jp) ? pr.jp : ''; a.ja = clamp(+pr.ja || 0, -120, 120); a.jd = clamp(+pr.jd || 0, 0, 200); a.jb = validJB(pr.jb); a.jbs = pr.jbs && typeof pr.jbs === 'object' && typeof pr.jbs.id === 'string' ? { id: pr.jbs.id, sc: clamp(+pr.jbs.sc || 0, 0, 400), d: clamp(+pr.jbs.d || 0, 0, 200) } : null; a.ch = typeof pr.ch === 'number' ? clamp(pr.ch | 0, -1, LIFT.count - 1) : -1; a.se = clamp(pr.se | 0, 0, 3);
     a.steer = clamp(+pr.st || 0, -1, 1); a.spd = clamp(+pr.v || 0, 0, 40); a.air = pr.s === 1;
     setGear(a.av, pr.g === 1 ? 1 : 0);
     a.co = typeof pr.co === 'string' && courseById[pr.co] ? pr.co : '';
@@ -2988,7 +3000,7 @@ function sendPresence(now, force) {
     s: me.air ? 1 : STATE_CODE[me.state], st: r2(me.steer), v: r2(Math.hypot(me.vx, me.vz)),
     ch: me.state === 'queue' || me.state === 'lift' ? me.chair : -1, se: me.seat,
     co: me.run ? me.run.c.id : '', b: me.best, f: me.fin, m: me.chat, w: me.waveSeq || 0,
-    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, jp: jumpPhase(), ja: Math.round(jumpPitch() * 100), jd: me.jumpBest || 0, jb: me.jb, jbs: me.jbs, it: me.item || 0, ht: Math.round((me.heat || 0) * 10) / 10, fc: me.fishCount || 0, fb: me.fishBest || 0, fl: me.lastFish || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0, sc: stampCount(), tt: stampState.title, bd: wipOf(me.build), sl: me.sled ? me.sled.kind : 0,
+    sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, jp: jumpPhase(), ja: Math.round(jumpPitch() * 100), jd: me.jumpBest || 0, jb: me.jb, jbs: me.jbs, it: me.item || 0, ht: Math.round((me.heat || 0) * 10) / 10, fc: me.fishCount || 0, fb: me.fishBest || 0, fl: me.lastFish || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0, sc: stampCount(), tt: stampState.title, bd: wipOf(me.build), sl: me.sled ? me.sled.kind : 0, sg: me.sled ? me.sled.sg : 0, sf: me.sledFin || 0, sk: me.sledBest || 0,
   };
   const key = JSON.stringify(pr);
   if (key === lastSent) return;
@@ -3021,10 +3033,12 @@ function makeWsRoom() {
       if (m.t === 'sm') { addSnowman(m.sm, !!m.mine, true); return; }
       if (m.t === 'smdel') { if (typeof m.id === 'string') removeSnowman(m.id); return; }
       if (m.t === 'board') { if (Array.isArray(m.board)) { fishBoard.server = m.board.slice(0, 30); renderFishRank(); } return; }
+      if (m.t === 'sboard') { if (Array.isArray(m.board)) { sledFx.board.server = m.board.slice(0, 30); renderSledRank(); } return; }
       if (m.t === 'jboard') { if (Array.isArray(m.board)) { jumpBoard.server = m.board.slice(0, 30); renderFishRank(); } return; }
       if (m.t === 'hello') {
         if (Array.isArray(m.board)) fishBoard.server = m.board.slice(0, 30);
         if (Array.isArray(m.jboard)) jumpBoard.server = m.jboard.slice(0, 30);
+        if (Array.isArray(m.sboard)) { sledFx.board.server = m.sboard.slice(0, 30); setTimeout(renderSledRank, 0); }
         if (Array.isArray(m.sm)) setSnowmen(m.sm.slice(0, 60));
         if (Array.isArray(m.history) && !chatHist.length) {
           for (const hmsg of m.history.slice(-50)) { const t = cleanText(hmsg.t, 60); if (t) chatHist.push({ name: cleanName(hmsg.n) || '스키어', color: cleanColor(hmsg.c), text: t, at: +hmsg.at || Date.now() }); }
@@ -3041,7 +3055,7 @@ function makeWsRoom() {
     ws.onclose = () => { open = false; others.clear(); fire(); setNet('reconnecting'); setTimeout(dial, Math.min(10000, 1000 * Math.pow(2, retry++))); };
   }
   dial();
-  return { connected: () => open, fish: (n, sz) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'fish', n, s: sz })); }, jump: (n, d) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'jump', n, d })); }, snowman: (d) => { if (open && ws.readyState === 1) ws.send(JSON.stringify(Object.assign({ t: 'snowman' }, d))); }, smdel: (id, k) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'smdel', id, k })); }, presence: async (patch) => { mine = Object.assign({}, mine, patch); flush(); }, onPeers: (h) => { handlers.push(h); setTimeout(fire, 0); return () => {}; } };
+  return { connected: () => open, fish: (n, sz) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'fish', n, s: sz })); }, jump: (n, d) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'jump', n, d })); }, sled: (n, sc) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'sled', n, s: sc })); }, snowman: (d) => { if (open && ws.readyState === 1) ws.send(JSON.stringify(Object.assign({ t: 'snowman' }, d))); }, smdel: (id, k) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'smdel', id, k })); }, presence: async (patch) => { mine = Object.assign({}, mine, patch); flush(); }, onPeers: (h) => { handlers.push(h); setTimeout(fire, 0); return () => {}; } };
 }
 async function connect() {
   setNet('checking');
@@ -3079,7 +3093,7 @@ function updatePeers(dt, t) {
       a.wipX = a.pos.x; a.wipZ = a.pos.z;
       drawWip(a.wip, a.bd, a.pos.x, a.pos.z, a.h, a.wipRoll);
     }
-    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : a.st === 6 ? 'jump' : a.st === 7 ? 'sled' : 'ski', sl: a.sl, jp: a.jp, ja: (a.ja || 0) / 100, walk: inWalkZone(a.pos.x, a.pos.z) || !!a.bd, heat: a.ht || 0, bath: a.bt >= 0, fish: a.fl, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
+    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : a.st === 6 ? 'jump' : a.st === 7 ? 'sled' : 'ski', sl: a.sl, jp: a.jp, ja: (a.ja || 0) / 100, walk: (inWalkZone(a.pos.x, a.pos.z) && a.st !== 7) || !!a.bd, heat: a.ht || 0, bath: a.bt >= 0, fish: a.fl, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
     // someone standing where the camera is: hide them instead of drawing their insides (a big scarf ring)
     { const dx = camera.position.x - a.pos.x, dy = camera.position.y - (a.pos.y + 1.1), dz = camera.position.z - a.pos.z; a.av.root.visible = dx * dx + dy * dy + dz * dz > 2.6; }
   }
@@ -3151,7 +3165,7 @@ $('#unstuckBtn').addEventListener('click', () => unstuck(true));
 $('#actTalk').addEventListener('click', () => { if (!useAction()) notice('NPC나 카페의 통나무 의자 가까이에서 눌러 주세요'); });
 $('#actSit').addEventListener('click', toggleSit);
 $('#actWave').addEventListener('click', wave);
-$('#actMore').addEventListener('click', () => { const m = $('#more'); m.hidden = !m.hidden; $('#actMore').setAttribute('aria-pressed', String(!m.hidden)); renderPlayers(); renderRecords(); });
+$('#actMore').addEventListener('click', () => { const m = $('#more'); m.hidden = !m.hidden; $('#actMore').setAttribute('aria-pressed', String(!m.hidden)); renderPlayers(); renderRecords(); renderSledRank(); });
 const PANELS = ['#more', '#people', '#history', '#notice', '#stamps'];
 let lastPanel = null;
 function syncPanels(changed) {
@@ -3305,14 +3319,45 @@ function buildNight() {
   const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(LANTERN_GLOW.flat()), 3));
   const lglow = new THREE.Points(lg, new THREE.PointsMaterial({ size: 3.2, map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
   scene.add(poles, heads, glow, lglow); night.lamps = [poles, heads, glow, lglow];
-  // stars and moon (follow the camera so they read as far away)
-  const sp = new Float32Array(1100 * 3), sr = mulberry32(77);
-  for (let i = 0; i < 1100; i++) { const a = sr() * Math.PI * 2, e = 0.08 + sr() * 1.4, r = 600; sp[i * 3] = Math.cos(a) * Math.cos(e) * r; sp[i * 3 + 1] = Math.sin(e) * r; sp[i * 3 + 2] = Math.sin(a) * Math.cos(e) * r; }
-  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
-  night.stars = new THREE.Points(sg, new THREE.PointsMaterial({ size: 2, sizeAttenuation: false, color: 0xffffff, fog: false, transparent: true, opacity: 0.9 }));
-  night.stars.frustumCulled = false; scene.add(night.stars);
-  night.moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 10, 64, 64, 63); gr.addColorStop(0, '#fffbe8'); gr.addColorStop(0.32, '#fff3c8'); gr.addColorStop(0.36, 'rgba(255,240,200,0.35)'); gr.addColorStop(1, 'rgba(255,240,200,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); }), fog: false, depthWrite: false, transparent: true }));
-  night.moon.scale.set(110, 110, 1); scene.add(night.moon);
+  // night sky: twinkling stars of different sizes and colours, a Milky Way band, and a moon with a halo
+  // (everything follows the camera so it reads as far away)
+  {
+    const sr = mulberry32(77), pos = [], col = [], size = [], ph = [], R = 600;
+    const tints = [[1, 1, 1], [0.8, 0.88, 1], [1, 0.93, 0.78], [0.75, 0.82, 1], [1, 0.85, 0.85]];
+    const add = (x, y, z, s, c, k) => { pos.push(x * R, y * R, z * R); size.push(s); col.push(c[0] * k, c[1] * k, c[2] * k); ph.push(sr()); };
+    for (let i = 0; i < 1900; i++) { const y = 0.02 + sr() * 0.98, a = sr() * Math.PI * 2, r = Math.sqrt(1 - y * y); add(Math.cos(a) * r, y, Math.sin(a) * r, 1.2 + Math.pow(sr(), 7) * 4.5, tints[Math.floor(sr() * tints.length)], 0.7 + sr() * 0.3); }
+    // Milky Way: lots of faint stars around a tilted great circle
+    const nrm = new V3(0.42, 0.55, 0.72).normalize(), u = new V3(1, 0, 0).cross(nrm).normalize(), w = nrm.clone().cross(u), d = new V3();
+    for (let i = 0; i < 2600; i++) {
+      const th = sr() * Math.PI * 2, spread = (sr() + sr() + sr() - 1.5) * 0.16;
+      d.copy(u).multiplyScalar(Math.cos(th)).addScaledVector(w, Math.sin(th)).addScaledVector(nrm, spread).normalize();
+      if (d.y < 0.03) continue;
+      add(d.x, d.y, d.z, 0.8 + sr() * 1.6, sr() < 0.5 ? [0.85, 0.85, 1] : [1, 0.95, 0.9], 0.3 + sr() * 0.35);
+    }
+    const sg = new THREE.BufferGeometry();
+    sg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); sg.setAttribute('tint', new THREE.Float32BufferAttribute(col, 3));
+    sg.setAttribute('size', new THREE.Float32BufferAttribute(size, 1)); sg.setAttribute('phase', new THREE.Float32BufferAttribute(ph, 1));
+    night.starMat = new THREE.ShaderMaterial({
+      uniforms: { t: { value: 0 }, pr: { value: renderer.getPixelRatio() } },
+      vertexShader: 'attribute vec3 tint; attribute float size; attribute float phase; uniform float t; uniform float pr; varying vec3 vC;'
+        + ' void main() { float tw = 0.65 + 0.35 * sin(t * (1.2 + phase * 2.5) + phase * 40.0); vC = tint * tw; gl_PointSize = size * pr * (0.85 + 0.3 * tw); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'varying vec3 vC; void main() { float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.05, d); gl_FragColor = vec4(vC * a, 1.0); }',
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    });
+    night.stars = new THREE.Points(sg, night.starMat); night.stars.frustumCulled = false; scene.add(night.stars);
+    // moon: a soft disc with craters, plus a wide pale halo
+    const moonTex = canvasTex(256, 256, (g) => {
+      const gr = g.createRadialGradient(118, 112, 8, 128, 128, 96); gr.addColorStop(0, '#fffdf0'); gr.addColorStop(0.75, '#f3ecd2'); gr.addColorStop(1, '#ddd3b6');
+      g.fillStyle = gr; g.beginPath(); g.arc(128, 128, 96, 0, 7); g.fill();
+      const cr = mulberry32(5);
+      for (let k = 0; k < 16; k++) { const a = cr() * 6.28, r = Math.sqrt(cr()) * 78, cx = 128 + Math.cos(a) * r, cy = 128 + Math.sin(a) * r, s = 5 + cr() * 16; g.fillStyle = 'rgba(160,150,125,' + (0.18 + cr() * 0.2) + ')'; g.beginPath(); g.arc(cx, cy, s, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,245,0.25)'; g.beginPath(); g.arc(cx - s * 0.25, cy - s * 0.25, s * 0.55, 0, 7); g.fill(); }
+      const rim = g.createRadialGradient(128, 128, 88, 128, 128, 128); rim.addColorStop(0, 'rgba(255,248,220,0.55)'); rim.addColorStop(1, 'rgba(255,248,220,0)'); g.fillStyle = rim; g.beginPath(); g.arc(128, 128, 128, 0, 7); g.fill();
+    });
+    night.moon = new THREE.Group();
+    const disc = new THREE.Sprite(new THREE.SpriteMaterial({ map: moonTex, transparent: true, depthWrite: false, fog: false })); disc.scale.set(46, 46, 1);
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xcfe0ff, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); halo.scale.set(220, 220, 1);
+    night.moon.add(halo, disc); scene.add(night.moon);
+  }
   night.light = new THREE.PointLight(0xffe2b0, 0, 20, 1.6); scene.add(night.light);
 }
 function setNight(on) {
@@ -3361,7 +3406,9 @@ function updateWeather() {
     WX.slot = m.slot; WX.cur = m.cur;
   }
   WX.m = m; WX.light = m.light;
-  snowGeo.setDrawRange(0, Math.round(SNOW_N * m.snow)); snow.material.size = m.size;
+  const nSnow = night.on ? Math.max(m.snow, 0.45) : m.snow; // snowy nights: always a gentle snowfall
+  snowGeo.setDrawRange(0, Math.round(SNOW_N * nSnow)); snow.material.size = m.size * (night.on ? 1.45 : 1);
+  snow.material.color.setHex(night.on ? 0xe8f0ff : 0xffffff);
   const n = night.on, dusk = n ? 0 : m.dusk * (1 - m.storm), fc = scene.fog.color;
   fc.copy(n ? FOG_NIGHT : FOG_DAY).lerp(n ? FOG_STORM_N : FOG_STORM_D, m.storm).lerp(FOG_DUSK, dusk);
   scene.fog.near = (n ? 60 : 120) * m.near; scene.fog.far = (n ? 320 : 420) * m.far;
@@ -3467,10 +3514,20 @@ function renderWxInfo() {
 
 
 /* ================= sled park (눈썰매장) ================= */
-// A gentle hill on the west side of the base (see rawH): four lanes falling east, a magic carpet up the side.
-function inSledPark(x, z) { return x > SLED.xTop - 8 && x < SLED.xEnd + 4 && z > SLED.lanes[0] - 6 && z < SLED.carpetZ + 5; }
+// A fenced hill west of the base: only walking and sledding inside (like the cafe and the pond).
+// Four lanes with bumps fall east; stars to grab, a score per run, a shared ranking, and group starts.
+const SLED_PARK = { x0: -153, x1: -66, z0: 25, z1: 79 };
+function inSledPark(x, z) { return x > SLED_PARK.x0 && x < SLED_PARK.x1 && z > SLED_PARK.z0 && z < SLED_PARK.z1; }
 function laneOf(z) { let best = 0; SLED.lanes.forEach((lz, i) => { if (Math.abs(z - lz) < Math.abs(z - SLED.lanes[best])) best = i; }); return best; }
-const sledFx = { carpetTex: null };
+const sledFx = { carpetTex: null, items: [], board: { server: [], ctx: null, tex: null, sig: '' } };
+me.sledBest = Math.min(30000, Number(store('ski.sled')) || 0);
+// the same stars on every screen: 9 per lane, weaving left and right, plus one golden candy
+function sledItems(lane) {
+  const out = [];
+  for (let i = 0; i < 9; i++) { const x = SLED.xTop + 9 + i * 5.2; out.push({ x, off: Math.sin(i * 1.25 + lane * 1.9) * 2.0, kind: 0 }); }
+  out.push({ x: SLED.xTop + 9 + (3 + lane) * 5.2 + 2.6, off: -Math.sin((3 + lane) * 1.25 + lane * 1.9) * 2.0, kind: 1 });
+  return out;
+}
 function buildSled() {
   const snowM = lam(0xf4f8fd), wood = lam(0x9a6a3c), laneCols = [0xff4f6d, 0x2f7de1, 0x2fb36d, 0xffc53d];
   // snow berms between the lanes
@@ -3482,13 +3539,32 @@ function buildSled() {
   // start gates at the top: two posts and a colored banner per lane
   SLED.lanes.forEach((lz, i) => {
     const x = SLED.xTop + 0.5, y = H(x, lz);
-    for (const s of [-1, 1]) { mesh(new THREE.CylinderGeometry(0.09, 0.09, 2.6, 6), lam(0xeeeeee), x, y + 1.3, lz + s * (SLED.laneW / 2 - 0.4)); }
+    for (const s of [-1, 1]) mesh(new THREE.CylinderGeometry(0.09, 0.09, 2.6, 6), lam(0xeeeeee), x, y + 1.3, lz + s * (SLED.laneW / 2 - 0.4));
     const ban = textPlane([String(i + 1)], SLED.laneW - 0.8, 0.8, '#' + laneCols[i].toString(16).padStart(6, '0'), '#ffffff', { size: 190 });
     ban.position.set(x, y + 2.3, lz); ban.rotation.y = Math.PI / 2; scene.add(ban);
   });
-  { const x = SLED.xTop - 11, z = (SLED.lanes[0] + SLED.lanes[3]) / 2, y = H(x, z); /* behind the camera of riders waiting at the gate */ const sg = textPlane(['🛷 출발!', '튜브 · 썰매'], 9, 2.6, '#1b2a4a', '#ffffff'); sg.position.set(x, y + 4.2, z); sg.rotation.y = -Math.PI / 2; scene.add(sg); for (const s of [-1, 1]) mesh(new THREE.CylinderGeometry(0.15, 0.15, 4.2, 6), wood, x, y + 2.1, z + s * 4.2); }
-  // hay bales at the end of the runout
+  { const x = SLED.xTop - 11, z = (SLED.lanes[0] + SLED.lanes[3]) / 2, y = H(x, z); /* behind the camera of riders waiting at the gate */
+    const sg = textPlane(['🛷 출발!', '튜브 · 썰매'], 9, 2.6, '#1b2a4a', '#ffffff'); sg.position.set(x, y + 4.2, z); sg.rotation.y = -Math.PI / 2; scene.add(sg);
+    for (const s of [-1, 1]) mesh(new THREE.CylinderGeometry(0.15, 0.15, 4.2, 6), wood, x, y + 2.1, z + s * 4.2); }
+  // hay bales at the end of the runout (also the east fence of the lanes)
   for (let z = SLED.lanes[0] - 3; z <= SLED.lanes[3] + 3; z += 2.4) { const b = mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.4, 10), lam(0xe0b860), SLED.xEnd + 1.2, H(SLED.xEnd, z) + 0.6, z); b.rotation.x = Math.PI / 2; addObstacle(SLED.xEnd + 1.2, z, 0.75, 'post'); }
+  // wooden fence around the park; the way in is on the east side, north of the hay bales
+  const P = SLED_PARK, rail = lam(0xb07a45), fence = (xa, za, xb, zb) => {
+    const L = Math.hypot(xb - xa, zb - za), n = Math.max(1, Math.round(L / 2.5));
+    for (let k = 0; k <= n; k++) { const x = xa + (xb - xa) * k / n, z = za + (zb - za) * k / n; mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.2, 5), rail, x, H(x, z) + 0.6, z, scene, false); }
+    for (let k = 0; k < n; k++) {
+      const x0 = xa + (xb - xa) * k / n, z0 = za + (zb - za) * k / n, x1 = xa + (xb - xa) * (k + 1) / n, z1 = za + (zb - za) * (k + 1) / n;
+      for (const hy of [0.55, 1.05]) { const y0 = H(x0, z0) + hy, y1 = H(x1, z1) + hy, l = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
+        const b = mesh(new THREE.BoxGeometry(l, 0.07, 0.07), rail, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, scene, false);
+        b.rotation.order = 'YZX'; b.rotation.y = -Math.atan2(z1 - z0, x1 - x0); b.rotation.z = Math.atan2(y1 - y0, Math.hypot(x1 - x0, z1 - z0)); }
+    }
+    wallObs(xa, za, xb, zb);
+  };
+  fence(P.x0, P.z0, SLED.xEnd + 0.5, P.z0); fence(P.x0, P.z1, P.x1, P.z1); fence(P.x0, P.z0, P.x0, P.z1);
+  fence(SLED.xEnd + 0.5, P.z0, SLED.xEnd + 0.5, SLED.lanes[0] - 2.4);
+  { const gx = P.x1 + 0.5, gz = (SLED.lanes[3] + 4 + P.z1) / 2, gy = H(gx, gz);
+    for (const s of [-1, 1]) mesh(new THREE.CylinderGeometry(0.18, 0.18, 7.4, 8), wood, gx, gy + 3.7, gz + s * 9.5);
+    const ga = textPlane(['🛷 눈썰매장 입구'], 15, 1.4, '#2f7de1', '#ffffff', { size: 140 }); ga.position.set(gx, gy + 7.6, gz); ga.rotation.y = Math.PI / 2; scene.add(ga); }
   // magic carpet: a moving belt that follows the hill, with rails
   sledFx.carpetTex = canvasTex(64, 64, (g, w, h) => { g.fillStyle = '#4a5878'; g.fillRect(0, 0, w, h); g.fillStyle = '#5f6f94'; for (let k = 0; k < 4; k++) g.fillRect(k * 16, 0, 7, h); }, [1, 1]);
   const n = 40, x0 = SLED.xEnd - 22, x1 = SLED.xTop - 2, cz = SLED.carpetZ, pos = [], uv = [], idx = [];
@@ -3497,15 +3573,32 @@ function buildSled() {
   const carpet = new THREE.Mesh(cg, new THREE.MeshLambertMaterial({ map: sledFx.carpetTex, side: THREE.DoubleSide })); carpet.receiveShadow = true; scene.add(carpet);
   for (const s of [-1.05, 1.05]) for (let k = 0; k < n; k += 2) {
     const xa = x0 + (x1 - x0) * k / n, xb = x0 + (x1 - x0) * (k + 2) / n, ya = H(xa, cz + s) + 0.85, yb = H(xb, cz + s) + 0.85, L = Math.hypot(xb - xa, yb - ya);
-    const rail = mesh(new THREE.BoxGeometry(L, 0.08, 0.08), lam(0xffc53d), (xa + xb) / 2, (ya + yb) / 2, cz + s, scene, false); rail.rotation.z = Math.atan2(yb - ya, xb - xa);
+    const rl = mesh(new THREE.BoxGeometry(L, 0.08, 0.08), lam(0xffc53d), (xa + xb) / 2, (ya + yb) / 2, cz + s, scene, false); rl.rotation.z = Math.atan2(yb - ya, xb - xa);
     mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.85, 5), lam(0x9aa6b8), xa, ya - 0.42, cz + s, scene, false);
   }
-  // rental hut at the bottom with a stack of tubes
+  // rental hut at the bottom with a stack of tubes and the score board
   const hx = SLED.hutX, hz = SLED.hutZ, hy = H(hx, hz);
   mesh(new THREE.BoxGeometry(6, 3.2, 4), wood, hx, hy + 1.6, hz); addObstacle(hx, hz, 3.0, 'building');
-  const roof = mesh(new THREE.BoxGeometry(6.8, 0.5, 4.8), lam(0xffffff), hx, hy + 3.45, hz); void roof;
+  mesh(new THREE.BoxGeometry(6.8, 0.5, 4.8), lam(0xffffff), hx, hy + 3.45, hz);
   const hs = textPlane(['🛷 눈썰매장'], 6, 1.2, '#ff4f6d', '#ffffff', { size: 150 }); hs.position.set(hx + 3.05, hy + 2.4, hz); hs.rotation.y = Math.PI / 2; scene.add(hs);
   for (let k = 0; k < 6; k++) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.28, 10, 18), lam(laneCols[k % 4])); t.rotation.x = Math.PI / 2; t.position.set(hx + 4.2, hy + 0.3 + k * 0.5, hz - 2.4); t.castShadow = true; scene.add(t); }
+  { const B = sledFx.board, bc = document.createElement('canvas'); bc.width = 512; bc.height = 640; B.ctx = bc.getContext('2d'); B.tex = new THREE.CanvasTexture(bc); B.tex.encoding = THREE.sRGBEncoding;
+    const bm = new THREE.MeshBasicMaterial({ map: B.tex }), bd = new THREE.Group(), bx = hx - 1, bz = hz - 5.2; bd.position.set(bx, H(bx, bz) + 2.9, bz); bd.rotation.y = Math.PI / 2 - 0.25; scene.add(bd);
+    const f1 = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 3.5), bm); f1.position.z = 0.06; bd.add(f1);
+    mesh(new THREE.BoxGeometry(3.1, 3.8, 0.1), lam(0x2f7de1), 0, 0, 0, bd);
+    for (const sx of [-1.2, 1.2]) mesh(new THREE.CylinderGeometry(0.09, 0.09, 2.6, 6), lam(0x6b7486), sx, -2.4, -0.06, bd);
+    addObstacle(bx, bz, 1.4, 'board'); drawSledBoard(); }
+  // stars and golden candies in the lanes
+  const starShape = new THREE.Shape(); for (let k = 0; k < 10; k++) { const a = Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? 0.17 : 0.4; if (k) starShape.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); else starShape.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+  const starGeo = new THREE.ExtrudeGeometry(starShape, { depth: 0.12, bevelEnabled: false }); starGeo.center();
+  const starMat = new THREE.MeshBasicMaterial({ color: 0xffd34d }), candyMat = new THREE.MeshBasicMaterial({ color: 0xff6fa8 }), candyGeo = new THREE.SphereGeometry(0.32, 12, 10);
+  SLED.lanes.forEach((lz, lane) => sledItems(lane).forEach((it) => {
+    const z = lz + it.off, y = H(it.x, z) + 1.0, g = new THREE.Group(); g.position.set(it.x, y, z); scene.add(g);
+    if (it.kind) { const c = new THREE.Mesh(candyGeo, candyMat); g.add(c); for (const s of [-1, 1]) { const w = cone(0.16, 0.3, candyMat, s * 0.42, 0, 0, 0, g); w.rotation.z = s * Math.PI / 2; } }
+    else g.add(new THREE.Mesh(starGeo, starMat));
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: it.kind ? 0xff9cc8 : 0xffe08a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.55 })); glow.scale.set(1.8, 1.8, 1); g.add(glow);
+    sledFx.items.push({ lane, x: it.x, z, y, kind: it.kind, g });
+  }));
   // the otter who lends tubes and sleds
   const ot = makeAnimal(4, '#2f7de1'); setGear(ot, 0); ot.skis.visible = ot.poles.visible = false;
   const ox = SLED.hutX + 4.6, oz = SLED.hutZ + 1.5; ot.root.position.set(ox, H(ox, oz), oz); ot.root.rotation.y = -Math.PI / 2;
@@ -3513,11 +3606,38 @@ function buildSled() {
   npcs.otter = { id: 'otter', name: '수달 썰매지기', face: '🦦', x: ox, z: oz, r: 4.5, root: ot.root, bubble: null, bubbleY: 4.0 };
   addObstacle(ox, oz, 0.8, 'npc:수달 썰매지기');
 }
+// ranking (best score per name), shared through the server like the jump board
+function sledRanking() {
+  const best = new Map(), add = (n, s, isMe) => { if (!n || !(s > 0)) return; const c = best.get(n); if (!c || s > c.s) best.set(n, { n, s, me: isMe || (c && c.me) }); else if (isMe) c.me = true; };
+  for (const e of sledFx.board.server) add(cleanName(e.n), clamp(+e.s || 0, 0, 30000), false);
+  for (const [, a] of avatars) add(a.name, a.sk || 0, false);
+  add(me.name, me.sledBest || 0, true);
+  return [...best.values()].sort((x, y) => y.s - x.s).slice(0, 10);
+}
+function drawSledBoard() {
+  const B = sledFx.board; if (!B.ctx) return;
+  const list = sledRanking(), sig = JSON.stringify(list.map((e) => [e.n, e.s]));
+  if (sig === B.sig) return; B.sig = sig;
+  const g = B.ctx, w = 512, h = 640, medals = ['🥇', '🥈', '🥉'];
+  g.fillStyle = '#1b2a4a'; g.fillRect(0, 0, w, h); g.fillStyle = '#2f7de1'; g.fillRect(0, 0, w, 96);
+  g.fillStyle = '#ffffff'; g.font = '50px Jua, sans-serif'; g.textAlign = 'center'; g.fillText('🛷 썰매 점수판', w / 2, 66);
+  g.font = '34px Jua, sans-serif';
+  if (!list.length) { g.fillText('첫 기록에 도전하세요!', w / 2, 220); g.font = '26px Jua, sans-serif'; g.fillText('⭐ 별을 모으고 높이 날수록 점수 UP', w / 2, 270); }
+  list.forEach((e, i) => { const y = 146 + i * 46; g.textAlign = 'left'; g.fillStyle = e.me ? '#7fe3ff' : i < 3 ? '#ffe2a8' : '#ffffff'; g.fillText((medals[i] || (i + 1) + '.') + ' ' + e.n.slice(0, 8), 32, y); g.textAlign = 'right'; g.fillText(e.s + '점', w - 32, y); });
+  B.tex.needsUpdate = true;
+}
+function renderSledRank() {
+  drawSledBoard();
+  const ol = $('#sledRank'); if (!ol) return; ol.textContent = '';
+  const list = sledRanking(), medals = ['🥇', '🥈', '🥉'];
+  list.forEach((e, i) => { const li = document.createElement('li'); const r = document.createElement('span'); r.textContent = medals[i] || (i + 1) + '위'; const t = document.createElement('span'); t.className = 't'; t.textContent = e.s + '점'; const w = document.createElement('span'); w.className = 'who'; w.textContent = e.n + (e.me ? ' (나)' : ''); li.append(r, t, w); ol.appendChild(li); });
+  if (!list.length) { const li = document.createElement('li'); li.style.display = 'block'; li.style.opacity = '0.85'; li.textContent = '아직 기록이 없어요. 눈썰매장 🦦 수달에게 말을 걸어 보세요!'; ol.appendChild(li); }
+}
 function talkOtter() {
   setBubble(npcs.otter, '썰매 타러 왔어요?', 2500);
-  say(npcs.otter, '어서 와요! 눈썰매장 수달이에요 🦦 스키를 못 타도 괜찮아요. 무빙워크를 타고 올라가서 쭉 미끄러져 내려오면 돼요. 뭘 타 볼래요?', [
-    { label: '🍩 튜브 (빙글빙글 돌아요)', fn: () => startSled(1) },
-    { label: '🛷 썰매 (조금 더 빠르고 방향을 잘 틀어요)', fn: () => startSled(2) },
+  say(npcs.otter, '어서 와요! 눈썰매장 수달이에요 🦦 무빙워크로 올라가서 쭉 미끄러져 내려와요. 레인의 ⭐ 별을 모으고, 둔덕에서 높이 날면 점수가 올라가요! 친구가 꼭대기에 있으면 같이 출발해요. ' + (me.sledBest ? '내 최고 점수는 ' + me.sledBest + '점!' : '뭘 타 볼래요?'), [
+    { label: '🍩 튜브 (빙글빙글 · 안정적)', fn: () => startSled(1) },
+    { label: '🛷 썰매 (빠르고 방향을 잘 틀어요)', fn: () => startSled(2) },
     { label: '괜찮아요', fn: () => say(npcs.otter, '언제든 놀러 와요~', [], 2500) },
   ]);
 }
@@ -3525,57 +3645,106 @@ function startSled(kind) {
   closeDialog();
   if (me.state !== 'ski' || me.run || me.rc || me.jump || me.snowmanT > 0) { notice('지금은 썰매를 탈 수 없어요'); return; }
   cancelBuild(); me.item = 0;
-  me.state = 'sled'; me.sled = { kind, phase: 'carpet', lane: -1, v: 0, off: 0, t: 0, max: 0, pal: false };
+  me.state = 'sled'; me.sled = { kind, phase: 'carpet', lane: -1, v: 0, off: 0, t: 0, max: 0, pal: false, stars: 0, candy: 0, air: false, airT: 0, vyG: 0, y: 0, sg: 0, got: new Set() };
   me.x = SLED.xEnd - 21; me.z = SLED.carpetZ; me.y = H(me.x, me.z); me.vx = me.vz = 0; me.heading = Math.PI / 2; cam.yawOff = 0;
   sfx.pop(); notice((kind === 1 ? '🍩 튜브' : '🛷 썰매') + '를 빌렸어요! 무빙워크가 위로 데려다줘요');
+  for (const it of sledFx.items) it.g.visible = true;
   sendPresence(performance.now(), true);
 }
-function leaveSled(msg) { me.state = 'ski'; me.sled = null; me.vx = me.vz = 0; if (msg) notice(msg); sendPresence(performance.now(), true); }
+function leaveSled(msg) { me.state = 'ski'; me.sled = null; me.sledFin = null; me.vx = me.vz = 0; for (const it of sledFx.items) it.g.visible = true; if (msg) notice(msg); sendPresence(performance.now(), true); }
+// riders waiting at the top together share one start time (server clock)
+function sledGroup(sg) { const ids = []; for (const [id, a] of avatars) if (a.st === 7 && a.sg === sg) ids.push(id); return ids; }
 function stepSled(dt) {
   const S = me.sled; if (!S) { me.state = 'ski'; return; }
   S.t += dt;
   if (S.phase === 'carpet') {
-    me.x -= 5.5 * dt; me.z += (SLED.carpetZ - me.z) * Math.min(1, dt * 5); me.y = H(me.x, me.z) + 0.1; me.heading = Math.PI / 2; me.vx = -5.5; me.vz = 0;
+    me.x -= 8 * dt; me.z += (SLED.carpetZ - me.z) * Math.min(1, dt * 5); me.y = H(me.x, me.z) + 0.1; me.heading = Math.PI / 2; me.vx = -8; me.vz = 0;
     if (me.x <= SLED.xTop - 1) {
-      // pick the emptiest lane at the top
       const busy = SLED.lanes.map(() => 0);
       for (const [, a] of avatars) if (a.st === 7 && a.pos.x < SLED.xTop + 6) busy[laneOf(a.pos.z)]++;
       const free = Math.min(...busy), opts = busy.map((b, i) => (b === free ? i : -1)).filter((i) => i >= 0);
       S.lane = opts[Math.floor(Math.random() * opts.length)]; S.phase = 'top'; S.t = 0; S.off = 0;
       me.x = SLED.xTop + 0.2; me.z = SLED.lanes[S.lane]; me.heading = -Math.PI / 2; me.vx = 0; cam.snap = true; cam.yawOff = 0;
-      centerMsg('🛷 ' + (S.lane + 1) + '번 레인', (isTouch ? '[점프]' : 'W 또는 Space') + '로 출발! · 8초 뒤 자동 출발');
+      // join friends already counting down, or start a new countdown
+      const now = netNow(); let sg = 0;
+      for (const [, a] of avatars) if (a.st === 7 && a.sg > now + 800 && (!sg || a.sg < sg)) sg = a.sg;
+      S.sg = sg || now + 6000; S.joined = !!sg; S.lastCount = null;
+      centerMsg('🛷 ' + (S.lane + 1) + '번 레인', S.joined ? '친구와 같이 출발해요!' : (isTouch ? '[점프]' : 'W·Space') + '로 바로 출발 · 친구가 오면 같이 출발');
+      sendPresence(performance.now(), true);
     }
     return;
   }
-  me.y = H(me.x, me.z);
   if (S.phase === 'top') {
-    me.vx = me.vz = 0;
-    const go = keys.KeyW || keys.ArrowUp || keys.Space || keys._jump || stick.y < -0.5;
-    if (go || S.t > 8) { S.phase = 'ride'; S.v = 2.8; S.t = 0; sfx.whoosh(); if (myAv) setBubble(myAv, S.kind === 1 ? '꺄~ 🍩' : '출발~ 🛷', 2000); }
+    me.y = H(me.x, me.z); me.vx = me.vz = 0;
+    const now = netNow(), left = S.sg - now, group = sledGroup(S.sg);
+    const n = Math.ceil(left / 1000);
+    if (n !== S.lastCount && n > 0 && n <= 3) { S.lastCount = n; centerMsg(String(n), group.length ? '🛷 ' + (group.length + 1) + '명이 같이 출발!' : '🛷 출발 준비'); sfx.beep(false); }
+    // alone: W starts right away; with friends: everyone goes on the shared countdown
+    const go = !group.length && (keys.KeyW || keys.ArrowUp || keys.Space || keys._jump || stick.y < -0.5);
+    if (go || left <= 0) {
+      S.phase = 'ride'; S.v = 3; S.t = 0; S.y = me.y; S.group = group; S.t0 = now; sfx.beep(true);
+      if (group.length) centerMsg('출발!', '🛷 ' + (group.length + 1) + '명 썰매 경주');
+      if (myAv) setBubble(myAv, S.kind === 1 ? '꺄~ 🍩' : '출발~ 🛷', 2000);
+      sendPresence(performance.now(), true);
+    }
     return;
   }
-  // ride: slide along the lane (+x), steer a little inside it
+  // ride: slide along the lane (+x), steer inside it, fly off the bumps
   const x = me.x, z = me.z, slope = (H(x - 0.5, z) - H(x + 0.5, z));
-  const runout = x > SLED.xBot + 2, mu = runout ? 2.4 : 0.5, drag = S.kind === 2 ? 0.016 : 0.02;
-  S.v += (9.8 * slope * 0.92 - mu - drag * S.v * S.v) * dt;
+  const runout = x > SLED.xBot + 2, mu = runout ? 2.4 : 0.45, drag = S.kind === 2 ? 0.015 : 0.019;
+  if (!S.air) S.v += (9.8 * slope * 0.92 - mu - drag * S.v * S.v) * dt; else S.v -= drag * S.v * S.v * dt * 0.5;
   if (S.v < 0) S.v = 0;
   const steer = clamp(((keys.KeyD || keys.ArrowRight) ? 1 : 0) - ((keys.KeyA || keys.ArrowLeft) ? 1 : 0) + stick.x, -1, 1);
-  const lim = SLED.laneW / 2 - 1.0, lat = (S.kind === 2 ? 3.2 : 1.8) * steer + (S.kind === 1 ? Math.sin(S.t * 1.7) * 0.6 : 0);
-  // heading -PI/2 faces +x, so "right" is +z
+  const lim = SLED.laneW / 2 - 1.0, lat = (S.kind === 2 ? 3.4 : 2.2) * steer * (S.air ? 0.4 : 1) + (S.kind === 1 && !S.air ? Math.sin(S.t * 1.7) * 0.5 : 0);
   S.off = clamp(S.off + lat * dt, -lim, lim);
-  me.x += S.v * dt; me.z = SLED.lanes[S.lane] + S.off; me.y = H(me.x, me.z);
-  me.vx = S.v; me.vz = 0; me.heading = -Math.PI / 2; me.steer = steer;
-  S.max = Math.max(S.max, S.v);
-  if (S.v > 4 && Math.random() < dt * 14) emitSpray(me.x - 0.6, me.y, me.z + (Math.random() - 0.5) * 1.2, S.v * 0.2, 0, 2);
-  if (!S.pal) for (const [, a] of avatars) if (a.st === 7 && a.spd > 2 && a.pos.x > SLED.xTop + 2) { S.pal = true; break; }
-  if (me.x >= SLED.xEnd - 0.5 || (runout && S.v < 0.25)) {
-    if (me.x > SLED.xEnd - 0.5) me.x = SLED.xEnd - 0.5;
-    const kmh = Math.round(S.max * 3.6);
-    centerMsg('🛷 도착!', '최고 시속 ' + kmh + 'km · 한 번 더 타려면 수달에게 말 걸기');
-    stamp('sled'); if (S.pal) stamp('sledpal'); bumpStat('sled', 1);
-    if (myAv) setBubble(myAv, kmh >= 40 ? '엄청 빨라! 😆' : '재밌다~ 😊', 2500);
-    leaveSled();
+  me.x += S.v * dt; me.z = SLED.lanes[S.lane] + S.off;
+  const g = H(me.x, me.z);
+  if (!S.air) {
+    // ground falls away faster than we do (just past a bump): take off
+    if (g < S.y + S.vyG * dt - 0.1 && S.v > 5) { S.air = true; S.vy = S.vyG; S.airStart = S.t; }
+    else { S.vyG = clamp((g - S.y) / Math.max(dt, 1e-3), -20, 20); S.y = g; }
   }
+  if (S.air) {
+    S.vy -= 13 * dt; S.y += S.vy * dt;
+    if (S.y <= g) {
+      const t = S.t - S.airStart; S.air = false; S.y = g; S.vyG = 0; S.airT += t;
+      emitSpray(me.x, g, me.z, S.v * 0.4, 0, t > 0.35 ? 18 : 8);
+      if (t > 0.35) { tone([300, 180], 0.08, 0.15, 'sine'); if (myAv && t > 0.6) setBubble(myAv, ['야호~!', '날았다! 🕊', '우와~'][Math.floor(Math.random() * 3)], 1500); }
+    }
+  }
+  me.y = S.y; me.vx = S.v; me.vz = 0; me.heading = -Math.PI / 2; me.steer = steer;
+  S.max = Math.max(S.max, S.v);
+  if (!S.air && S.v > 4 && Math.random() < dt * 14) emitSpray(me.x - 0.6, me.y, me.z + (Math.random() - 0.5) * 1.2, S.v * 0.2, 0, 2);
+  // grab stars in my lane
+  for (const it of sledFx.items) {
+    if (it.lane !== S.lane || S.got.has(it)) continue;
+    if (Math.abs(me.x - it.x) < 1.0 && Math.abs(me.z - it.z) < 1.15 && Math.abs(me.y + 0.7 - it.y) < 1.7) {
+      S.got.add(it); it.g.visible = false;
+      if (it.kind) { S.candy++; tone([1047, 1319, 1568], 0.08, 0.35, 'triangle'); notice('🍬 황금 사탕! +500'); } else { S.stars++; tone([1568 + S.stars * 60], 0.07, 0.18, 'triangle'); }
+      emitSpray(it.x, it.y - 0.5, it.z, 0, 0, 6);
+    }
+  }
+  if (!S.pal) for (const [, a] of avatars) if (a.st === 7 && a.spd > 2 && a.pos.x > SLED.xTop + 2) { S.pal = true; break; }
+  if (me.x >= SLED.xEnd - 0.5 || (runout && S.v < 0.25 && !S.air)) { if (me.x > SLED.xEnd - 0.5) me.x = SLED.xEnd - 0.5; finishSled(); }
+}
+function sledScore(S) { return S.stars * 100 + S.candy * 500 + Math.round(S.max * 3.6 * 5) + Math.round(S.airT * 200); }
+function finishSled() {
+  const S = me.sled, kmh = Math.round(S.max * 3.6), score = sledScore(S), total = sledItems(S.lane).filter((i) => !i.kind).length;
+  const ms = Math.round(netNow() - S.sg);
+  let place = 0;
+  if (S.group && S.group.length) { place = 1; for (const id of S.group) { const a = avatars.get(id); if (a && a.sf && a.sf.sg === S.sg && a.sf.ms > 0 && a.sf.ms < ms) place++; } }
+  me.sledFin = { sg: S.sg, ms };
+  const best = score > (me.sledBest || 0);
+  if (best) { me.sledBest = score; store('ski.sled', String(score)); if (net.room && net.room.sled) net.room.sled(me.name, score); }
+  const medals = ['🥇', '🥈', '🥉'];
+  centerMsg('🛷 ' + score + '점', (place ? (medals[place - 1] || place + '등') + ' ' + place + '등으로 도착! · ' : '') + '⭐ ' + S.stars + '/' + total + (S.candy ? ' · 🍬' : '') + ' · 시속 ' + kmh + 'km · 공중 ' + S.airT.toFixed(1) + '초' + (best ? ' · 최고 기록!' : ''));
+  addChatLine('', '', '🛷 썰매 ' + score + '점' + (place ? ' · ' + place + '등' : '') + ' (⭐' + S.stars + '/' + total + ', 시속 ' + kmh + 'km)' + (best ? ' · 내 최고 기록!' : ''), true);
+  sfx.finish();
+  stamp('sled'); if (S.pal) stamp('sledpal'); if (place === 1) stamp('sledwin'); if (S.stars >= total) stamp('sledstar'); bumpStat('sled', 1);
+  if (myAv) setBubble(myAv, place === 1 ? '1등이다~! 🥇' : kmh >= 40 ? '엄청 빨라! 😆' : '재밌다~ 😊', 2500);
+  renderSledRank();
+  const fin = me.sledFin; leaveSled(); me.sledFin = fin; // keep my finish time visible to the group for a while
+  setTimeout(() => { if (me.sledFin === fin) { me.sledFin = null; sendPresence(performance.now(), true); } }, 20000);
 }
 // tube/sled under an avatar (made the first time it is needed)
 function rideMesh(av) {
@@ -3588,6 +3757,14 @@ function rideMesh(av) {
   const curl = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.05, 6, 10, Math.PI), lam(0xd6303a)); curl.rotation.y = Math.PI / 2; curl.position.set(0, 0.6, -0.8); sled.add(curl);
   for (const s of [-0.32, 0.32]) mesh(new THREE.BoxGeometry(0.05, 0.08, 1.7), lam(0x3a3a44), s, 0.18, 0, sled);
   return g;
+}
+function updateSledFx(dt) {
+  if (sledFx.carpetTex) sledFx.carpetTex.offset.x -= dt * 6.8;
+  const t = performance.now() / 1000;
+  for (const it of sledFx.items) if (it.g.visible) { it.g.rotation.y = t * 2 + it.x; it.g.position.y = it.y + Math.sin(t * 2.5 + it.x) * 0.12; }
+  // speed: widen the view a little while sliding fast
+  const want = me.sled && me.sled.phase === 'ride' ? 62 + Math.min(14, me.sled.v * 1.1) : 62;
+  if (Math.abs(camera.fov - want) > 0.05) { camera.fov += (want - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); }
 }
 
 /* ================= night atmosphere (야간 분위기) ================= */
@@ -3758,8 +3935,8 @@ function burstVelocities(v, n, seed) {
   }
   return out;
 }
-function noSnowZone(x, z) { return inCafe(x, z) || inPond(x, z); }
-function noSnowNote() { if (performance.now() - (me.noThrowAt || 0) > 1500) { me.noThrowAt = performance.now(); notice(inPond(me.x, me.z) ? '🎣 낚시터에서는 눈싸움을 할 수 없어요' : '☕ 여기서는 눈싸움을 할 수 없어요'); } }
+function noSnowZone(x, z) { return inCafe(x, z) || inPond(x, z) || inSledPark(x, z); }
+function noSnowNote() { if (performance.now() - (me.noThrowAt || 0) > 1500) { me.noThrowAt = performance.now(); notice(inPond(me.x, me.z) ? '🎣 낚시터에서는 눈싸움을 할 수 없어요' : inSledPark(me.x, me.z) ? '🛷 썰매장에서는 눈싸움을 할 수 없어요' : '☕ 여기서는 눈싸움을 할 수 없어요'); } }
 function burstThrow() {
   if (!playing) return;
   if (me.indoor || noSnowZone(me.x, me.z)) { noSnowNote(); return; }
@@ -4367,6 +4544,12 @@ function updateStatus(sp) {
     sub = mates.length ? '같은 의자: ' + mates.join(', ') : 'Enter로 친구에게 말을 걸 수 있어요';
   } else if (me.state === 'queue') {
     chip = '대기'; title = '리프트 의자를 기다리는 중'; right = Math.max(0, Math.ceil(me.boardAt - nowS())) + '초'; sub = '노란 선에 서 있으면 의자가 뒤에서 태워 줘요';
+  } else if (me.sled) {
+    const S = me.sled, total = sledItems(Math.max(0, S.lane)).filter((i) => !i.kind).length;
+    chip = '썰매'; title = (S.kind === 1 ? '🍩 튜브' : '🛷 썰매') + (S.lane >= 0 ? ' · ' + (S.lane + 1) + '번 레인' : '');
+    if (S.phase === 'carpet') { right = ''; fill = clamp((SLED.xEnd - 21 - me.x) / (SLED.xEnd - 21 - SLED.xTop), 0, 1); sub = '무빙워크로 올라가는 중… 레인의 ⭐ 별을 모으면 점수 UP'; }
+    else if (S.phase === 'top') { const left = Math.max(0, Math.ceil((S.sg - netNow()) / 1000)), grp = sledGroup(S.sg).length; right = left + '초'; sub = grp ? '🛷 ' + (grp + 1) + '명이 같이 출발해요!' : (isTouch ? '[점프]' : 'W·Space') + '로 바로 출발 · E 내리기'; }
+    else { right = Math.round(S.v * 3.6) + 'km/h'; fill = clamp((me.x - SLED.xTop) / (SLED.xEnd - SLED.xTop), 0, 1); sub = '⭐ ' + S.stars + '/' + total + (S.candy ? ' · 🍬' : '') + ' · 공중 ' + S.airT.toFixed(1) + '초 · 지금 ' + sledScore(S) + '점' + (me.sledBest ? ' · 최고 ' + me.sledBest : ''); }
   } else if (me.build) {
     const b = me.build, k = b.parts.length, cap = smCap(b.parts);
     chip = '눈사람'; title = '⛄ ' + (k + 1) + '/3 ' + ['몸통', '가슴', '머리'][k];
@@ -4551,7 +4734,7 @@ function frame(now) {
     }
     drawWip(myWip, wipOf(me.build), me.x, me.z, me.heading, me.build ? me.build.roll : 0);
     $('#buildLb').textContent = me.build ? ['몸통', '가슴', '머리'][me.build.parts.length] + ' 놓기' : '눈사람';
-    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: inWalkZone(me.x, me.z) || !!me.build, sl: me.sled ? me.sled.kind : 0, heat: me.heat || 0, bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting, fish: me.lastFish, jp: jumpPhase(), ja: jumpPitch() });
+    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: (inWalkZone(me.x, me.z) && me.state !== 'sled') || !!me.build, sl: me.sled ? me.sled.kind : 0, heat: me.heat || 0, bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting, fish: me.lastFish, jp: jumpPhase(), ja: jumpPitch() });
     // prompt + guide
     const ptxt = promptText();
     const pr = $('#prompt');
@@ -4627,9 +4810,9 @@ function frame(now) {
   updateFireworks(dt);
   updateSnowmen();
   updateNightExtras(dt);
-  if (sledFx.carpetTex) sledFx.carpetTex.offset.x -= dt * 4.7;
+  updateSledFx(dt);
   updateWarmPlaces(dt, now);
-  if (night.stars) { night.stars.position.copy(camera.position); night.moon.position.set(camera.position.x - 180, camera.position.y + 240, camera.position.z - 380); }
+  if (night.stars) { night.stars.position.copy(camera.position); night.moon.position.set(camera.position.x + 330, camera.position.y + 150, camera.position.z + 60); /* east, where the sky is open */ if (night.stars.visible) night.starMat.uniforms.t.value = now / 1000; }
   updateFx(dt);
   updateCamera(dt);
   renderer.render(scene, camera);
