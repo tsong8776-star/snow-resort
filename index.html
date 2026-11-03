@@ -185,6 +185,10 @@ h1 em { font-style: normal; color: var(--berry); }
 #noticeList article { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 10px 12px; }
 #noticeList h4 { margin: 0 0 4px; font-size: 14.5px; } #noticeList time { font-size: 11px; opacity: 0.7; }
 #noticeList ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.7; }
+#skateRank { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+#skateRank li { display: grid; grid-template-columns: 26px auto 1fr; gap: 6px; align-items: center; font-size: 13px; }
+#skateRank .t { font-family: var(--font-display); font-size: 16px; }
+#skateRank .who { opacity: 0.85; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #sledRank { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
 #sledRank li { display: grid; grid-template-columns: 26px auto 1fr; gap: 6px; align-items: center; font-size: 13px; }
 #sledRank .t { font-family: var(--font-display); font-size: 16px; }
@@ -391,12 +395,12 @@ body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touc
 <div id="hud" hidden>
   <div class="hud-tl glass">
     <span id="placeIcon">🏠</span>
-    <span class="txt"><span id="placeChip">베이스</span><small><span id="spd">0</span> km/h · <span id="gearChip">⛷ 스키</span><span id="wxTxt"></span><span id="snowTxt"></span><span id="boostTxt"></span></small></span>
+    <span class="txt"><span id="placeChip">베이스</span><small><span id="spd">0</span> km/h · <span id="gearChip">⛷ 스키</span><span id="wxTxt"></span><span id="giftTxt"></span><span id="snowTxt"></span><span id="boostTxt"></span></small></span>
   </div>
   <div class="hud-tr">
     <div class="pill glass">
       <button type="button" id="peopleBtn" aria-label="참가자 보기"><span aria-hidden="true">👥</span><span id="netTxt">1</span></button>
-      <button type="button" id="dailyBtn" aria-label="오늘의 미션과 상점"><span aria-hidden="true">🎁</span><span id="dailyTxt">0/3</span></button>
+      <button type="button" id="dailyBtn" aria-label="오늘의 미션과 상점"><span aria-hidden="true">📅</span><span id="dailyTxt">0/3</span></button>
       <button type="button" id="stampBtn" aria-label="도장판 보기"><span aria-hidden="true">🏅</span><span id="stampTxt">0</span></button>
       <span class="sep"></span>
       <button type="button" id="noticeBtn" aria-label="공지사항">📢</button>
@@ -434,6 +438,7 @@ body.is-touch #more, body.is-touch #people, body.is-touch #history, body.is-touc
     <div><h3>🐟 빙어 랭킹 (길이)</h3><ol id="fishRank"></ol></div>
     <div><h3>🎿 스키점프 최장 비거리</h3><ol id="jumpRank" class="rankList"></ol></div>
     <div><h3>🛷 썰매 점수</h3><ol id="sledRank" class="rankList"></ol></div>
+    <div><h3>⛸ 피겨 점수</h3><ol id="skateRank" class="rankList"></ol></div>
     <div><h3>🌤 날씨 · 🎆 불꽃놀이</h3><p class="wxinfo" id="wxNow"></p><p class="wxinfo" id="fwNext"></p></div>
     <div><h3>⚙️ 설정</h3>
       <div class="setrow" id="setRow">
@@ -1966,6 +1971,7 @@ function poseAvatar(av, o) {
   av.armR.rotation.x += (ax - av.armR.rotation.x) * 0.25;
   av.headG.rotation.x += (hx - av.headG.rotation.x) * 0.3;
   if (o.state === 'lift') { av.skis.rotation.x = 0.25; av.board.rotation.x = 0.25; } else { av.skis.rotation.x = 0; av.board.rotation.x = 0; }
+  if (o.state === 'skate') skatePose(av, o); else if (av.blades) av.blades.visible = false;
   if (o.em) { const P = emoPose(o, o.em); if (P) { o.toPos = P.toPos; poseEmote(av, o); } }
 }
 
@@ -2251,7 +2257,7 @@ function promptText() {
   if (nearHole() >= 0) return '🎣 빙어 낚시하기';
   if (me.raceHold && me.rc && !me.rc.t0) return me.rc.hid === myId() ? '🏁 모두 모였으면 출발!' : '';
   const n = nearNpc();
-  if (n) return n.name + (n.id === 'coco' ? '에게 말 걸기 · 리프트 타기' : n.id === 'bear' ? '에게 핫초코·커피 주문하기' : n.id === 'coach' ? '에게 스키점프 하기' : n.id === 'otter' ? '에게 튜브·썰매 빌리기' : '에게 길 물어보기');
+  if (n) return n.name + (n.id === 'coco' ? '에게 말 걸기 · 리프트 타기' : n.id === 'bear' ? '에게 핫초코·커피 주문하기' : n.id === 'coach' ? '에게 스키점프 하기' : n.id === 'otter' ? '에게 튜브·썰매 빌리기' : n.id === 'skate' ? '에게 피겨 배우기 · 도전' : '에게 길 물어보기');
   { const sm0 = nearSnowman(); if (sm0) return '⛄ ' + sm0.n + '님의 눈사람' + (SM.mine.has(sm0.id) ? ' · 치우기' : ' · 말 걸기'); }
   if (me.state === 'sit' && me.stump >= 0) return me.item === 2 || me.item === 4 ? '' : '마시멜로 굽기 · 움직이면 일어나요';
   if (nearStump() >= 0) return '통나무 의자에 앉기';
@@ -2264,7 +2270,7 @@ function nearNpc() {
 }
 function interact() {
   const n = nearNpc(); if (!n) return;
-  if (n.id === 'coco') talkCoco(); else if (n.id === 'bear') talkBear(); else if (n.id === 'coach') talkCoach(); else if (n.id === 'otter') talkOtter(); else talkBu();
+  if (n.id === 'coco') talkCoco(); else if (n.id === 'bear') talkBear(); else if (n.id === 'coach') talkCoach(); else if (n.id === 'otter') talkOtter(); else if (n.id === 'skate') talkSkate(); else talkBu();
 }
 
 /* ---------- guide arrow ---------- */
@@ -2299,10 +2305,11 @@ function placeName(st, x, z, co) {
   if (inOnsen(x, z)) return '♨ 눈꽃 온천';
   if (inPond(x, z)) return '🎣 빙어 낚시터';
   if (st === 7 || inSledPark(x, z)) return '🛷 눈썰매장';
+  if (st === 8 || inRink(x, z)) return '⛸ 스케이트장';
   if (z > 0) return '베이스';
   return '슬로프';
 }
-const STATE_CODE = { ski: 0, crash: 2, queue: 3, lift: 4, sit: 5, jump: 6, sled: 7 };
+const STATE_CODE = { ski: 0, crash: 2, queue: 3, lift: 4, sit: 5, jump: 6, sled: 7, skate: 8 };
 function renderPlayers() {
   const ul = $('#players'); ul.textContent = '';
   const rows = [{ name: me.name, color: me.color, sp: me.sp, sh: me.sbHits || 0, fc: me.fishCount || 0, place: placeName(STATE_CODE[me.state], me.x, me.z, me.run && me.run.c.id), me: true }];
@@ -2438,11 +2445,14 @@ function buildMinimap() {
     const [lx, ly] = mmXY(-226, 128); g.fillStyle = '#9b5de5'; g.fillText('🌌 롱', lx + 34, ly); }
   { const [px, py] = mmXY(POND.x, POND.z); g.fillStyle = '#cdeaf6'; g.beginPath(); g.arc(px, py, POND.r / (MM.maxX - MM.minX) * off.width, 0, 7); g.fill(); g.fillStyle = '#1b2a4a'; g.fillText('낚시', px, py + 5); }
   const [rx, ry] = mmXY(222, 46); g.fillStyle = '#ff7a1a'; g.fillText('🏁 레이스', rx, ry);
+  { const [rx0, ry0] = mmXY(RINK.x - RINK.rx, RINK.z - RINK.rz), [rx1, ry1] = mmXY(RINK.x + RINK.rx, RINK.z + RINK.rz); g.fillStyle = '#d6f0ff'; g.strokeStyle = '#2f7de1'; g.lineWidth = 2; g.beginPath(); g.ellipse((rx0 + rx1) / 2, (ry0 + ry1) / 2, (rx1 - rx0) / 2, (ry1 - ry0) / 2, 0, 0, 7); g.fill(); g.stroke(); g.fillStyle = '#1b2a4a'; g.fillText('⛸', (rx0 + rx1) / 2, (ry0 + ry1) / 2 + 5); }
   { const [s0x, s0y] = mmXY(SLED.xTop, SLED.lanes[0] - 3.5), [s1x, s1y] = mmXY(SLED.xEnd, SLED.lanes[3] + 3.5); g.fillStyle = '#bfe3ff'; g.fillRect(s0x, s0y, s1x - s0x, s1y - s0y); g.fillStyle = '#1b2a4a'; g.fillText('🛷 썰매', (s0x + s1x) / 2, s1y + 16); }
   MM.bg = off;
 }
 function drawMinimap() {
   const g = MM.c.getContext('2d'); g.drawImage(MM.bg, 0, 0);
+  g.font = '20px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (const b of gift.boxes) if (b.g.visible && !b.open && Math.hypot(b.x - me.x, b.z - me.z) < 60) { const [bx, by] = mmXY(b.x, b.z); g.fillText('🎁', bx, by); }
   for (const [, a] of avatars) { const [x, y] = mmXY(a.pos.x, a.pos.z); g.fillStyle = a.color; g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 6, 0, 7); g.fill(); g.stroke(); }
   const [x, y] = mmXY(me.x, me.z);
   g.save(); g.translate(x, y); g.rotate(-me.heading);
@@ -2452,9 +2462,11 @@ function drawMinimap() {
 
 /* ================= chat ================= */
 /* ================= notices ================= */
-const NOTICE_VER = '2026-11-03-b';
+const NOTICE_VER = '2026-11-03-d';
 const NOTICES = [
-  { date: '11월 3일', title: '🎁 오늘의 미션 · ❄ 코인 · 🛍 상점', items: ['오른쪽 위 🎁 버튼(또는 M)을 누르면 매일 바뀌는 미션 3개가 있어요. 하나 끝낼 때마다 ❄ 코인 +50, 다 끝내면 보너스 +100!', '매일 첫 접속 +30, 새 도장 +30 코인. 그동안 모은 도장만큼 코인을 선물로 드렸어요 🎁', '🛍 상점에서 👑 왕관 · 😇 천사 링 · 🦌 사슴뿔 · 🐱 고양이 귀 같은 머리 장식과 ✨ 반짝이 꼬리를 사서 꾸며 보세요. 친구들 화면에도 보여요!', '🔥 이번 주 한정 아이템은 매주 월요일에 바뀌어요. 놓치지 마세요!', '새 도장: 📅 미션 완주 · 🛍 첫 쇼핑'] },
+  { date: '11월 3일', title: '🎁 매일 선물 상자 찾기', items: ['스키장 곳곳에 선물 상자 10개가 숨겨져 있어요. 매일 위치가 바뀌고, 모두 같은 곳에 있어요.', '하늘로 솟은 빛기둥을 따라가 보세요! 60m 안에 들어오면 미니맵에 🎁가 떠요.', '상자를 열면 ❄ 코인이 나오고, 10개를 모두 찾으면 보너스 +200 ❄! 친구가 찾으면 알림이 떠요. 누가 먼저 다 찾을까요?', '왼쪽 위에 오늘 찾은 개수가 보여요. 미션 버튼은 📅로 바뀌었어요.', '새 도장: 🎁 첫 선물 · 🎅 선물 사냥꾼'] },
+  { date: '11월 3일', title: '⛸ 눈꽃 스케이트장 오픈!', items: ['빙어 낚시터와 온천 사이에 아이스링크가 생겼어요. 얼음 위로 올라가면 스케이트가 저절로 신겨져요!', 'W로 쭉쭉 밀고 A·D로 돌아요. 달리다가 Space(휴대폰은 [점프]) → 빙글 점프! 빠를수록 싱글 → 더블 → 트리플 악셀. 멈춘 채로 누르면 제자리 스핀.', '🐧 펭펭 코치에게 말을 걸면 60초 피겨 도전! 링크 옆 점수판과 ⋯ 더 보기에서 순위를 볼 수 있어요.', '새 도장: ⛸ 첫 스케이트 · 🌟 트리플 악셀 · 🏆 피겨 스타 · 새 미션: 점프·스핀 3번'] },
+  { date: '11월 3일', title: '🎁 오늘의 미션 · ❄ 코인 · 🛍 상점', items: ['오른쪽 위 📅 버튼(또는 M)을 누르면 매일 바뀌는 미션 3개가 있어요. 하나 끝낼 때마다 ❄ 코인 +50, 다 끝내면 보너스 +100!', '매일 첫 접속 +30, 새 도장 +30 코인. 그동안 모은 도장만큼 코인을 선물로 드렸어요 🎁', '🛍 상점에서 👑 왕관 · 😇 천사 링 · 🦌 사슴뿔 · 🐱 고양이 귀 같은 머리 장식과 ✨ 반짝이 꼬리를 사서 꾸며 보세요. 친구들 화면에도 보여요!', '🔥 이번 주 한정 아이템은 매주 월요일에 바뀌어요. 놓치지 마세요!', '새 도장: 📅 미션 완주 · 🛍 첫 쇼핑'] },
   { date: '11월 3일', title: '💃 감정 표현 · 🙌 하이파이브 · 🤗 포옹', items: ['아래 [💃 감정] 버튼(또는 Z)을 누르면 인사·춤·하트·박수·웃음·꾸벅·눈 천사·신나! 8가지 동작을 할 수 있어요. 친구들 화면에도 똑같이 보여요.', '😇 눈 천사: 눈밭에 누워 팔을 휘저으면 천사 날개 자국이 남아요!', '가까이 있는 친구에게 🙌 하이파이브나 🤗 포옹을 청할 수 있어요. 친구가 [받기]를 누르면 같이 해요.', '새 도장: 💃 춤 한 판 · 🙌 하이파이브 · 🤗 따뜻한 포옹'] },
   { date: '11월 2일', title: '👫 2인용 튜브 · 🍡 마시멜로', items: ['🦦 수달에게 [👫 2인용 튜브]를 빌리면 무빙워크 앞에서 친구를 기다려요. 친구가 수달에게 말을 걸어 [같이 타기]를 고르면 옆자리에 타요!', '앞사람이 방향을 틀고, 둘이 같이 내려와 점수도 같이 받아요. 새 도장: 👫 둘이서 튜브', '모닥불 앞에서 마시멜로를 구울 때 긴 꼬챙이를 불꽃 위로 내밀어 빙글빙글 구워요.', '카메라 바로 옆에 있는 친구 캐릭터는 잠깐 숨겨서 화면을 가리지 않아요.'] },
   { date: '11월 2일', title: '🛷 썰매장 새단장 · 🌙 밤하늘', items: ['눈썰매장에 울타리가 생겨서, 안에서는 걷기와 썰매만 할 수 있어요(스키·눈싸움·눈사람 ✕). 입구는 동쪽이에요.', '레인에 ⭐ 별 9개와 🍬 황금 사탕이 있어요! A·D로 피해 다니며 모으고, 둔덕에서 높이 날면 점수가 올라가요.', '내려오면 점수(별·사탕·최고 속도·공중 시간)가 나오고, 렌털 오두막 옆 점수판과 ⋯ 더 보기에서 순위를 볼 수 있어요.', '친구가 꼭대기에서 기다리고 있으면 3·2·1 카운트다운으로 같이 출발해서 경주해요. 무빙워크도 더 빨라졌어요.', '밤하늘에 크고 작은 별이 반짝이고 은하수가 흘러요. 분화구가 보이는 달이 떠 있고, 밤에는 늘 눈이 소복소복 내려요.', '새 도장: 🏁 썰매 경주 1등 · 🌟 별 수집가'] },
@@ -2462,7 +2474,7 @@ const NOTICES = [
   { date: '11월 1일', title: '⛄ 눈사람이 더 크고 귀여워졌어요', items: ['눈덩이를 더 크게 굴릴 수 있어요. 끝까지 키우면 키 8m 가까운 왕 눈사람!', '반짝이는 눈, 발그레한 볼, 벙어리장갑, 털모자·귀마개·리본을 달고 살랑살랑 흔들려요.', '눈사람은 만든 지 20분이 지나면 스르르 녹아서 사라져요. 말을 걸면 남은 시간을 알려 줘요.', '🏔 왕 눈사람 도장은 이제 키 6m가 기준이에요.'] },
   { date: '11월 1일', title: '🌤 날씨가 바뀌어요 · 🎆 불꽃놀이', items: ['4분마다 날씨가 바뀌어요: ☀ 맑음 · 🌨 눈 · 🌬 눈보라 · 🌇 노을. 모두 같은 날씨를 봐요.', '눈보라 때는 앞이 잘 안 보이고 눈이 옆으로 날려요. 레이스가 더 어려워져요!', '6분마다 약 40초 동안 산 쪽 하늘에서 불꽃놀이가 터져요. 모두 같은 순간에 같은 불꽃을 봐요. 🌙 밤 모드로 보면 더 예뻐요.', '다음 불꽃놀이까지 남은 시간은 ⋯ 더 보기에서 볼 수 있어요. 새 도장: 🌬 눈보라 질주 · 🎆 불꽃 구경'] },
   { date: '11월 1일', title: '🎖 칭호 달기', items: ['🏅 도장판에서 받은 도장의 [🎖 칭호로 달기]를 누르면 이름표 위에 금색 칭호가 붙어요. 예: 🕊 K점 돌파', '친구들 화면에도 보이고, 👥 참가자 목록에도 나와요.', '다른 도장으로 바꾸거나 [떼기]로 뗄 수 있어요. 다음에 들어와도 그대로예요.'] },
-  { date: '11월 1일', title: '🏅 도장 깨기 · ⛄ 눈사람 만들기', items: ['오른쪽 위 🏅 버튼(또는 K)을 누르면 도장판이 열려요. 코스 완주, 빙어, 온천, 눈싸움… 48개 도장을 모아 보세요!', '눈밭에서 B(휴대폰은 ⛄ 눈사람 버튼)를 누르면 눈덩이를 굴려요. 앞으로 걸을수록 커져요.', '몸통 → 가슴 → 머리 순서로 B를 눌러 쌓으면 눈사람 완성! 다 같이 볼 수 있게 스키장에 남아요.', '슬로프·리프트 길·카페·온천에는 만들 수 없어요. 내 눈사람은 한 사람당 3개까지, E로 말 걸면 치울 수 있어요.'] },
+  { date: '11월 1일', title: '🏅 도장 깨기 · ⛄ 눈사람 만들기', items: ['오른쪽 위 🏅 버튼(또는 K)을 누르면 도장판이 열려요. 코스 완주, 빙어, 온천, 눈싸움… 53개 도장을 모아 보세요!', '눈밭에서 B(휴대폰은 ⛄ 눈사람 버튼)를 누르면 눈덩이를 굴려요. 앞으로 걸을수록 커져요.', '몸통 → 가슴 → 머리 순서로 B를 눌러 쌓으면 눈사람 완성! 다 같이 볼 수 있게 스키장에 남아요.', '슬로프·리프트 길·카페·온천에는 만들 수 없어요. 내 눈사람은 한 사람당 3개까지, E로 말 걸면 치울 수 있어요.'] },
   { date: '11월 1일', title: '🎿 스키점프 · ⚔️ 점프 대결', items: ['빙어 낚시터 옆 🦅 점프 코치 수리에게 말을 걸면 스키점프를 할 수 있어요.', '게이트에서 Space로 출발 → 도약대 끝에서 Space! → 날 때 W를 누르고 있으면 V자 자세 → 착지 직전 Space로 텔레마크 보너스.', '점프 대결을 열면 2분 30초 동안 가장 좋은 점수로 순위를 겨뤄요.', '휴대폰에서 캐릭터가 사라지던 문제를 고쳤어요.', '마실 때 컵을 얼굴 앞으로 가져가요. 부딪힌 물체에 맞는 안내가 떠요.'] },
   { date: '11월 1일', title: '♨ 온천 새단장 · ⛄ 눈사람 이동', items: ['냉탕이 없어지고 탕마다 온도가 10℃씩 달라졌어요: 노을탕 40℃ · 유자탕 50℃ · 큰 노천탕 60℃ · 나무탕 70℃', '유자가 둥둥, 꽃잎이 동동, 대나무 물줄기와 나무 바가지가 생겼어요.', '탕에 오래 있으면 얼굴이 빨개지고 머리에서 김이 나요. 뜨거운 탕일수록 빨리!', '인사하면 “안녕~ 👋” 말풍선이 떠요.', '눈사람이 돼도 천천히 깡총깡총 움직일 수 있어요.'] },
   { date: '10월 31일', title: '💥 눈덩이 게이지 · 몰아 던지기', items: ['오른쪽 아래 ❄ 게이지에 눈덩이가 최대 30개까지 모여요.', 'V 키(또는 게이지/💥 한방 버튼)를 누르면 모아 둔 눈덩이를 부채꼴로 한 번에 던져요.', 'F를 누르고 있으면 지금처럼 한 발씩 연사해요.', '레이스 출발 대기 중에는 움직이거나 앉을 수 없어요.'] },
@@ -2532,9 +2544,14 @@ const STAMPS = [
   { id: 'sledwin', ic: '🏁', name: '썰매 경주 1등', desc: '친구와 같이 출발해서 1등으로 도착' },
   { id: 'duo', ic: '👫', name: '둘이서 튜브', desc: '2인용 튜브를 친구와 같이 타기' },
   { id: 'sledstar', ic: '🌟', name: '별 수집가', desc: '한 번에 레인의 ⭐ 별 9개 모두 모으기' },
+  { id: 'skate', ic: '⛸', name: '첫 스케이트', desc: '스케이트장 얼음 위에 올라가기' },
+  { id: 'triple', ic: '🌟', name: '트리플 악셀', desc: '스케이트로 트리플 점프 성공' },
+  { id: 'figure', ic: '🏆', name: '피겨 스타', desc: '60초 피겨 도전 1500점 넘기' },
   { id: 'sm', ic: '⛄', name: '눈사람 만들기', desc: '눈덩이를 굴려 눈사람 완성 (B)' },
   { id: 'smbig', ic: '🏔', name: '왕 눈사람', desc: '키 6m 넘는 눈사람 만들기' },
   { id: 'sm3', ic: '☃', name: '눈사람 가족', desc: '눈사람 3개 만들기', stat: 'sm', goal: 3 },
+  { id: 'gift1', ic: '🎁', name: '첫 선물', desc: '숨겨진 선물 상자 찾기' },
+  { id: 'gift10', ic: '🎅', name: '선물 사냥꾼', desc: '하루에 선물 상자 10개 모두 찾기' },
   { id: 'daily', ic: '📅', name: '미션 완주', desc: '하루에 오늘의 미션 3개 모두 끝내기' },
   { id: 'shop', ic: '🛍', name: '첫 쇼핑', desc: '상점에서 물건 사기' },
   { id: 'master', ic: '🏅', name: '도장 마스터', desc: '도장 30개 모으기' },
@@ -2752,6 +2769,7 @@ function buildBlock(x, z, r) {
   if (x < BOUNDS.minX + 3 || x > BOUNDS.maxX - 3 || z < BOUNDS.minZ + 3 || z > BOUNDS.maxZ - 3) return '여기는 너무 끝이에요';
   if (inWalkZone(x, z) || inWall(x, z)) return '여기는 눈이 없어요 · 눈밭에서 만들어요';
   if (inSledPark(x, z)) return '🛷 썰매장에는 만들 수 없어요 · 썰매 타는 친구가 부딪혀요';
+  if (rinkR(x, z) < 1.25) return '⛸ 스케이트장에는 만들 수 없어요';
   if (Math.abs(x) < 9 && z > -266 && z < 42) return '🚡 리프트 길에는 만들 수 없어요';
   for (const c of COURSES) {
     if (x < c.box[0] || x > c.box[1] || z < c.box[2] || z > c.box[3]) continue;
@@ -2888,6 +2906,7 @@ function activityOf(o) {
   if ((o.sn || 0) >= 100) return '⛄ 눈사람이 됐어요';
   if (o.bd) return '⛄ 눈사람 만드는 중';
   if (o.st === 7) return '🛷 썰매 타는 중';
+  if (o.st === 8) return '⛸ 스케이트 타는 중';
   if (o.st === 4) return '🚡 리프트 타는 중';
   if (o.st === 3) return '🚡 리프트 기다리는 중';
   if (o.rc) return '🏁 ' + o.rc.co + ' 레이스 중';
@@ -2901,15 +2920,15 @@ function activityOf(o) {
 }
 function renderPeople() {
   const ul = $('#peopleList'); ul.textContent = '';
-  const rows = [{ me: true, name: me.name, color: me.color, sp: me.sp, x: me.x, z: me.z, st: STATE_CODE[me.state], sn: me.snow, rc: me.rc, co: me.run && me.run.c.id, bt: me.bath, it: me.item, sh: me.sbHits || 0, fc: me.fishCount || 0, sc: stampCount(), tt: stampState.title, bd: !!me.build }];
-  for (const [id, a] of avatars) rows.push({ id, name: a.name, color: a.color, sp: a.sp, x: a.pos.x, z: a.pos.z, st: a.st, sn: a.sn, rc: a.rc, co: a.co, bt: a.bt, it: a.it, sh: a.sh || 0, fc: a.fc || 0, sc: a.sc || 0, tt: a.tt, bd: !!a.bd });
+  const rows = [{ me: true, name: me.name, color: me.color, sp: me.sp, x: me.x, z: me.z, st: STATE_CODE[me.state], sn: me.snow, rc: me.rc, co: me.run && me.run.c.id, bt: me.bath, it: me.item, sh: me.sbHits || 0, fc: me.fishCount || 0, sc: stampCount(), tt: stampState.title, bd: !!me.build, gf: gift.found.size }];
+  for (const [id, a] of avatars) rows.push({ id, name: a.name, color: a.color, sp: a.sp, x: a.pos.x, z: a.pos.z, st: a.st, sn: a.sn, rc: a.rc, co: a.co, bt: a.bt, it: a.it, sh: a.sh || 0, fc: a.fc || 0, sc: a.sc || 0, tt: a.tt, bd: !!a.bd, gf: a.gf || 0 });
   $('#peopleCount').textContent = rows.length + '명';
   for (const r of rows) {
     const li = document.createElement('li'); if (r.me) li.className = 'me';
     const em = document.createElement('span'); em.className = 'em'; em.textContent = SPECIES[r.sp] ? SPECIES[r.sp].emoji : '❄';
     const nm = document.createElement('span'); nm.className = 'nm';
     const b = document.createElement('b'); const dot = document.createElement('i'); dot.style.background = r.color; b.append(dot, document.createTextNode(r.name + (r.me ? ' (나)' : '')));
-    const sm = document.createElement('small'); sm.textContent = (r.tt ? titleText(r.tt) + ' · ' : '') + activityOf(r) + (r.sc ? ' · 🏅' + r.sc : '') + (r.sh ? ' · ❄' + r.sh : '') + (r.fc ? ' · 🐟' + r.fc : '');
+    const sm = document.createElement('small'); sm.textContent = (r.tt ? titleText(r.tt) + ' · ' : '') + activityOf(r) + (r.sc ? ' · 🏅' + r.sc : '') + (r.gf ? ' · 🎁' + r.gf : '') + (r.sh ? ' · ❄' + r.sh : '') + (r.fc ? ' · 🐟' + r.fc : '');
     nm.append(b, sm); li.append(em, nm);
     if (!r.me) { const go = document.createElement('button'); go.type = 'button'; go.textContent = '📍 같이 가기'; go.addEventListener('click', () => goToPeer(r.id)); li.appendChild(go); }
     else li.appendChild(document.createElement('span'));
@@ -3026,7 +3045,7 @@ function syncPeers(peers) {
     }
     a.tpos.fromArray(pr.p);
     a.th = typeof pr.h === 'number' && isFinite(pr.h) ? pr.h : a.th;
-    a.st = clamp(pr.s | 0, 0, 7); a.sl = [1, 2, 3, 4].includes(pr.sl) ? pr.sl : 0;
+    a.st = clamp(pr.s | 0, 0, 8); a.sl = [1, 2, 3, 4].includes(pr.sl) ? pr.sl : 0;
     a.dw = pr.dw === 1; a.dp = typeof pr.dp === 'string' ? pr.dp : ''; a.dh = typeof pr.dh === 'string' ? pr.dh : '';
     a.ls = pr.ls && typeof pr.ls === 'object' && typeof pr.ls.sc === 'number' && typeof pr.ls.t === 'number' ? { sg: +pr.ls.sg || 0, sc: clamp(pr.ls.sc | 0, 0, 30000), t: pr.ls.t } : null;
     a.sg = typeof pr.sg === 'number' && isFinite(pr.sg) ? pr.sg : 0; a.sk = clamp(pr.sk | 0, 0, 30000);
@@ -3074,6 +3093,8 @@ function syncPeers(peers) {
     a.sh = clamp(pr.sh | 0, 0, 99999);
     a.sc = clamp(pr.sc | 0, 0, STAMPS.length); a.bd = validBd(pr.bd);
     peerEmote(p.peer, a, pr.em, isNew);
+    peerSkate(a, pr.kj, isNew); a.kb = clamp(pr.kb | 0, 0, 99999);
+    peerGift(a, pr.gf, isNew);
     applyWear(a.av, validWear(pr.wr));
     { const tt = typeof pr.tt === 'string' && stampById[pr.tt] ? pr.tt : ''; if (tt !== a.tt) { a.tt = tt; swapTag(a.av, makeTag(a.name, a.color, false, titleText(tt))); } }
     a.bt = typeof pr.bt === 'number' ? clamp(pr.bt | 0, -1, POOLS.length - 1) : -1;
@@ -3106,7 +3127,7 @@ function sendPresence(now, force) {
     ch: me.state === 'queue' || me.state === 'lift' ? me.chair : -1, se: me.seat,
     co: me.run ? me.run.c.id : '', b: me.best, f: me.fin, m: me.chat, w: me.waveSeq || 0,
     sb: me.sb, bu: me.bu, hb: me.hb, sh: me.sbHits || 0, rc: me.rc, rf: me.rf, lt: fire.logs || 0, lg: me.lg, bt: me.bath, jp: jumpPhase(), ja: Math.round(jumpPitch() * 100), jd: me.jumpBest || 0, jb: me.jb, jbs: me.jbs, it: me.item || 0, ht: Math.round((me.heat || 0) * 10) / 10, fc: me.fishCount || 0, fb: me.fishBest || 0, fl: me.lastFish || 0, sn: Math.round(me.snow), bs: me.boosting ? 1 : 0, sc: stampCount(), tt: stampState.title, bd: wipOf(me.build), sl: me.sled ? me.sled.kind : 0, sg: me.sled ? me.sled.sg : 0, sf: me.sledFin || 0, sk: me.sledBest || 0,
-    dw: me.sled && me.sled.phase === 'wait' ? 1 : 0, dp: me.sled && me.sled.kind === 3 && me.sled.partner ? me.sled.partner : 0, dh: me.sled && me.sled.kind === 4 ? me.sled.host : 0, ls: me.sledLast || 0, em: me.emSend || 0, wr: eco.wear.h || eco.wear.t ? eco.wear : 0,
+    dw: me.sled && me.sled.phase === 'wait' ? 1 : 0, dp: me.sled && me.sled.kind === 3 && me.sled.partner ? me.sled.partner : 0, dh: me.sled && me.sled.kind === 4 ? me.sled.host : 0, ls: me.sledLast || 0, em: me.emSend || 0, kj: me.kj || 0, kb: me.skateBest || 0, gf: gift.found.size ? { k: gift.key, n: gift.found.size } : 0, wr: eco.wear.h || eco.wear.t ? eco.wear : 0,
   };
   const key = JSON.stringify(pr);
   if (key === lastSent) return;
@@ -3139,11 +3160,13 @@ function makeWsRoom() {
       if (m.t === 'sm') { addSnowman(m.sm, !!m.mine, true); return; }
       if (m.t === 'smdel') { if (typeof m.id === 'string') removeSnowman(m.id); return; }
       if (m.t === 'board') { if (Array.isArray(m.board)) { fishBoard.server = m.board.slice(0, 30); renderFishRank(); } return; }
+      if (m.t === 'kboard') { if (Array.isArray(m.board)) { skateFx.board.server = m.board.slice(0, 30); renderSkateRank(); } return; }
       if (m.t === 'sboard') { if (Array.isArray(m.board)) { sledFx.board.server = m.board.slice(0, 30); renderSledRank(); } return; }
       if (m.t === 'jboard') { if (Array.isArray(m.board)) { jumpBoard.server = m.board.slice(0, 30); renderFishRank(); } return; }
       if (m.t === 'hello') {
         if (Array.isArray(m.board)) fishBoard.server = m.board.slice(0, 30);
         if (Array.isArray(m.jboard)) jumpBoard.server = m.jboard.slice(0, 30);
+        if (Array.isArray(m.kboard)) { skateFx.board.server = m.kboard.slice(0, 30); setTimeout(renderSkateRank, 0); }
         if (Array.isArray(m.sboard)) { sledFx.board.server = m.sboard.slice(0, 30); setTimeout(renderSledRank, 0); }
         if (Array.isArray(m.sm)) setSnowmen(m.sm.slice(0, 60));
         if (Array.isArray(m.history) && !chatHist.length) {
@@ -3161,7 +3184,7 @@ function makeWsRoom() {
     ws.onclose = () => { open = false; others.clear(); fire(); setNet('reconnecting'); setTimeout(dial, Math.min(10000, 1000 * Math.pow(2, retry++))); };
   }
   dial();
-  return { connected: () => open, fish: (n, sz) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'fish', n, s: sz })); }, jump: (n, d) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'jump', n, d })); }, sled: (n, sc) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'sled', n, s: sc })); }, snowman: (d) => { if (open && ws.readyState === 1) ws.send(JSON.stringify(Object.assign({ t: 'snowman' }, d))); }, smdel: (id, k) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'smdel', id, k })); }, presence: async (patch) => { mine = Object.assign({}, mine, patch); flush(); }, onPeers: (h) => { handlers.push(h); setTimeout(fire, 0); return () => {}; } };
+  return { connected: () => open, fish: (n, sz) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'fish', n, s: sz })); }, jump: (n, d) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'jump', n, d })); }, sled: (n, sc) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'sled', n, s: sc })); }, skate: (n, sc) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'skate', n, s: sc })); }, snowman: (d) => { if (open && ws.readyState === 1) ws.send(JSON.stringify(Object.assign({ t: 'snowman' }, d))); }, smdel: (id, k) => { if (open && ws.readyState === 1) ws.send(JSON.stringify({ t: 'smdel', id, k })); }, presence: async (patch) => { mine = Object.assign({}, mine, patch); flush(); }, onPeers: (h) => { handlers.push(h); setTimeout(fire, 0); return () => {}; } };
 }
 async function connect() {
   setNet('checking');
@@ -3203,7 +3226,7 @@ function updatePeers(dt, t) {
       a.wipX = a.pos.x; a.wipZ = a.pos.z;
       drawWip(a.wip, a.bd, a.pos.x, a.pos.z, a.h, a.wipRoll);
     }
-    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : a.st === 6 ? 'jump' : a.st === 7 ? 'sled' : 'ski', sl: a.sl, jp: a.jp, ja: (a.ja || 0) / 100, walk: (inWalkZone(a.pos.x, a.pos.z) && a.st !== 7) || !!a.bd, em: a.em, heat: a.ht || 0, bath: a.bt >= 0, fish: a.fl, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
+    poseAvatar(a.av, { x: a.pos.x, y: a.pos.y, z: a.pos.z, heading: a.h, steer: a.steer, speed: a.spd, air: a.air, boost: a.bs, state: a.st === 2 ? 'crash' : a.st === 4 ? 'lift' : a.st === 3 ? 'queue' : a.st === 5 ? 'sit' : a.st === 6 ? 'jump' : a.st === 7 ? 'sled' : a.st === 8 ? 'skate' : 'ski', sl: a.sl, spin: a.st === 8 && a.kjA && performance.now() - a.kjA.t0 < a.kjA.dur ? (performance.now() - a.kjA.t0) / a.kjA.dur * (a.kjA.j ? a.kjA.n * Math.PI * 2 : Math.PI * 8) : 0, jp: a.jp, ja: (a.ja || 0) / 100, walk: (inWalkZone(a.pos.x, a.pos.z) && a.st !== 7) || !!a.bd, em: a.em, heat: a.ht || 0, bath: a.bt >= 0, fish: a.fl, item: a.it || 0, roast: a.it === 2 ? clamp((performance.now() - (a.itT0 || 0)) / 6000, 0, 1) : 0, snow: a.sn || 0 });
     // someone standing where the camera is: hide them instead of drawing their insides (a big scarf ring)
     { const cy = clamp(camera.position.y, a.pos.y, a.pos.y + 2.5), dx = camera.position.x - a.pos.x, dy = camera.position.y - cy, dz = camera.position.z - a.pos.z; a.av.root.visible = dx * dx + dy * dy + dz * dz > 3.6; }
   }
@@ -3277,7 +3300,7 @@ $('#homeBtn').addEventListener('click', goHome);
 $('#unstuckBtn').addEventListener('click', () => unstuck(true));
 $('#actTalk').addEventListener('click', () => { if (!useAction()) notice('NPC나 카페의 통나무 의자 가까이에서 눌러 주세요'); });
 $('#actSit').addEventListener('click', toggleSit);
-$('#actMore').addEventListener('click', () => { const m = $('#more'); m.hidden = !m.hidden; $('#actMore').setAttribute('aria-pressed', String(!m.hidden)); renderPlayers(); renderRecords(); renderSledRank(); });
+$('#actMore').addEventListener('click', () => { const m = $('#more'); m.hidden = !m.hidden; $('#actMore').setAttribute('aria-pressed', String(!m.hidden)); renderPlayers(); renderRecords(); renderSledRank(); renderSkateRank(); });
 const PANELS = ['#more', '#people', '#history', '#notice', '#stamps', '#emotes', '#daily'];
 let lastPanel = null;
 function syncPanels(changed) {
@@ -3316,7 +3339,7 @@ $('#soundBtn').addEventListener('click', () => {
 $('#prompt').addEventListener('click', useAction);
 function toggleSit() {
   if (me.raceHold) { holdNote(); return; }
-  if (me.state === 'sled') return;
+  if (me.state === 'sled' || me.state === 'skate') return;
   if (me.state === 'sit') { me.state = 'ski'; me.stump = -1; return; }
   const st = nearStump(); if (st >= 0) { sitStump(st); return; }
   if (me.state !== 'ski' || me.air || Math.hypot(me.vx, me.vz) > 2) { notice('멈춘 상태에서 앉을 수 있어요'); return; }
@@ -3402,6 +3425,7 @@ function buildNight() {
     let l = G.groom[k] * 0.26;
     if (z > -4 && z < 96 && Math.abs(x) < 90) l = Math.max(l, 0.2 * (1 - sstep(60, 90, Math.abs(x))));
     if (x > -152 && x < -64 && z > 24 && z < 68) l = Math.max(l, 0.24);
+    if (rinkR(x, z) < 1.3) l = Math.max(l, 0.3);
     if (Math.abs(x) < 9 && z > LIFT.zTop - 8 && z < LIFT.zBot + 8) l = Math.max(l, 0.14);
     if (z < -238 && z > -276 && Math.abs(x) < 110) l = Math.max(l, 0.16);
     col[k * 3] = l; col[k * 3 + 1] = l * 0.9; col[k * 3 + 2] = l * 0.72;
@@ -3416,7 +3440,7 @@ function buildNight() {
     const [x, z] = c.s[i], [dx, dz] = c.dir[i], side = (Math.floor(i / 9) % 2) ? 1 : -1, off = c.width / 2 + 1.8;
     spots.push([x + dz * off * side, z - dx * off * side]);
   }
-  for (const [x, z] of [[-30, 8], [-10, 12], [10, 12], [30, 8], [-45, 40], [45, 40], [-22, 66], [22, 66], [0, 76], ...SLED_LAMPS]) spots.push([x, z]);
+  for (const [x, z] of [[-30, 8], [-10, 12], [10, 12], [30, 8], [-45, 40], [45, 40], [-22, 66], [22, 66], [0, 76], ...SLED_LAMPS, [-12.5, 112], [12.5, 112], [-12.5, 128], [12.5, 128]]) spots.push([x, z]);
   for (let x = -100; x <= 100; x += 25) spots.push([x, -266]);
   const poles = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.08, 0.1, 5, 6), lam(0x3a4250), spots.length);
   const heads = new THREE.InstancedMesh(new THREE.SphereGeometry(0.28, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffe2a8 }), spots.length);
@@ -4008,6 +4032,8 @@ function buildNightExtras() {
   garland([CAFE.x0 + 0.4, 4.6, CAFE.z0 - 0.6], [CAFE.x1 - 0.4, 4.6, CAFE.z0 - 0.6], 0.5, 36, 3);
   { const hx = SLED.hutX, hz = SLED.hutZ, hy = H(hx, hz); garland([hx + 3.3, hy + 3.2, hz - 2.3], [hx + 3.3, hy + 3.2, hz + 2.3], 0.35, 10, 1); }
   { const y0 = H(-LIFT.gap - 4, LIFT.zBot), y1 = H(LIFT.gap + 4, LIFT.zBot); garland([-4, y0 + 4.6, LIFT.zBot - 3.6], [4, y1 + 4.6, LIFT.zBot - 3.6], 0.5, 14, 2); }
+  // bulbs along the rink boards
+  for (let k = 0; k < 48; k++) { const a = k / 48 * Math.PI * 2; if (Math.abs(Math.atan2(Math.sin(a + Math.PI / 2), Math.cos(a + Math.PI / 2))) < RINK.gap + 0.05) continue; const x = RINK.x + Math.cos(a) * RINK.rx * 1.02, z = RINK.z + Math.sin(a) * RINK.rz * 1.02; addBulb(x, H(x, z) + 1.0, z, k); }
   nx.bulbs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.13, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }), bulbs.length);
   nx.bulbCols = []; const m4 = new THREE.Matrix4(), cc = new THREE.Color(), gp = new Float32Array(bulbs.length * 3), gc = new Float32Array(bulbs.length * 3);
   bulbs.forEach(([x, y, z, c], i) => { m4.makeTranslation(x, y, z); nx.bulbs.setMatrixAt(i, m4); cc.setHex(c); nx.bulbs.setColorAt(i, cc); nx.bulbCols.push(cc.clone()); gp[i * 3] = x; gp[i * 3 + 1] = y; gp[i * 3 + 2] = z; gc[i * 3] = cc.r; gc[i * 3 + 1] = cc.g; gc[i * 3 + 2] = cc.b; });
@@ -4296,6 +4322,8 @@ const MISSIONS = [
   { t: 'emote', goal: 3, ic: '💃', text: '감정 표현 3번 하기' },
   { t: 'speed', goal: 1, ic: '🚀', text: '시속 80km 넘기' },
   { t: 'race', goal: 1, ic: '🏁', text: '레이스 완주하기' },
+  { t: 'skatejump', goal: 3, ic: '⛸', text: '스케이트장에서 점프·스핀 3번' },
+  { t: 'gift', goal: 3, ic: '🎁', text: '선물 상자 3개 찾기' },
   { t: 'hit', goal: 5, ic: '🎯', text: '친구에게 눈덩이 5번 맞히기', social: true },
   { t: 'pair', goal: 1, ic: '🙌', text: '친구와 하이파이브나 포옹하기', social: true },
   { t: 'chat', goal: 2, ic: '💬', text: '채팅으로 2번 말 걸기', social: true },
@@ -4387,6 +4415,12 @@ function renderDaily() {
       const rw = document.createElement('span'); rw.className = 'mrw'; rw.textContent = done ? '완료!' : p + '/' + m.goal + ' · +' + (m.social ? 80 : 50) + '❄';
       row.append(ic, tx, rw); box.appendChild(row);
     });
+    { const gr = document.createElement('div'); gr.className = 'mrow' + (gift.found.size >= gift.boxes.length && gift.boxes.length ? ' done' : '');
+      const ic = document.createElement('span'); ic.className = 'mic'; ic.textContent = '🎁';
+      const tx = document.createElement('div'); tx.className = 'mtx'; const b = document.createElement('b'); b.textContent = '오늘의 선물 상자 찾기 (빛기둥을 찾아요)';
+      const bar = document.createElement('div'); bar.className = 'mbar'; const fill = document.createElement('i'); fill.style.width = (gift.boxes.length ? gift.found.size / gift.boxes.length * 100 : 0) + '%'; bar.appendChild(fill); tx.append(b, bar);
+      const rw = document.createElement('span'); rw.className = 'mrw'; rw.textContent = gift.found.size + '/' + gift.boxes.length + ' · 다 찾으면 +200❄';
+      gr.append(ic, tx, rw); box.appendChild(gr); }
     const now = new Date(), mid = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1), left = mid - now;
     const foot = document.createElement('p'); foot.className = 'mfoot';
     foot.textContent = (eco.day.bonus ? '🎉 오늘의 미션을 모두 끝냈어요!' : '3개 모두 하면 보너스 +100 ❄') + ' · 새 미션까지 ' + Math.floor(left / 3600000) + '시간 ' + Math.floor(left / 60000) % 60 + '분 · 👥 = 친구와 함께';
@@ -4436,7 +4470,7 @@ $('#tabShop').addEventListener('click', () => { eco.tab = 'shop'; renderDaily();
 $('#shopMore').addEventListener('click', () => openDaily(true, 'shop'));
 // first entry of the day: login bonus (and a one-time gift for stamps collected before coins existed)
 function ecoOnEnter() {
-  loadDay(); updateCoinUi();
+  loadDay(); updateCoinUi(); loadGifts();
   if (store('ski.coinGift') !== '1') { store('ski.coinGift', '1'); const n = stampCount(); if (n) setTimeout(() => addCoins(n * 30, '그동안 모은 도장 ' + n + '개 선물'), 2500); }
   if (!eco.day.login) { eco.day.login = true; saveDay(); setTimeout(() => addCoins(30, '오늘 첫 접속'), 1200); }
 }
@@ -4500,6 +4534,304 @@ function trailFx(av, x, y, z, h, speed, dt) {
 }
 function validWear(w) { if (!w || typeof w !== 'object') return { h: '', t: '' }; return { h: shopById[w.h] && shopById[w.h].kind === 'h' ? w.h : '', t: shopById[w.t] && shopById[w.t].kind === 't' ? w.t : '' }; }
 
+
+/* ================= skating rink (스케이트장) ================= */
+// An oval of ice between the fishing pond and the onsen. Step onto the ice and skates go on by themselves.
+// W pushes, A/D turns, S brakes; Space jumps with spins (faster = more turns) or spins on the spot.
+const RINK = { x: 0, z: 120, rx: 10, rz: 15, gap: 0.42 }; // gap: half-width (radians) of the entrance facing the base (−z)
+function rinkR(x, z) { const dx = (x - RINK.x) / RINK.rx, dz = (z - RINK.z) / RINK.rz; return Math.sqrt(dx * dx + dz * dz); }
+function inRink(x, z) { return rinkR(x, z) < 1; }
+function rinkAngle(x, z) { return Math.atan2((z - RINK.z) / RINK.rz, (x - RINK.x) / RINK.rx); } // −π/2 = the entrance side
+function atGate(x, z) { return Math.abs(rinkAngle(x, z) + Math.PI / 2) < RINK.gap; }
+const skateFx = { board: { server: [], ctx: null, tex: null, sig: '' }, iceTex: null };
+me.skateBest = Math.min(99999, Number(store('ski.skate')) || 0);
+function buildRink() {
+  // ice: a pale disc with soft streaks, slightly shiny
+  skateFx.iceTex = canvasTex(512, 512, (g, w, h) => {
+    const gr = g.createRadialGradient(w / 2, h / 2, 20, w / 2, h / 2, w / 2); gr.addColorStop(0, '#f2fbff'); gr.addColorStop(1, '#cfe9f7'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    const r = mulberry32(31); g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 2;
+    for (let k = 0; k < 70; k++) { const x = r() * w, y = r() * h, a = r() * 6.28, l = 20 + r() * 80; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(a) * l * 0.5 + 10, y + Math.sin(a) * l * 0.5, x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); }
+    g.strokeStyle = 'rgba(229,72,77,0.55)'; g.lineWidth = 6; g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
+    g.strokeStyle = 'rgba(47,125,225,0.5)'; g.lineWidth = 5; g.beginPath(); g.arc(w / 2, h / 2, 70, 0, 7); g.stroke();
+  });
+  const ice = new THREE.Mesh(new THREE.CircleGeometry(1, 64), new THREE.MeshPhongMaterial({ map: skateFx.iceTex, shininess: 90, specular: 0xffffff }));
+  ice.rotation.x = -Math.PI / 2; ice.scale.set(RINK.rx, RINK.rz, 1); ice.position.set(RINK.x, H(RINK.x, RINK.z) + 0.06, RINK.z); ice.receiveShadow = true; scene.add(ice);
+  // white boards with a blue rail, open at the entrance
+  const n = 56, board = lam(0xffffff), rail = lam(0x2f7de1), y0 = H(RINK.x, RINK.z);
+  for (let k = 0; k < n; k++) {
+    const a0 = k / n * Math.PI * 2, a1 = (k + 1) / n * Math.PI * 2, am = (a0 + a1) / 2;
+    if (Math.abs(Math.atan2(Math.sin(am + Math.PI / 2), Math.cos(am + Math.PI / 2))) < RINK.gap) continue;
+    const x0 = RINK.x + Math.cos(a0) * RINK.rx * 1.02, z0 = RINK.z + Math.sin(a0) * RINK.rz * 1.02, x1 = RINK.x + Math.cos(a1) * RINK.rx * 1.02, z1 = RINK.z + Math.sin(a1) * RINK.rz * 1.02;
+    const L = Math.hypot(x1 - x0, z1 - z0), ang = Math.atan2(x1 - x0, z1 - z0);
+    const b = mesh(new THREE.BoxGeometry(0.12, 0.8, L + 0.05), board, (x0 + x1) / 2, y0 + 0.4, (z0 + z1) / 2); b.rotation.y = ang;
+    const r = mesh(new THREE.BoxGeometry(0.18, 0.08, L + 0.05), rail, (x0 + x1) / 2, y0 + 0.82, (z0 + z1) / 2, scene, false); r.rotation.y = ang;
+  }
+  // entrance arch and sign
+  { const gx = RINK.x, gz = RINK.z - RINK.rz - 0.6;
+    for (const s of [-1, 1]) mesh(new THREE.CylinderGeometry(0.16, 0.16, 4.6, 8), lam(0xe9eef5), gx + s * (Math.sin(RINK.gap) * RINK.rx + 0.4), y0 + 2.3, gz + 0.9);
+    const sg = textPlane(['⛸ 눈꽃 스케이트장'], 9.5, 1.3, '#2f7de1', '#ffffff', { size: 150 }); sg.position.set(gx, y0 + 4.9, gz + 0.9); scene.add(sg); }
+  // score board on the east side
+  { const B = skateFx.board, bc = document.createElement('canvas'); bc.width = 512; bc.height = 640; B.ctx = bc.getContext('2d'); B.tex = new THREE.CanvasTexture(bc); B.tex.encoding = THREE.sRGBEncoding;
+    const bd = new THREE.Group(), bx = RINK.x + RINK.rx + 2.2, bz = RINK.z - 6; bd.position.set(bx, H(bx, bz) + 2.9, bz); bd.rotation.y = -Math.PI / 2 + 0.3; scene.add(bd);
+    const f1 = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 3.5), new THREE.MeshBasicMaterial({ map: B.tex })); f1.position.z = 0.06; bd.add(f1);
+    mesh(new THREE.BoxGeometry(3.1, 3.8, 0.1), lam(0x9b5de5), 0, 0, 0, bd);
+    for (const sx of [-1.2, 1.2]) mesh(new THREE.CylinderGeometry(0.09, 0.09, 2.6, 6), lam(0x6b7486), sx, -2.4, -0.06, bd);
+    addObstacle(bx, bz, 1.4, 'board'); drawSkateBoard(); }
+  // the penguin coach by the entrance
+  const pg = makeAnimal(0, '#9b5de5'); setGear(pg, 0); pg.skis.visible = pg.poles.visible = false;
+  const px = RINK.x + 6.5, pz = RINK.z - RINK.rz - 2.5; pg.root.position.set(px, H(px, pz), pz); pg.root.rotation.y = Math.PI * 0.85;
+  const tag = makeNpcTag('펭펭', '피겨 코치', '#9b5de5'); tag.position.y = 2.95; pg.root.add(tag);
+  npcs.skate = { id: 'skate', name: '피겨 코치 펭펭', face: '🐧', x: px, z: pz, r: 4.5, root: pg.root, bubble: null, bubbleY: 4.0 };
+  addObstacle(px, pz, 0.8, 'npc:피겨 코치 펭펭');
+}
+function talkSkate() {
+  setBubble(npcs.skate, '스케이트 타 볼래요?', 2500);
+  say(npcs.skate, '피겨 코치 펭펭이에요 🐧 얼음 위로 올라가면 스케이트가 저절로 신겨져요! W로 쭉쭉 밀고, 달리다가 ' + (isTouch ? '[점프]' : 'Space') + ' 하면 빙글 점프! 빠를수록 더블·트리플이 돼요. 멈춘 채로 누르면 제자리 스핀이에요.' + (me.skateBest ? ' 내 최고 피겨 점수는 ' + me.skateBest + '점!' : ''), [
+    { label: '🏆 60초 피겨 도전 시작', fn: () => startFigure() },
+    { label: '알겠어요!', fn: () => say(npcs.skate, '넘어져도 괜찮아요. 다시 일어나면 되니까요! ⛸', [], 2500) },
+  ]);
+}
+function startFigure() {
+  closeDialog();
+  if (me.state !== 'skate' && !(me.state === 'ski' && Math.hypot(me.x - RINK.x, me.z - (RINK.z - RINK.rz)) < 12)) { notice('스케이트장 가까이에서 시작할 수 있어요'); return; }
+  me.fig = { t0: performance.now(), score: 0, n: 0, on: me.state === 'skate' };
+  centerMsg('🏆 피겨 도전!', '60초 동안 점프와 스핀으로 점수를 모아요' + (me.state === 'skate' ? '' : ' · 얼음 위로 올라가요!'));
+  sfx.start();
+}
+function figAdd(pts, label) {
+  if (!me.fig) return;
+  me.fig.score += pts; me.fig.n++;
+  notice('⛸ ' + label + ' +' + pts + ' (총 ' + me.fig.score + '점)');
+}
+function updateFigure() {
+  const F = me.fig; if (!F) return;
+  // you get 15 s to walk onto the ice; once on it, leaving the rink ends the challenge
+  if (me.state === 'skate') F.on = true;
+  if ((F.on && me.state !== 'skate') || (!F.on && performance.now() - F.t0 > 15000)) { me.fig = null; notice('🏆 링크 밖이라 피겨 도전이 끝났어요'); return; }
+  if (performance.now() - F.t0 >= 60000) {
+    me.fig = null;
+    const best = F.score > (me.skateBest || 0);
+    if (best) { me.skateBest = F.score; store('ski.skate', String(F.score)); if (net.room && net.room.skate) net.room.skate(me.name, F.score); }
+    centerMsg('🏆 ' + F.score + '점!', '기술 ' + F.n + '개' + (best ? ' · 내 최고 기록!' : '')); sfx.finish();
+    addChatLine('', '', '⛸ 피겨 도전 ' + F.score + '점 (기술 ' + F.n + '개)' + (best ? ' · 내 최고 기록!' : ''), true);
+    if (F.score >= 1500) stamp('figure');
+    renderSkateRank();
+  }
+}
+// enter/leave the ice (called every frame while skiing/walking)
+function rinkCheck() {
+  if (me.state === 'ski' && !me.air && inRink(me.x, me.z) && !me.build && !me.run && !me.rc) {
+    me.state = 'skate'; me.skate = { spin: 0, spinV: 0, air: false, vy: 0, y: 0, jumpN: 0, landT: 0 };
+    notice('⛸ 스케이트를 신었어요! W로 밀고, ' + (isTouch ? '[점프]' : 'Space') + '로 점프·스핀');
+    stamp('skate'); sfx.pop(); sendPresence(performance.now(), true);
+  }
+}
+function stepSkate(dt) {
+  const K = me.skate || (me.skate = { spin: 0, spinV: 0, air: false, vy: 0, y: 0 });
+  if (me.state === 'skate' && K.fallT > 0) { K.fallT -= dt; me.vx *= Math.exp(-3 * dt); me.vz *= Math.exp(-3 * dt); me.x += me.vx * dt; me.z += me.vz * dt; me.y = H(me.x, me.z); keepOnIce(); return; }
+  const steer = clamp(((keys.KeyD || keys.ArrowRight) ? 1 : 0) - ((keys.KeyA || keys.ArrowLeft) ? 1 : 0) + stick.x, -1, 1);
+  const push = (keys.KeyW || keys.ArrowUp) || stick.y < -0.5, brake = (keys.KeyS || keys.ArrowDown) || stick.y > 0.5;
+  const sp = Math.hypot(me.vx, me.vz);
+  me.heading -= steer * (K.air ? 0.8 : 2.4) * dt; me.steer = steer;
+  const fx = -Math.sin(me.heading), fz = -Math.cos(me.heading);
+  if (!K.air) {
+    if (push && sp < 10) { me.vx += fx * 4.2 * dt; me.vz += fz * 4.2 * dt; K.stride = (K.stride || 0) + dt; }
+    // blades carve: velocity turns toward where you face
+    const along = me.vx * fx + me.vz * fz, k = Math.min(1, dt * 2.2);
+    me.vx += (fx * Math.max(0, along) - me.vx) * k * 0.6; me.vz += (fz * Math.max(0, along) - me.vz) * k * 0.6;
+    const fr = brake ? 7 : 0.35, s2 = Math.hypot(me.vx, me.vz);
+    if (s2 > 0) { const ns = Math.max(0, s2 - fr * dt); me.vx *= ns / s2; me.vz *= ns / s2; }
+    if (brake && s2 > 2 && Math.random() < dt * 20) emitSpray(me.x, me.y, me.z, me.vx * 0.3, me.vz * 0.3, 2);
+  }
+  // jump with spins, or spin on the spot
+  const jump = keys.Space || keys._jump;
+  if (jump && !K.jumpHeld && !K.air && !(K.spinT > 0)) {
+    if (sp > 2.2) {
+      const n = sp > 7.5 ? 3 : sp > 4.8 ? 2 : 1;
+      K.air = true; K.vy = 4.6 + n * 0.4; K.y = 0; K.spinTotal = n * Math.PI * 2; K.spin = 0; K.n = n; K.airT = 0;
+      me.kjSeq = (me.kjSeq || 0) + 1; me.kj = { i: me.kjSeq, n, j: 1 }; sendPresence(performance.now(), true); sfx.whoosh();
+    } else {
+      K.spinT = 1.8; K.spin = 0; me.kjSeq = (me.kjSeq || 0) + 1; me.kj = { i: me.kjSeq, n: 4, j: 0 }; sendPresence(performance.now(), true); tone([700, 900], 0.04, 0.4, 'sine');
+    }
+  }
+  K.jumpHeld = !!jump;
+  if (K.spinT > 0) {
+    K.spinT -= dt; K.spin = (1 - K.spinT / 1.8) * Math.PI * 8;
+    if (K.spinT <= 0) { K.spin = 0; figAdd(120, '🌀 제자리 스핀'); mis('skatejump'); if (myAv) setBubble(myAv, '빙글빙글~ 🌀', 1500); }
+  }
+  if (K.air) {
+    K.airT += dt; K.vy -= 13 * dt; K.y += K.vy * dt;
+    const tAir = 2 * (4.6 + K.n * 0.4) / 13; K.spin = Math.min(1, K.airT / tAir) * K.spinTotal;
+    if (K.y <= 0) {
+      K.air = false; K.y = 0; K.spin = 0;
+      const names = ['', '싱글 악셀', '더블 악셀', '트리플 악셀'];
+      if (K.n === 3 && Math.random() < 0.22) {
+        K.fallT = 1.1; centerMsg('꽈당!', '트리플은 어려워요… 다시 도전!'); sfx.thud(); if (myAv) setBubble(myAv, '아야야… 😵', 1800);
+      } else {
+        emitSpray(me.x, me.y, me.z, me.vx * 0.3, me.vz * 0.3, 12); tone([1200, 1500], 0.05, 0.12, 'triangle');
+        figAdd([0, 150, 320, 650][K.n] + Math.round(sp * 8), (K.n === 3 ? '🌟 ' : '✨ ') + names[K.n]);
+        if (K.n === 3) { stamp('triple'); if (myAv) setBubble(myAv, '트리플 성공! 🌟', 1800); }
+        mis('skatejump');
+      }
+    }
+  }
+  me.x += me.vx * dt; me.z += me.vz * dt; me.y = H(me.x, me.z) + (K.air ? K.y : 0); me.air = false;
+  keepOnIce();
+  // left the ice through the entrance: skates come off
+  if (!inRink(me.x, me.z)) { me.state = 'ski'; me.skate = null; me.vx *= 0.3; me.vz *= 0.3; notice('⛸ 스케이트를 벗었어요'); sendPresence(performance.now(), true); }
+}
+// the boards: bounce back unless you are at the entrance
+function keepOnIce() {
+  const r = rinkR(me.x, me.z);
+  if (r < 0.985 || atGate(me.x, me.z)) return;
+  const a = rinkAngle(me.x, me.z), nx = Math.cos(a) / RINK.rx, nz = Math.sin(a) / RINK.rz, nl = Math.hypot(nx, nz), ux = nx / nl, uz = nz / nl;
+  me.x = RINK.x + Math.cos(a) * RINK.rx * 0.98; me.z = RINK.z + Math.sin(a) * RINK.rz * 0.98;
+  const vn = me.vx * ux + me.vz * uz;
+  if (vn > 0) { me.vx -= 1.6 * vn * ux; me.vz -= 1.6 * vn * uz; if (vn > 4) { sfx.bump(); if (myAv) myAv.wobT = 0.5; } }
+}
+// people walking or skiing can only come in through the entrance
+function rinkGate(px, pz) {
+  if (me.state !== 'ski') return;
+  const was = rinkR(px, pz) < 1.03, now = rinkR(me.x, me.z) < 1.03;
+  if (was !== now && !atGate(me.x, me.z) && !atGate(px, pz)) { me.x = px; me.z = pz; me.vx = me.vz = 0; }
+}
+function skateRanking() {
+  const best = new Map(), add = (n, s, isMe) => { if (!n || !(s > 0)) return; const c = best.get(n); if (!c || s > c.s) best.set(n, { n, s, me: isMe || (c && c.me) }); else if (isMe) c.me = true; };
+  for (const e of skateFx.board.server) add(cleanName(e.n), clamp(+e.s || 0, 0, 99999), false);
+  for (const [, a] of avatars) add(a.name, a.kb || 0, false);
+  add(me.name, me.skateBest || 0, true);
+  return [...best.values()].sort((x, y) => y.s - x.s).slice(0, 10);
+}
+function drawSkateBoard() {
+  const B = skateFx.board; if (!B.ctx) return;
+  const list = skateRanking(), sig = JSON.stringify(list.map((e) => [e.n, e.s])); if (sig === B.sig) return; B.sig = sig;
+  const g = B.ctx, w = 512, h = 640, medals = ['🥇', '🥈', '🥉'];
+  g.fillStyle = '#1b2a4a'; g.fillRect(0, 0, w, h); g.fillStyle = '#9b5de5'; g.fillRect(0, 0, w, 96);
+  g.fillStyle = '#fff'; g.font = '50px Jua, sans-serif'; g.textAlign = 'center'; g.fillText('⛸ 피겨 점수판', w / 2, 66);
+  g.font = '34px Jua, sans-serif';
+  if (!list.length) { g.fillText('첫 기록에 도전하세요!', w / 2, 220); g.font = '26px Jua, sans-serif'; g.fillText('🐧 펭펭 코치에게 말 걸기', w / 2, 270); }
+  list.forEach((e, i) => { const y = 146 + i * 46; g.textAlign = 'left'; g.fillStyle = e.me ? '#7fe3ff' : i < 3 ? '#ffe2a8' : '#fff'; g.fillText((medals[i] || (i + 1) + '.') + ' ' + e.n.slice(0, 8), 32, y); g.textAlign = 'right'; g.fillText(e.s + '점', w - 32, y); });
+  B.tex.needsUpdate = true;
+}
+function renderSkateRank() {
+  drawSkateBoard();
+  const ol = $('#skateRank'); if (!ol) return; ol.textContent = '';
+  const list = skateRanking(), medals = ['🥇', '🥈', '🥉'];
+  list.forEach((e, i) => { const li = document.createElement('li'); const r = document.createElement('span'); r.textContent = medals[i] || (i + 1) + '위'; const t = document.createElement('span'); t.className = 't'; t.textContent = e.s + '점'; const w = document.createElement('span'); w.className = 'who'; w.textContent = e.n + (e.me ? ' (나)' : ''); li.append(r, t, w); ol.appendChild(li); });
+  if (!list.length) { const li = document.createElement('li'); li.style.display = 'block'; li.style.opacity = '0.85'; li.textContent = '아직 기록이 없어요. 스케이트장 🐧 펭펭에게 말을 걸어 보세요!'; ol.appendChild(li); }
+}
+// blades under the feet (made the first time they are needed)
+function bladeMesh(av) {
+  if (av.blades) return av.blades;
+  const g = new THREE.Group(); av.tilt.add(g); av.blades = g;
+  for (const s of [-1, 1]) { mesh(new THREE.BoxGeometry(0.16, 0.14, 0.42), lam(0xffffff), s * 0.17, 0.1, -0.05, g); mesh(new THREE.BoxGeometry(0.03, 0.06, 0.5), lam(0xc8d2de), s * 0.17, 0.02, -0.05, g); }
+  return g;
+}
+// friends: spin and hop locally when their presence says they jumped or spun
+function peerSkate(a, kj, isNew) {
+  if (!kj || typeof kj !== 'object' || typeof kj.i !== 'number') { if (a.kjI === undefined) a.kjI = 0; return; }
+  if (a.kjI === kj.i) return; const first = a.kjI === undefined; a.kjI = kj.i; if (isNew || first) return;
+  const n = clamp(kj.n | 0, 1, 4); a.kjA = { t0: performance.now(), n, j: kj.j === 1, dur: kj.j === 1 ? 2 * (4.6 + n * 0.4) / 13 * 1000 : 1800 };
+}
+function skatePose(av, o) {
+  // called from poseAvatar for state 'skate'
+  bladeMesh(av).visible = true; av.skis.visible = av.poles.visible = av.board.visible = false;
+  const t = performance.now() / 1000, sp = o.speed || 0;
+  av.tilt.rotation.z = clamp(-o.steer * 0.35, -0.4, 0.4) + (sp > 1 ? Math.sin(t * 4.5) * 0.1 : 0);
+  av.armL.rotation.z = -1.25 + Math.sin(t * 4.5) * 0.15; av.armR.rotation.z = 1.25 + Math.sin(t * 4.5) * 0.15;
+  av.rider.rotation.x += (-0.25 * Math.min(1, sp / 6) - av.rider.rotation.x) * 0.2;
+  if (o.spin) { av.root.rotation.y = o.heading + o.spin; av.armL.rotation.z = -0.3; av.armR.rotation.z = 0.3; }
+  if (o.hop) av.root.position.y += o.hop;
+}
+
+
+/* ================= gift box hunt (선물 상자 찾기) ================= */
+// Ten boxes hidden around the resort each day, at the same places for everyone (picked from the date).
+// Each box has a beam of light so you can spot it from afar; walk up to it to open it once per day.
+const gift = { key: '', boxes: [], found: new Set(), t: 0 };
+// like nearObstacle, but ignores snowmen (they differ over time, and every player must get the same spots)
+function staticObstacle(x, z, pad) {
+  const cx = Math.floor(x / 8), cz = Math.floor(z / 8);
+  for (let i = cx - 1; i <= cx + 1; i++) for (let j = cz - 1; j <= cz + 1; j++) {
+    const list = obstacles.get(i + ',' + j); if (!list) continue;
+    for (const o of list) { if (o[3] === 'snowman') continue; const r = o[2] + 0.4 + pad; if ((x - o[0]) ** 2 + (z - o[1]) ** 2 < r * r) return true; }
+  }
+  return false;
+}
+function giftSpots(key) {
+  const r = mulberry32(daySeed(key + ':gift')), out = [];
+  for (let tries = 0; tries < 6000 && out.length < 10; tries++) {
+    const near = out.length < 4;
+    const x = near ? -80 + r() * 160 : BOUNDS.minX + 12 + r() * (BOUNDS.maxX - BOUNDS.minX - 24);
+    const z = near ? 0 + r() * 135 : BOUNDS.minZ + 12 + r() * (BOUNDS.maxZ - BOUNDS.minZ - 24);
+    if (Math.abs(x) < 10 && z > -268 && z < 44) continue; // lift line
+    if (inWalkZone(x, z) && !inPond(x, z)) continue; // not inside the cafe or the onsen: the beam must reach the sky
+    if (inWall(x, z) || staticObstacle(x, z, 2.5) || poolAt(x, z) >= 0) continue;
+    if (inRink(x, z) || (inSledPark(x, z) && x > SLED.xTop && x < SLED.xEnd && z > SLED.lanes[0] - 4 && z < SLED.lanes[3] + 4)) continue;
+    if (out.some((o) => Math.hypot(o.x - x, o.z - z) < (near ? 22 : 45))) continue;
+    out.push({ x, z });
+  }
+  return out;
+}
+const giftBeamTex = canvasTex(16, 128, (g, w, h) => { const gr = g.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, 'rgba(255,240,200,0.9)'); gr.addColorStop(0.6, 'rgba(255,220,150,0.25)'); gr.addColorStop(1, 'rgba(255,220,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+const GIFT_COLS = [0xff4f6d, 0x2f7de1, 0x2fb36d, 0xb06cff, 0xff8a2a];
+function makeGiftBox(i) {
+  const g = new THREE.Group(), col = GIFT_COLS[i % GIFT_COLS.length], rib = lam(0xffd34d);
+  const body = mesh(new THREE.BoxGeometry(0.8, 0.62, 0.8), lam(col), 0, 0.31, 0, g);
+  mesh(new THREE.BoxGeometry(0.82, 0.64, 0.14), rib, 0, 0.31, 0, g, false); mesh(new THREE.BoxGeometry(0.14, 0.64, 0.82), rib, 0, 0.31, 0, g, false);
+  const lid = new THREE.Group(); lid.position.y = 0.62; g.add(lid); g.userData.lid = lid;
+  mesh(new THREE.BoxGeometry(0.9, 0.16, 0.9), lam(col), 0, 0.08, 0, lid); mesh(new THREE.BoxGeometry(0.92, 0.17, 0.15), rib, 0, 0.08, 0, lid, false); mesh(new THREE.BoxGeometry(0.15, 0.17, 0.92), rib, 0, 0.08, 0, lid, false);
+  for (const s of [-1, 1]) { const b = sph(0.13, rib, s * 0.13, 0.24, 0, 1.2, 0.8, 0.6, lid); b.rotation.z = s * 0.5; }
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 26, 12, 1, true), new THREE.MeshBasicMaterial({ map: giftBeamTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
+  beam.position.y = 13; g.add(beam); g.userData.beam = beam; void body;
+  return g;
+}
+function loadGifts() {
+  const key = dayKey(); if (gift.key === key) return;
+  for (const b of gift.boxes) { scene.remove(b.g); disposeGroup(b.g); }
+  gift.key = key; gift.found = new Set();
+  try { const d = JSON.parse(store('ski.gift') || 'null'); if (d && d.key === key && Array.isArray(d.found)) for (const i of d.found) gift.found.add(i | 0); } catch (e) {}
+  gift.boxes = giftSpots(key).map((p, i) => { const g = makeGiftBox(i); g.position.set(p.x, H(p.x, p.z), p.z); g.rotation.y = i; scene.add(g); return { i, x: p.x, z: p.z, g, open: 0 }; });
+  for (const b of gift.boxes) b.g.visible = !gift.found.has(b.i);
+  updateGiftUi();
+}
+function updateGiftUi() { const el = $('#giftTxt'); if (el) el.textContent = playing && gift.boxes.length ? ' · 🎁 ' + gift.found.size + '/' + gift.boxes.length : ''; }
+function openGift(b) {
+  gift.found.add(b.i); store('ski.gift', JSON.stringify({ key: gift.key, found: [...gift.found] }));
+  b.open = performance.now();
+  const n = gift.found.size, all = n === gift.boxes.length, coins = 20 + Math.floor(Math.random() * 5) * 10;
+  for (let k = 0; k < 24; k++) spawnFx('dot', b.x, H(b.x, b.z) + 1, b.z, (Math.random() - 0.5) * 5, 3 + Math.random() * 3, (Math.random() - 0.5) * 5, 1.6, 0.14, CONFETTI[k % 5], 6);
+  for (let k = 0; k < 6; k++) spawnFx('star', b.x, H(b.x, b.z) + 1.2, b.z, (Math.random() - 0.5) * 2, 2 + Math.random() * 2, (Math.random() - 0.5) * 2, 1.2, 0.4);
+  sfx.finish(); addCoins(coins, '선물 상자 ' + n + '/' + gift.boxes.length);
+  centerMsg('🎁 선물 상자!', n + '/' + gift.boxes.length + '개 찾았어요' + (all ? ' · 오늘 상자를 모두 찾았어요!' : ''));
+  if (myAv) setBubble(myAv, all ? '다 찾았다~! 🎉' : '선물이다! 🎁', 2000);
+  stamp('gift1'); mis('gift');
+  if (all) setTimeout(() => { addCoins(200, '선물 상자 10개 모두!'); stamp('gift10'); addChatLine('', '', '🎅 오늘의 선물 상자 10개를 모두 찾았어요!', true); }, 1800);
+  updateGiftUi(); sendPresence(performance.now(), true);
+}
+function updateGifts(dt) {
+  if (!gift.boxes.length) return;
+  const t = performance.now() / 1000, isNight = night.on;
+  for (const b of gift.boxes) {
+    if (!b.g.visible) continue;
+    if (b.open) {
+      const f = (performance.now() - b.open) / 900;
+      b.g.userData.lid.position.y = 0.62 + f * 1.4; b.g.userData.lid.rotation.x = f * 2.5; b.g.scale.setScalar(Math.max(0.01, 1 - Math.max(0, f - 0.5) * 2));
+      if (f >= 1) b.g.visible = false;
+      continue;
+    }
+    b.g.rotation.y += dt * 0.6; b.g.position.y = H(b.x, b.z) + Math.abs(Math.sin(t * 2 + b.i)) * 0.15;
+    b.g.userData.beam.material.opacity = (isNight ? 0.95 : 0.6) * (0.75 + 0.25 * Math.sin(t * 3 + b.i));
+    if (playing && (me.state === 'ski' || me.state === 'sit' || me.state === 'skate') && Math.hypot(me.x - b.x, me.z - b.z) < 1.9 && Math.abs(me.y - b.g.position.y) < 3) openGift(b);
+  }
+}
+// friends finding boxes
+function peerGift(a, gf, isNew) {
+  const n = gf && typeof gf === 'object' && gf.k === gift.key ? clamp(gf.n | 0, 0, 10) : 0;
+  if (!isNew && a.gf !== undefined && n > a.gf && n > 0) { notice('🎁 ' + a.name + '님이 선물 상자를 찾았어요! (' + n + '/10)'); if (n === 10) addChatLine('', '', '🎅 ' + a.name + '님이 오늘의 선물 상자 10개를 모두 찾았어요!', true); }
+  a.gf = n;
+}
+
 // keep the game from zooming on phones and tablets (pinch, double-tap, ctrl+wheel)
 for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
 document.addEventListener('touchmove', (e) => { if (e.touches.length > 1 || (e.scale && e.scale !== 1)) e.preventDefault(); }, { passive: false });
@@ -4538,8 +4870,8 @@ function burstVelocities(v, n, seed) {
   }
   return out;
 }
-function noSnowZone(x, z) { return inCafe(x, z) || inPond(x, z) || inSledPark(x, z); }
-function noSnowNote() { if (performance.now() - (me.noThrowAt || 0) > 1500) { me.noThrowAt = performance.now(); notice(inPond(me.x, me.z) ? '🎣 낚시터에서는 눈싸움을 할 수 없어요' : inSledPark(me.x, me.z) ? '🛷 썰매장에서는 눈싸움을 할 수 없어요' : '☕ 여기서는 눈싸움을 할 수 없어요'); } }
+function noSnowZone(x, z) { return inCafe(x, z) || inPond(x, z) || inSledPark(x, z) || inRink(x, z); }
+function noSnowNote() { if (performance.now() - (me.noThrowAt || 0) > 1500) { me.noThrowAt = performance.now(); notice(inPond(me.x, me.z) ? '🎣 낚시터에서는 눈싸움을 할 수 없어요' : inSledPark(me.x, me.z) ? '🛷 썰매장에서는 눈싸움을 할 수 없어요' : inRink(me.x, me.z) ? '⛸ 스케이트장에서는 눈싸움을 할 수 없어요' : '☕ 여기서는 눈싸움을 할 수 없어요'); } }
 function burstThrow() {
   if (!playing) return;
   if (me.indoor || noSnowZone(me.x, me.z)) { noSnowNote(); return; }
@@ -5364,9 +5696,14 @@ function frame(now) {
     for (const k of ['x', 'z', 'y', 'vx', 'vz', 'vy', 'heading', 'steer']) if (!isFinite(me[k])) me[k] = k === 'y' ? H(me.x || 0, me.z || 0) : (k === 'x' ? 0 : k === 'z' ? 50 : 0);
     if (myAv) for (const o3 of [myAv.tilt.rotation, myAv.rider.position, myAv.rider.scale, myAv.armR.rotation, myAv.armL.rotation, myAv.headG.rotation]) for (const k of ['x', 'y', 'z']) if (!isFinite(o3[k])) o3[k] = o3 === myAv.rider.scale ? 1 : 0;
     if (me.sled && me.state !== 'sled') me.sled = null; // teleported away (home, friend, snowcat)
+    if (me.skate && me.state !== 'skate') me.skate = null;
+    const preX = me.x, preZ = me.z;
     if (me.state === 'ski' || me.state === 'crash') stepSki(dt);
     else if (me.state === 'sled') stepSled(dt);
+    else if (me.state === 'skate') stepSkate(dt);
     else if (me.state === 'jump') stepJump(dt);
+    if (me.state === 'ski') { rinkGate(preX, preZ); rinkCheck(); }
+    updateFigure();
     updateLift(dt);
     updateRun(dt);
     updateRace();
@@ -5379,7 +5716,7 @@ function frame(now) {
     }
     drawWip(myWip, wipOf(me.build), me.x, me.z, me.heading, me.build ? me.build.roll : 0);
     $('#buildLb').textContent = me.build ? ['몸통', '가슴', '머리'][me.build.parts.length] + ' 놓기' : '눈사람';
-    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: (inWalkZone(me.x, me.z) && me.state !== 'sled') || !!me.build, sl: me.sled ? me.sled.kind : 0, em: me.em, mine: true, heat: me.heat || 0, bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting, fish: me.lastFish, jp: jumpPhase(), ja: jumpPitch() });
+    if (myAv) poseAvatar(myAv, { x: me.x, y: me.y, z: me.z, heading: me.heading, steer: me.steer, speed: Math.hypot(me.vx, me.vz), air: me.air, state: me.state, walk: (inWalkZone(me.x, me.z) && me.state !== 'sled') || !!me.build, sl: me.sled ? me.sled.kind : 0, em: me.em, mine: true, spin: me.skate ? me.skate.spin : 0, heat: me.heat || 0, bath: me.bath >= 0, item: me.item || 0, roast: me.item === 2 ? clamp(1 - me.itemT / 6, 0, 1) : 0, snow: me.snow, boost: me.boosting, fish: me.lastFish, jp: jumpPhase(), ja: jumpPitch() });
     // prompt + guide
     const ptxt = promptText();
     const pr = $('#prompt');
@@ -5435,16 +5772,17 @@ function frame(now) {
     } else guideArrow.visible = false;
     sun.position.set(me.x + SUN_OFF.x, me.y + SUN_OFF.y, me.z + SUN_OFF.z); sun.target.position.set(me.x, me.y, me.z);
     const sp = Math.hypot(me.vx, me.vz);
-    if (windGain) { windGain.gain.value = (me.state === 'ski' && !inWalkZone(me.x, me.z) ? clamp(sp / 26, 0, 1) * 0.22 : 0.01) + (WX.m && !me.indoor ? WX.m.storm * 0.12 : 0); hissGain.gain.value = (me.state === 'ski' || (me.sled && me.sled.phase === 'ride')) && !me.air ? clamp(sp / 20, 0, 1) * (me.brake ? 0.12 : 0.04) : 0; }
+    if (windGain) { windGain.gain.value = (me.state === 'ski' && !inWalkZone(me.x, me.z) ? clamp(sp / 26, 0, 1) * 0.22 : 0.01) + (WX.m && !me.indoor ? WX.m.storm * 0.12 : 0); hissGain.gain.value = (me.state === 'ski' || me.state === 'skate' || (me.sled && me.sled.phase === 'ride')) && !me.air ? clamp(sp / 20, 0, 1) * (me.brake ? 0.12 : 0.04) : 0; }
     hudT -= dt;
     if (hudT <= 0) {
       hudT = 0.1;
       $('#spd').textContent = Math.round(sp * 3.6);
       if (!$('#more').hidden) renderWxInfo();
+      if (gift.key && gift.key !== dayKey()) { loadGifts(); loadDay(); updateCoinUi(); }
       if (sp * 3.6 >= 100 && me.state === 'ski') stamp('speed');
       if (sp * 3.6 >= 80 && me.state === 'ski') mis('speed');
       $('#placeChip').textContent = placeName(STATE_CODE[me.state], me.x, me.z, me.run && me.run.c.id);
-      $('#placeIcon').textContent = me.state === 'lift' || me.state === 'queue' ? '🚡' : me.run ? '⛷' : me.z < -240 ? '⛰' : inCafe(me.x, me.z) ? '☕' : inOnsen(me.x, me.z) ? '♨' : inPond(me.x, me.z) ? '🎣' : me.state === 'sled' || inSledPark(me.x, me.z) ? '🛷' : me.z > 0 ? '🏠' : '🌲';
+      $('#placeIcon').textContent = me.state === 'lift' || me.state === 'queue' ? '🚡' : me.run ? '⛷' : me.z < -240 ? '⛰' : inCafe(me.x, me.z) ? '☕' : inOnsen(me.x, me.z) ? '♨' : inPond(me.x, me.z) ? '🎣' : me.state === 'sled' || inSledPark(me.x, me.z) ? '🛷' : me.state === 'skate' || inRink(me.x, me.z) ? '⛸' : me.z > 0 ? '🏠' : '🌲';
       updateStatus(sp);
       drawMinimap();
     }
@@ -5458,6 +5796,7 @@ function frame(now) {
   updateSnowmen();
   updateAttract(dt);
   updateEmotes(dt);
+  updateGifts(dt);
   if (playing && myAv) trailFx(myAv, me.x, me.y, me.z, me.heading, Math.hypot(me.vx, me.vz), dt);
   for (const [, a] of avatars) trailFx(a.av, a.pos.x, a.pos.y, a.pos.z, a.h, a.spd, dt);
   updateNightExtras(dt);
@@ -5473,7 +5812,7 @@ void playersT;
 
 (async function boot() {
   try { await Promise.race([Promise.all([document.fonts.load('60px Jua'), document.fonts.load('40px "Noto Sans KR"')]), new Promise((r) => setTimeout(r, 1500))]); } catch (e) {}
-  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildCafe(); buildSmoke(); buildOnsen(); buildPond(); buildJump(); buildNpcs(); buildSled(); buildJumpBoard(); buildFpView(); buildMinimap(); buildNight(); buildNightExtras(); buildAttract(); buildCafeGlow();
+  buildHeights(); buildTerrain(); buildTrees(); buildCourseDecor(); buildLift(); buildBase(); buildCafe(); buildSmoke(); buildOnsen(); buildPond(); buildJump(); buildNpcs(); buildSled(); buildRink(); buildJumpBoard(); buildFpView(); buildMinimap(); buildNight(); buildNightExtras(); buildAttract(); buildCafeGlow();
   const sn = store('ski.night'), hr = new Date().getHours();
   setNight(sn === '1' || (sn === null && (hr >= 18 || hr < 6)));
   rebuildMine();
