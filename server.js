@@ -3,16 +3,22 @@
 // - /ws 로 접속한 플레이어끼리 위치·사격 정보를 실시간으로 주고받게 해 줍니다.
 // - 다 같이 만든 눈사람을 기억해 두었다가 늦게 온 사람에게도 보여 줍니다.
 //   눈사람은 20분 뒤에 녹아 없어지고, 서버가 다시 켜져도 사라져요.
+// - 누가 언제 들어오고 나갔는지 기록하고, /admin/visits?key=비밀번호 에서 보여 줍니다.
+//   Render 환경 변수에 UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN 을 넣으면
+//   기록이 Upstash(무료 Redis)에 저장돼서 업데이트하거나 서버가 잠들어도 남아요.
+//   ADMIN_KEY 에는 기록 페이지 비밀번호를 넣어요.
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { WebSocketServer } = require('ws');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
 const MAX_PLAYERS = 40;
 const INDEX = fs.readFileSync(path.join(__dirname, 'index.html'));
 
 const server = http.createServer((req, res) => {
+  if (req.url.startsWith('/admin/visits')) { visitsPage(req, res); return; }
   if (req.url === '/healthz') {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('ok');
@@ -37,6 +43,100 @@ let smCounter = 0;
 const clean = (v, n) => String(v || '').replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g, '').trim().slice(0, n);
 let counter = 0;
 
+// ---------- 들어오고 나간 기록 ----------
+const VISIT_MAX = 1000;
+const VISIT_KEY = 'snow:visits';
+const UPSTASH_URL = (process.env.UPSTASH_REDIS_REST_URL || '').replace(/\/+$/, '');
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
+const ADMIN_KEY = process.env.ADMIN_KEY || '';
+const visits = []; // 최신이 앞: { t: 'in' | 'out', n: 닉네임, at: 시각(ms), dur: 머문 시간(ms), r: 메모 }
+let visitStore = UPSTASH_URL && UPSTASH_TOKEN ? 'loading' : 'memory';
+let saveChain = Promise.resolve();
+
+async function redis(cmds) {
+  const res = await fetch(UPSTASH_URL + '/pipeline', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + UPSTASH_TOKEN, 'Content-Type': 'application/json' },
+    body: JSON.stringify(cmds),
+  });
+  if (!res.ok) throw new Error('Upstash 응답 ' + res.status);
+  return res.json();
+}
+function logVisit(e) {
+  visits.unshift(e);
+  if (visits.length > VISIT_MAX) visits.length = VISIT_MAX;
+  if (visitStore === 'memory') return;
+  saveChain = saveChain
+    .then(() => redis([['LPUSH', VISIT_KEY, JSON.stringify(e)], ['LTRIM', VISIT_KEY, 0, VISIT_MAX - 1]]))
+    .then(() => { visitStore = 'upstash'; })
+    .catch((err) => { visitStore = 'error'; console.error('방문 기록 저장 실패:', err.message); });
+}
+async function loadVisits() {
+  if (visitStore === 'memory') return;
+  try {
+    const [r] = await redis([['LRANGE', VISIT_KEY, 0, VISIT_MAX - 1]]);
+    const old = ((r && r.result) || []).map((x) => { try { return JSON.parse(x); } catch (e) { return null; } }).filter(Boolean);
+    visits.push(...old); // 서버가 켜진 뒤에 생긴 기록은 이미 앞쪽에 있어요
+    if (visits.length > VISIT_MAX) visits.length = VISIT_MAX;
+    visitStore = 'upstash';
+  } catch (err) {
+    visitStore = 'error';
+    console.error('방문 기록 불러오기 실패:', err.message);
+  }
+}
+loadVisits();
+
+const esc = (v) => String(v).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+const kst = (ms) => new Date(ms).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+function span(ms) {
+  const m = Math.round(ms / 60000);
+  if (m < 1) return '1분 미만';
+  return m < 60 ? m + '분' : Math.floor(m / 60) + '시간 ' + (m % 60) + '분';
+}
+function keyOk(k) {
+  const a = Buffer.from(String(k || '')), b = Buffer.from(ADMIN_KEY);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+function visitsPage(req, res) {
+  const url = new URL(req.url, 'http://localhost');
+  const head = '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">'
+    + '<title>방문 기록</title><style>body{font-family:system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:#f4f8fd;color:#1b2a4a;margin:0;padding:16px}main{max-width:760px;margin:0 auto}'
+    + 'h1{font-size:22px;margin:4px 0 12px}.box{background:#fff;border:1px solid #d7e2ef;border-radius:12px;padding:12px 14px;margin-bottom:12px}.muted{color:#5b6b87;font-size:13px}'
+    + 'table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:7px 6px;border-bottom:1px solid #e6edf6}th{font-size:12px;color:#5b6b87}'
+    + '.in{color:#1f8f55;font-weight:700}.out{color:#c2364b;font-weight:700}.ok{color:#1f8f55}.warn{color:#b36b00}.bad{color:#c2364b}ul{margin:6px 0 0;padding-left:18px}</style></head><body><main>';
+  const end = '</main></body></html>';
+  res.setHeader('Cache-Control', 'no-store');
+  if (!ADMIN_KEY) {
+    res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(head + '<h1>방문 기록</h1><div class="box">아직 비밀번호가 없어요. Render의 Environment에 <b>ADMIN_KEY</b>를 추가하고 다시 열어 주세요.</div>' + end);
+    return;
+  }
+  if (!keyOk(url.searchParams.get('key'))) {
+    res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(head + '<h1>방문 기록</h1><div class="box bad">비밀번호가 맞지 않아요. 주소 끝의 <b>?key=</b> 뒤를 확인해 주세요.</div>' + end);
+    return;
+  }
+  const store = visitStore === 'upstash' ? '<span class="ok">✔ Upstash에 저장 중 · 업데이트하거나 서버가 잠들어도 남아요</span>'
+    : visitStore === 'loading' ? '<span class="warn">Upstash에서 불러오는 중…</span>'
+    : visitStore === 'error' ? '<span class="bad">⚠ Upstash 연결 오류 · 주소와 토큰을 확인해 주세요 (지금은 메모리에만 있어요)</span>'
+    : '<span class="warn">⚠ 서버 메모리에만 저장 중 · 업데이트하거나 서버가 잠들면 사라져요 (Upstash를 연결하면 남아요)</span>';
+  const now = Date.now(), online = [...players.values()].filter((p) => p.logged);
+  const onlineHtml = online.length
+    ? '<ul>' + online.map((p) => '<li><b>' + esc(p.name) + '</b> <span class="muted">' + kst(p.joinAt) + '부터 · ' + span(now - p.joinAt) + '째</span></li>').join('') + '</ul>'
+    : '<div class="muted">지금은 아무도 없어요</div>';
+  const dayKey = (ms) => new Date(ms).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
+  const today = dayKey(now), todayNames = new Set(visits.filter((v) => v.t === 'in' && dayKey(v.at) === today).map((v) => v.n));
+  const rows = visits.map((v) => '<tr><td>' + kst(v.at) + '</td><td><b>' + esc(v.n) + '</b></td><td class="' + (v.t === 'in' ? 'in">들어옴' : 'out">나감') + '</td><td class="muted">'
+    + (v.t === 'out' ? span(v.dur || 0) + ' 머묾' + (v.r ? ' · ' + esc(v.r) : '') : '') + '</td></tr>').join('');
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(head + '<h1>❄ 눈꽃 스키장 방문 기록</h1>'
+    + '<div class="box">' + store + '<div class="muted" style="margin-top:4px">최근 ' + VISIT_MAX + '건까지 보관 · 시간은 한국 시간</div></div>'
+    + '<div class="box"><b>지금 접속 중 ' + online.length + '명</b>' + onlineHtml + '</div>'
+    + '<div class="box"><b>오늘 다녀간 사람 ' + todayNames.size + '명</b>' + (todayNames.size ? '<div class="muted" style="margin-top:4px">' + [...todayNames].map(esc).join(', ') + '</div>' : '') + '</div>'
+    + '<div class="box"><table><thead><tr><th>시간</th><th>닉네임</th><th></th><th></th></tr></thead><tbody>'
+    + (rows || '<tr><td colspan="4" class="muted">아직 기록이 없어요</td></tr>') + '</tbody></table></div>' + end);
+}
+
 function send(ws, msg) {
   if (ws.readyState === 1) ws.send(JSON.stringify(msg));
 }
@@ -51,7 +151,7 @@ wss.on('connection', (ws) => {
     return;
   }
   const id = 'p' + (++counter).toString(36) + Math.random().toString(36).slice(2, 6);
-  const me = { ws, presence: {}, budget: 60, last: Date.now() };
+  const me = { ws, presence: {}, budget: 60, last: Date.now(), joinAt: Date.now(), logged: false, name: '' };
   players.set(id, me);
 
   send(ws, { t: 'hello', id, now: Date.now(), history, board: fishBoard, jboard: jumpBoard, sboard: sledBoard, sm: snowmen.map(pubSnowman), peers: [...players].filter(([k]) => k !== id).map(([k, v]) => ({ id: k, presence: v.presence })) });
@@ -137,11 +237,16 @@ wss.on('connection', (ws) => {
       }
       if (chat && typeof chat.i === 'number') me.chatI = chat.i; else if (me.chatI === undefined) me.chatI = null;
       me.presence = m.p;
+      // 처음 게임에 들어와 이름을 보낼 때 '들어옴'을 기록해요 (시작 화면만 열어 본 사람은 빼요)
+      const nick = clean(m.p.n, 10);
+      if (nick && !me.logged) { me.logged = true; me.name = nick; me.joinAt = Date.now(); logVisit({ t: 'in', n: nick, at: me.joinAt }); }
+      else if (nick) me.name = nick;
       broadcast({ t: 'presence', id, p: m.p }, id);
     }
   });
 
   ws.on('close', () => {
+    if (me.logged && !me.outLogged) { me.outLogged = true; logVisit({ t: 'out', n: me.name, at: Date.now(), dur: Date.now() - me.joinAt }); }
     players.delete(id);
     broadcast({ t: 'leave', id });
   });
@@ -161,6 +266,19 @@ setInterval(() => {
     ws.ping();
   }
 }, 30000);
+
+// 업데이트로 서버가 꺼질 때: 접속 중이던 사람들의 '나감'을 남기고 저장이 끝난 뒤 종료해요
+let stopping = false;
+async function shutdown() {
+  if (stopping) return;
+  stopping = true;
+  const now = Date.now();
+  for (const p of players.values()) if (p.logged && !p.outLogged) { p.outLogged = true; logVisit({ t: 'out', n: p.name, at: now, dur: now - p.joinAt, r: '서버 업데이트·재시작' }); }
+  await Promise.race([saveChain, new Promise((r) => setTimeout(r, 4000))]);
+  process.exit(0);
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 server.listen(PORT, () => {
   console.log('눈꽃 스키장 서버 실행 중: http://localhost:' + PORT);
