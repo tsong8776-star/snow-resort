@@ -15,7 +15,9 @@ const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
 const MAX_PLAYERS = 40;
-const INDEX = fs.readFileSync(path.join(__dirname, 'index.html'));
+const INDEX = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+let OG = null; // 링크 공유·메타모아 썸네일용 대표 이미지
+try { OG = fs.readFileSync(path.join(__dirname, 'og.png')); } catch (e) { OG = null; }
 
 const server = http.createServer((req, res) => {
   if (req.url.startsWith('/admin/visits')) { visitsPage(req, res); return; }
@@ -24,8 +26,16 @@ const server = http.createServer((req, res) => {
     res.end('ok');
     return;
   }
+  if (req.url === '/og.png' && OG) {
+    res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' });
+    res.end(OG);
+    return;
+  }
+  // 공유 미리보기 이미지는 전체 주소가 필요해서, 접속한 주소를 넣어 보내요
+  const host = String(req.headers.host || 'localhost').replace(/[^\w.:-]/g, '');
+  const proto = String(req.headers['x-forwarded-proto'] || (/^(localhost|127\.)/.test(host) ? 'http' : 'https')).split(',')[0].trim() === 'http' ? 'http' : 'https';
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
-  res.end(INDEX);
+  res.end(INDEX.replace(/__ORIGIN__/g, proto + '://' + host));
 });
 
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 8 * 1024 });
