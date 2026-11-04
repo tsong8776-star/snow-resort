@@ -320,7 +320,7 @@ body.photo #hud, body.scoping #hud { display: none !important; }
 @media (max-width: 560px) { .phBar { max-width: calc(100% - 24px); bottom: calc(108px + env(safe-area-inset-bottom, 0px)); } .phTop span { display: none; } #phShutter { left: 50%; right: auto; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); } }
 #scopeUi { position: fixed; inset: 0; z-index: 15; pointer-events: none; background: radial-gradient(circle at 50% 46%, rgba(0,0,0,0) 0 33vmin, rgba(6,10,20,0.94) 35vmin); }
 .scopeHint { position: absolute; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); pointer-events: auto; padding: 8px 10px 8px 16px; border-radius: 999px; color: #fff; font-weight: 700; font-size: 13px; display: flex; gap: 10px; align-items: center; white-space: nowrap; }
-.scopeHint button { background: #fff; color: var(--ink); }
+.scopeHint button { background: rgba(255,255,255,0.18); color: #fff; } .scopeHint #scopeClose { background: #fff; color: var(--ink); }
 /* daily missions + shop */
 #daily { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100% - 24px)); max-height: min(640px, 86vh); pointer-events: auto; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; box-sizing: border-box; z-index: 3; }
 #daily .phead b { font-family: var(--font-display); font-weight: 400; font-size: 22px; color: #ffe08a; }
@@ -530,7 +530,7 @@ body.photo #hud, body.scoping #hud { display: none !important; }
   <div id="phFlash"></div>
   <div id="phShot" hidden><div class="glass phCard"><img id="phImg" alt="찍은 사진"><div class="phBtns"><a id="phSave" class="phBtn">💾 저장하기</a><button type="button" id="phShare" class="phBtn" hidden>📤 공유하기</button><button type="button" id="phAgain" class="phBtn ghost">다시 찍기</button></div></div></div>
 </div>
-<div id="scopeUi" hidden><div class="scopeHint glass">🔭 화면을 끌어 둘러보세요 · E·Esc로 나가기 <button type="button" id="scopeClose">나가기</button></div></div>
+<div id="scopeUi" hidden><div class="scopeHint glass">🔭 끌어서 둘러보기 · 휠로 확대 <button type="button" id="scopeIn" aria-label="확대">➕</button><button type="button" id="scopeOut" aria-label="축소">➖</button><button type="button" id="scopeClose">나가기</button></div></div>
 
 <div id="start">
   <div class="hero">
@@ -658,6 +658,8 @@ function rawH(x, z) {
   // a ridge separates the main mountain from the race valley in the east
   if (x > 138) { h += Math.max(0, 1 - Math.abs(x - 158) / 20) * 34; if (x > 270) h += Math.pow(x - 270, 1.3) * 0.9; }
   if (z < -272) h += Math.pow(-272 - z, 1.25) * 1.4;
+  // observatory peak behind the gondola: a flat top 50 m above the lift summit, so the whole resort is in view
+  { const d = Math.hypot(x - 106, z + 266); if (d < 48) h += 50 * sstep(48, 18, d); }
   if (z > 150) h += (z - 150) * 0.15;
   return h;
 }
@@ -2359,7 +2361,7 @@ function placeName(st, x, z, co) {
   if (st === 7 || inSledPark(x, z)) return '🛷 눈썰매장';
   if (st === 8 || inRink(x, z)) return '⛸ 스케이트장';
   if (st === 9) return '🚠 곤돌라';
-  if (z < -248 && Math.abs(x - GON.x + 10) < 22) return '🔭 정상 전망대';
+  if (Math.hypot(x - 106, z + 266) < 30) return '🔭 전망봉 전망대';
   if (z > 0) return '베이스';
   return '슬로프';
 }
@@ -2517,8 +2519,9 @@ function drawMinimap() {
 
 /* ================= chat ================= */
 /* ================= notices ================= */
-const NOTICE_VER = '2026-11-03-e';
+const NOTICE_VER = '2026-11-04-a';
 const NOTICES = [
+  { date: '11월 4일', title: '🔭 더 높아진 전망봉', items: ['곤돌라 전망대가 리프트 정상보다 약 50m 높은 전망봉 꼭대기로 옮겨졌어요. 스키장에서 가장 높은 곳이에요!', '전망봉에 올라가면 안개가 걷혀서 코스·리프트·베이스·카페·온천까지 스키장 전체가 한눈에 보여요.', '🔭 망원경은 처음에 스키장 전체가 보이게 맞춰져 있고, 휠(또는 ➕➖)로 확대·축소할 수 있어요.'] },
   { date: '11월 3일', title: '🚠 곤돌라 · 🔭 정상 전망대 · 📸 사진 모드', items: ['베이스 동쪽(표지판 → 방향)에 곤돌라가 생겼어요! 승강장에서 E를 누르면 약 40초 만에 정상 전망대까지 올라가요. 친구와 같이 누르면 같은 곤돌라에 타요.', '전망대에서는 🔭 망원경으로 스키장을 크게 보고, 📸 포토존 액자 앞에서 사진을 찍어 보세요.', '오른쪽 위 📸(또는 P)로 사진 모드! 화면을 끌어 각도를 바꾸고, 포즈·프레임(눈꽃·폴라로이드·크리스마스)·필터를 고른 뒤 셔터를 눌러요.', '찍은 사진은 저장하거나 휴대폰에서는 바로 친구에게 공유할 수 있어요.', '새 도장: 📸 찰칵! · 🖼 포토존 · 🚠 곤돌라 여행 · 💑 둘이서 곤돌라 · 🔭 망원경'] },
   { date: '11월 3일', title: '🎁 매일 선물 상자 찾기', items: ['스키장 곳곳에 선물 상자 10개가 숨겨져 있어요. 매일 위치가 바뀌고, 모두 같은 곳에 있어요.', '하늘로 솟은 빛기둥을 따라가 보세요! 60m 안에 들어오면 미니맵에 🎁가 떠요.', '상자를 열면 ❄ 코인이 나오고, 10개를 모두 찾으면 보너스 +200 ❄! 친구가 찾으면 알림이 떠요. 누가 먼저 다 찾을까요?', '왼쪽 위에 오늘 찾은 개수가 보여요. 미션 버튼은 📅로 바뀌었어요.', '새 도장: 🎁 첫 선물 · 🎅 선물 사냥꾼'] },
   { date: '11월 3일', title: '⛸ 눈꽃 스케이트장 오픈!', items: ['빙어 낚시터와 온천 사이에 아이스링크가 생겼어요. 얼음 위로 올라가면 스케이트가 저절로 신겨져요!', 'W로 쭉쭉 밀고 A·D로 돌아요. 달리다가 Space(휴대폰은 [점프]) → 빙글 점프! 빠를수록 싱글 → 더블 → 트리플 악셀. 멈춘 채로 누르면 제자리 스핀.', '🐧 펭펭 코치에게 말을 걸면 60초 피겨 도전! 링크 옆 점수판과 ⋯ 더 보기에서 순위를 볼 수 있어요.', '새 도장: ⛸ 첫 스케이트 · 🌟 트리플 악셀 · 🏆 피겨 스타 · 새 미션: 점프·스핀 3번'] },
@@ -3354,7 +3357,7 @@ cvs.addEventListener('pointermove', (e) => {
 });
 const endDrag = (e) => { if (dragP && e.pointerId === dragP.id) { dragP = null; cam.drag = false; } };
 cvs.addEventListener('pointerup', endDrag); cvs.addEventListener('pointercancel', endDrag);
-cvs.addEventListener('wheel', (e) => { if (photo.on) { photo.dist = clamp(photo.dist + Math.sign(e.deltaY) * 0.6, 2.2, 22); return; } cam.dist = clamp(cam.dist + Math.sign(e.deltaY) * 0.8, 4.5, 16); }, { passive: true });
+cvs.addEventListener('wheel', (e) => { if (gon.scope) { gon.scope.fov = clamp((gon.scope.fov || 16) + Math.sign(e.deltaY) * 2, 6, 34); return; } if (photo.on) { photo.dist = clamp(photo.dist + Math.sign(e.deltaY) * 0.6, 2.2, 22); return; } cam.dist = clamp(cam.dist + Math.sign(e.deltaY) * 0.8, 4.5, 16); }, { passive: true });
 // joystick
 const stickEl = $('#stick'), knob = $('#knob'); let stickId = null;
 function moveStick(e) {
@@ -3627,7 +3630,9 @@ function updateWeather() {
   const n = night.on, dusk = n ? 0 : m.dusk * (1 - m.storm), fc = scene.fog.color;
   fc.copy(n ? FOG_NIGHT : FOG_DAY).lerp(n ? FOG_STORM_N : FOG_STORM_D, m.storm).lerp(FOG_DUSK, dusk);
   scene.fog.near = (n ? 60 : 120) * m.near; scene.fog.far = (n ? 320 : 420) * m.far;
-  if (gon.scope) { scene.fog.near = Math.max(scene.fog.near, 260); scene.fog.far = Math.max(scene.fog.far * 3, 700); } // the telescope sees through the haze
+  // up on the observatory peak (or through the telescope) the air clears so the whole resort can be seen
+  const vista = gon.scope ? 1 : playing && me.y > 132 ? clamp((me.y - 132) / 10, 0, 1) : 0;
+  if (vista > 0) { scene.fog.near += (Math.max(scene.fog.near, 320) - scene.fog.near) * vista; scene.fog.far += (Math.max(scene.fog.far * 2.5, 880) - scene.fog.far) * vista; }
   if (m.storm > 0.5) { stormBg.copy(fc); scene.background = stormBg; } else scene.background = n ? nightBg : dusk > 0.5 ? duskBg : dayBg;
   if (!n) sun.color.copy(SUN_DAY).lerp(SUN_DUSK, dusk);
   if (night.stars) { const sky = n && m.storm < 0.5; night.stars.visible = sky; night.moon.visible = sky; }
@@ -4951,7 +4956,7 @@ function buildGondola() {
     addObstacle(GON.x, z, 0.9, 'tower');
   }
   // stations: platform, roof, bullwheel, sign
-  for (const [z, label, sub] of [[GON.z0, '🚠 눈꽃 곤돌라', '전망대까지 약 40초'], [GON.z1, '🔭 정상 전망대', '해발 1,300m']]) {
+  for (const [z, label, sub] of [[GON.z0, '🚠 눈꽃 곤돌라', '전망대까지 약 40초'], [GON.z1, '🔭 전망봉 전망대', '해발 1,350m · 스키장에서 가장 높은 곳']]) {
     const y = H(GON.x, z), dir = z === GON.z0 ? 1 : -1;
     mesh(new THREE.BoxGeometry(GON.side * 2 + 6, 0.3, 9), lam(0xb8c2cf), GON.x, y + 0.15, z + dir * 1.5);
     mesh(new THREE.BoxGeometry(GON.side * 2 + 7, 0.5, 10), lam(0xffffff), GON.x, y + 6.4, z + dir * 1.5);
@@ -4982,7 +4987,15 @@ function buildGondola() {
     for (let k = -6.5; k <= 6.5; k += 1.3) { mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.1, 5), lam(0x6b4a2b), dx + k, y + 0.55, dz + 4.4, scene, false); }
     const rail = mesh(new THREE.BoxGeometry(14, 0.1, 0.12), lam(0x6b4a2b), dx, y + 1.1, dz + 4.4); void rail; wallObs(dx - 7, dz + 4.4, dx + 7, dz + 4.4);
     gon.tele = { x: dx + 2, z: dz + 3.2 };
-    const tg = new THREE.Group(); tg.position.set(gon.tele.x, y, gon.tele.z); scene.add(tg);
+    // a small observation platform (3 m) with the telescope on top and a ladder
+    const plat = lam(0x8a5a32);
+    for (const [px, pz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) mesh(new THREE.CylinderGeometry(0.09, 0.09, 3.1, 6), plat, gon.tele.x + px * 1.1, y + 1.55, gon.tele.z + pz * 1.1);
+    mesh(new THREE.BoxGeometry(2.6, 0.16, 2.6), lam(0xb88a5a), gon.tele.x, y + 3.1, gon.tele.z);
+    for (const [rx, rz, w, d] of [[0, 1.25, 2.6, 0.08], [1.25, 0, 0.08, 2.6], [-1.25, 0, 0.08, 2.6]]) mesh(new THREE.BoxGeometry(w, 0.08, d), plat, gon.tele.x + rx, y + 4.0, gon.tele.z + rz);
+    for (let k = 0; k < 6; k++) mesh(new THREE.BoxGeometry(0.7, 0.06, 0.08), plat, gon.tele.x, y + 0.4 + k * 0.5, gon.tele.z - 1.35, scene, false);
+    for (const sx of [-0.35, 0.35]) mesh(new THREE.BoxGeometry(0.07, 3.2, 0.07), plat, gon.tele.x + sx, y + 1.6, gon.tele.z - 1.35, scene, false);
+    addObstacle(gon.tele.x, gon.tele.z, 1.3, 'post');
+    const tg = new THREE.Group(); tg.position.set(gon.tele.x, y + 3.15, gon.tele.z); scene.add(tg);
     mesh(new THREE.CylinderGeometry(0.08, 0.12, 1.1, 8), lam(0x3a4250), 0, 0.55, 0, tg);
     const tube = mesh(new THREE.CylinderGeometry(0.13, 0.17, 0.75, 12), lam(0x2f7de1), 0, 1.2, 0.05, tg); tube.rotation.x = Math.PI / 2 - 0.25;
     mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.05, 12), new THREE.MeshBasicMaterial({ color: 0x9fd8ff }), 0, 1.28, 0.42, tg).rotation.x = Math.PI / 2 - 0.25;
@@ -5003,7 +5016,7 @@ function nearGondola() {
   if (Math.hypot(me.x - (GON.x + GON.side), me.z - (GON.z1 - 2)) < 7 || Math.hypot(me.x - GON.x, me.z - GON.z1) < 7) return 'down';
   return '';
 }
-function nearTelescope() { return me.state === 'ski' && gon.tele && Math.hypot(me.x - gon.tele.x, me.z - gon.tele.z) < 2.2; }
+function nearTelescope() { return me.state === 'ski' && gon.tele && Math.hypot(me.x - gon.tele.x, me.z - gon.tele.z) < 3.2; }
 function boardGondola(dir) {
   const t = nowS(), at = dir === 'up' ? 0 : GON.L;
   let pick = -1, wait = 1e9;
@@ -5015,7 +5028,8 @@ function boardGondola(dir) {
   }
   if (pick < 0) for (let i = 0; i < GON.n; i++) {
     const w = ((at - gonS(i, t)) % GON.loop + GON.loop) % GON.loop / GON.speed;
-    if (w < 1.5 || gonOccupants(i).length >= 4) continue;
+    // at least 4 s away, so a friend pressing a moment later can still hop into the same cabin
+    if (w < 4 || gonOccupants(i).length >= 4) continue;
     if (w < wait) { wait = w; pick = i; }
   }
   if (pick < 0) { notice('🚠 곤돌라가 꽉 찼어요. 조금 뒤에 다시 타 봐요'); return; }
@@ -5062,24 +5076,21 @@ function updateGondolaCabins() {
 function useTelescope() {
   me.state = 'sit'; me.seatY = H(me.x, me.z); me.vx = me.vz = 0;
   // start aimed at the base far below
-  const yaw = Math.atan2(gon.tele.x - 0, -(40 - gon.tele.z)), fx = -Math.sin(yaw), fz = -Math.cos(yaw), ey = H(gon.tele.x, gon.tele.z) + 1.35;
-  // pick the downward angle that sees the farthest down the mountain (over the edge of the summit plateau)
-  let pitch = -0.1, far = 0;
-  for (let p = -0.04; p > -0.5; p -= 0.01) {
-    let hit = 400; for (let d = 3; d < 400; d += 2) { const x = gon.tele.x + fx * d * Math.cos(p), z = gon.tele.z + fz * d * Math.cos(p); if (ey + Math.sin(p) * d < H(x, z) + 0.5) { hit = d; break; } }
-    if (hit < 400 && hit > far) { far = hit; pitch = p; }
-  }
-  gon.scope = { yaw, pitch: pitch + 0.03 };
+  // start aimed at the middle of the slopes so the whole resort fits in the lens
+  const tx = -10, tz = -70, ey = H(gon.tele.x, gon.tele.z) + 4.5;
+  const yaw = Math.atan2(gon.tele.x - tx, -(tz - gon.tele.z)), pitch = Math.atan2(H(tx, tz) - ey, Math.hypot(tx - gon.tele.x, tz - gon.tele.z));
+  gon.scope = { yaw, pitch, fov: 30 };
   $('#scopeUi').hidden = false; document.body.classList.add('scoping');
   stamp('scope'); sfx.pop();
 }
 function closeTelescope() { if (!gon.scope) return; gon.scope = null; $('#scopeUi').hidden = true; document.body.classList.remove('scoping'); camera.fov = 62; camera.updateProjectionMatrix(); cam.snap = true; if (me.state === 'sit') me.state = 'ski'; }
 function scopeCamera() {
   // the eye sits just in front of the lens (inside the barrel you would only see the glass)
-  const S = gon.scope, ex = gon.tele.x - Math.sin(S.yaw) * 0.9, ez = gon.tele.z - Math.cos(S.yaw) * 0.9, ey = H(gon.tele.x, gon.tele.z) + 1.35;
+  // the telescope stands on a high platform at the edge of the deck, so the flat peak top never blocks the view
+  const S = gon.scope, ex = gon.tele.x - Math.sin(S.yaw) * 0.9, ez = gon.tele.z - Math.cos(S.yaw) * 0.9, ey = H(gon.tele.x, gon.tele.z) + 4.5;
   camera.position.set(ex, ey, ez);
   camera.lookAt(ex - Math.sin(S.yaw) * Math.cos(S.pitch) * 10, ey + Math.sin(S.pitch) * 10, ez - Math.cos(S.yaw) * Math.cos(S.pitch) * 10);
-  if (camera.fov !== 16) { camera.fov = 16; camera.updateProjectionMatrix(); }
+  const fov = S.fov || 16; if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
 }
 
 /* ================= photo mode (사진 모드) ================= */
@@ -5173,6 +5184,8 @@ $('#phAgain').addEventListener('click', () => { $('#phShot').hidden = true; });
 $('#phShare').addEventListener('click', sharePhoto);
 document.querySelectorAll('#phPoses button').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.k; if (me.state !== 'ski') { notice('지금은 포즈를 할 수 없어요'); return; } startEmote(k); }));
 $('#scopeClose').addEventListener('click', closeTelescope);
+$('#scopeIn').addEventListener('click', () => { if (gon.scope) gon.scope.fov = clamp((gon.scope.fov || 16) - 3, 6, 34); });
+$('#scopeOut').addEventListener('click', () => { if (gon.scope) gon.scope.fov = clamp((gon.scope.fov || 16) + 3, 6, 34); });
 
 // keep the game from zooming on phones and tablets (pinch, double-tap, ctrl+wheel)
 for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
