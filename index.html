@@ -643,6 +643,9 @@ G.h = new Float32Array(G.nx * G.nz); G.groom = new Float32Array(G.nx * G.nz); G.
 // sled park (눈썰매장): a gentle hill west of the base, four lanes running down toward the base (+x)
 const SLED = { xTop: -146, xBot: -96, xEnd: -70, lanes: [32, 39, 46, 53], laneW: 7, carpetZ: 61, hutX: -84, hutZ: 72, h: 15 };
 const SLED_LAMPS = [[-140, 25], [-120, 25], [-100, 25], [-140, 66], [-120, 66], [-100, 66], [-80, 66]];
+// observatory peak: flat top of radius r0 (you walk there, no sliding), slopes down to r1
+const PEAK = { x: 110, z: -266, r0: 24, r1: 52 };
+function inPeak(x, z) { return Math.hypot(x - PEAK.x, z - PEAK.z) < PEAK.r0 + 0.5; }
 function rawH(x, z) {
   let h = SUMMIT * sstep(Z_FOOT, Z_TOPEDGE, z);
   h += SLED.h * sstep(-94, -146, x) * sstep(14, 26, z) * (1 - sstep(66, 80, z));
@@ -659,7 +662,7 @@ function rawH(x, z) {
   if (x > 138) { h += Math.max(0, 1 - Math.abs(x - 158) / 20) * 34; if (x > 270) h += Math.pow(x - 270, 1.3) * 0.9; }
   if (z < -272) h += Math.pow(-272 - z, 1.25) * 1.4;
   // observatory peak behind the gondola: a flat top 50 m above the lift summit, so the whole resort is in view
-  { const d = Math.hypot(x - 106, z + 266); if (d < 48) h += 50 * sstep(48, 18, d); }
+  { const d = Math.hypot(x - PEAK.x, z - PEAK.z); if (d < PEAK.r1) h += 50 * sstep(PEAK.r1, PEAK.r0, d); }
   if (z > 150) h += (z - 150) * 0.15;
   return h;
 }
@@ -1173,7 +1176,7 @@ function inOnsen(x, z) { return x > ONSEN.x0 && x < ONSEN.x1 && z > ONSEN.z0 - 1
 const POND = { x: -36, z: 118, r: 22 };
 const HOLES = [];
 function inPond(x, z) { return Math.hypot(x - POND.x, z - POND.z) < POND.r + 3; }
-function inWalkZone(x, z) { return inCafe(x, z) || inOnsen(x, z) || inPond(x, z) || inSledPark(x, z); }
+function inWalkZone(x, z) { return inCafe(x, z) || inOnsen(x, z) || inPond(x, z) || inSledPark(x, z) || inPeak(x, z); }
 function buildPond() {
   const P = POND;
   const ice = new THREE.Mesh(new THREE.CircleGeometry(P.r, 56), new THREE.MeshPhongMaterial({ shininess: 120, map: canvasTex(256, 256, (g, w, h) => {
@@ -2354,6 +2357,7 @@ function placeName(st, x, z, co) {
   if (st === 3) return '리프트 대기 중';
   if (st === 4) return '🚡 리프트';
   if (co && courseById[co]) return co + ' 코스 주행 중';
+  if (Math.hypot(x - PEAK.x, z - PEAK.z) < PEAK.r0 + 4) return '🔭 전망봉 전망대';
   if (z < -240) return '정상';
   if (x === me.x && z === me.z ? me.indoor : inCafe(x, z)) return '☕ 산장 카페';
   if (inOnsen(x, z)) return '♨ 눈꽃 온천';
@@ -2361,7 +2365,7 @@ function placeName(st, x, z, co) {
   if (st === 7 || inSledPark(x, z)) return '🛷 눈썰매장';
   if (st === 8 || inRink(x, z)) return '⛸ 스케이트장';
   if (st === 9) return '🚠 곤돌라';
-  if (Math.hypot(x - 106, z + 266) < 30) return '🔭 전망봉 전망대';
+  if (Math.hypot(x - PEAK.x, z - PEAK.z) < PEAK.r0 + 4) return '🔭 전망봉 전망대';
   if (z > 0) return '베이스';
   return '슬로프';
 }
@@ -5001,7 +5005,7 @@ function buildGondola() {
     mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.05, 12), new THREE.MeshBasicMaterial({ color: 0x9fd8ff }), 0, 1.28, 0.42, tg).rotation.x = Math.PI / 2 - 0.25;
     addObstacle(gon.tele.x, gon.tele.z, 0.35, 'post');
     // photo frame to stand in
-    const fx = dx - 4, fz = dz + 2, fg = new THREE.Group(); fg.position.set(fx, y, fz); scene.add(fg);
+    const fx = dx + 6, fz = dz + 2.2, fg = new THREE.Group(); fg.position.set(fx, y, fz); scene.add(fg);
     const wood = lam(0xffffff); for (const s of [-1, 1]) mesh(new THREE.BoxGeometry(0.22, 2.9, 0.22), wood, s * 1.3, 1.45, 0, fg);
     mesh(new THREE.BoxGeometry(2.82, 0.22, 0.22), wood, 0, 2.9, 0, fg);
     const fs = textPlane(['📸 포토존', '눈꽃 스키장 정상'], 2.8, 0.7, '#ff4f6d', '#ffffff'); fs.position.set(0, 3.4, 0); fg.add(fs);
